@@ -569,6 +569,13 @@ if (WIN32)
 endif ()
 target_compile_features(ymir-sdl3 PUBLIC cxx_std_20)
 
+## Embed every locale catalog placed in res/embed/i18n. CONFIGURE_DEPENDS
+## reruns CMake when translators add a language file.
+file(GLOB Ymir_sdl3_i18n_catalogs CONFIGURE_DEPENDS
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    res/embed/i18n/*.toml
+)
+
 ## Create embedded resource library
 cmrc_add_resource_library(ymir-sdl3-rc
     ALIAS ymir-sdl3::rc
@@ -579,7 +586,7 @@ cmrc_add_resource_library(ymir-sdl3-rc
     res/embed/about/friends.txt
     res/embed/about/patreon.txt
 
-    res/embed/i18n/sv.toml
+    ${Ymir_sdl3_i18n_catalogs}
 
     res/embed/fonts/MaterialSymbolsOutlined_Filled-Regular.ttf
     res/embed/fonts/MPLUSU-Ymir-Bold.ttf

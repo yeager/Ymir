@@ -579,6 +579,8 @@ cmrc_add_resource_library(ymir-sdl3-rc
     res/embed/about/friends.txt
     res/embed/about/patreon.txt
 
+    res/embed/i18n/sv.toml
+
     res/embed/fonts/MaterialSymbolsOutlined_Filled-Regular.ttf
     res/embed/fonts/MPLUSU-Ymir-Bold.ttf
     res/embed/fonts/MPLUSU-Ymir-ExtraBold.ttf

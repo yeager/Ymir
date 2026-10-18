@@ -6,6 +6,7 @@
 
 #include <ymir/db/game_db.hpp>
 
+#include <app/ui/i18n.hpp>
 #include <app/ui/widgets/cartridge_widgets.hpp>
 #include <app/ui/widgets/common_widgets.hpp>
 
@@ -26,6 +27,8 @@
 using namespace ymir;
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 static const char *GetCartTypeName(Settings::Cartridge::Type type) {
     switch (type) {
@@ -55,7 +58,7 @@ void CartridgeSettingsView::Display() {
 
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
 
-    ImGui::TextUnformatted("Current cartridge: ");
+    ImGui::TextUnformatted(TR("Current cartridge: "));
     ImGui::SameLine(0, 0);
     widgets::CartridgeInfo(m_context);
     {
@@ -67,7 +70,7 @@ void CartridgeSettingsView::Display() {
         }
     }
 
-    MakeDirty(ImGui::Checkbox("Automatically switch to recommended cartridges", &settings.autoLoadGameCarts));
+    MakeDirty(ImGui::Checkbox(TR("Automatically switch to recommended cartridges"), &settings.autoLoadGameCarts));
     widgets::ExplanationTooltip(
         fmt::format("Certain games require specific cartridges to work:\n"
                     "- The King of Fighters '95 and Ultraman need their respective ROM cartridges\n"
@@ -80,14 +83,14 @@ void CartridgeSettingsView::Display() {
                     m_context.profile.GetPath(ProfilePath::ROMCartImages))
             .c_str());
 
-    if (ImGui::Button("Open ROM cartridge images directory")) {
+    if (ImGui::Button(TR("Open ROM cartridge images directory"))) {
         SDL_OpenURL(fmt::format("file:///{}", m_context.profile.GetPath(ProfilePath::ROMCartImages)).c_str());
     }
 
     ImGui::Separator();
 
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Cartridge type:");
+    ImGui::TextUnformatted(TR("Cartridge type:"));
     ImGui::SameLine();
     if (ImGui::BeginCombo("##cart_type", GetCartTypeName(settings.type), ImGuiComboFlags_WidthFitPreview)) {
         for (auto type : kCartTypes) {
@@ -99,7 +102,7 @@ void CartridgeSettingsView::Display() {
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Insert")) {
+    if (ImGui::Button(TR("Insert"))) {
         m_context.EnqueueEvent(events::emu::InsertCartridgeFromSettings());
     }
 

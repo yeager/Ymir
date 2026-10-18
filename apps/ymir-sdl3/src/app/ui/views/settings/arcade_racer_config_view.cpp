@@ -3,10 +3,13 @@
 #include <app/ui/widgets/common_widgets.hpp>
 
 #include <app/imgui_data.hpp>
+#include <app/ui/i18n.hpp>
 
 #include <app/input/input_utils.hpp>
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 ArcadeRacerConfigView::ArcadeRacerConfigView(SharedContext &context)
     : SettingsViewBase(context)
@@ -21,7 +24,7 @@ void ArcadeRacerConfigView::Display(Settings::Input::Port::ArcadeRacer &controll
     auto &binds = controllerSettings.binds;
     float sensitivity = controllerSettings.sensitivity;
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Wheel sensitivity");
+    ImGui::TextUnformatted(TR("Wheel sensitivity"));
     widgets::ExplanationTooltip(
         "Adjusts the exponent of the value mapping curve.\n"
         "The graph below displays how the current sensitivity affects values.\n"
@@ -134,27 +137,27 @@ void ArcadeRacerConfigView::Display(Settings::Input::Port::ArcadeRacer &controll
 
         ImGui::Dummy(meterSize);
     }
-    ImGui::Checkbox("Display raw value in meter", &m_showRawValueInMeter);
+    ImGui::Checkbox(TR("Display raw value in meter"), &m_showRawValueInMeter);
 
     ImGui::Separator();
 
-    if (ImGui::Button("Restore default binds")) {
+    if (ImGui::Button(TR("Restore default binds"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, true));
         MakeDirty();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Clear all binds")) {
+    if (ImGui::Button(TR("Clear all binds"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, false));
         MakeDirty();
     }
 
-    ImGui::TextUnformatted("Left-click a button to assign a hotkey. Right-click to clear.");
+    ImGui::TextUnformatted(TR("Left-click a button to assign a hotkey. Right-click to clear."));
     m_unboundActionsWidget.Display();
     if (ImGui::BeginTable("hotkeys", 1 + input::kNumBindsPerInput,
                           ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY)) {
-        ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthFixed, 95.0f * imguiData->displayScale);
+        ImGui::TableSetupColumn(TR("Button"), ImGuiTableColumnFlags_WidthFixed, 95.0f * imguiData->displayScale);
         for (size_t i = 0; i < input::kNumBindsPerInput; i++) {
-            ImGui::TableSetupColumn(fmt::format("Hotkey {}", i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn(fmt::format(fmt::runtime(TR("Hotkey {}")), i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
         }
         ImGui::TableHeadersRow();
 

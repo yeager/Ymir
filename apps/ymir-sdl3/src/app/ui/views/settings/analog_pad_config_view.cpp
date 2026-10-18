@@ -1,8 +1,11 @@
 #include "analog_pad_config_view.hpp"
 
 #include <app/imgui_data.hpp>
+#include <app/ui/i18n.hpp>
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 AnalogPadConfigView::AnalogPadConfigView(SharedContext &context)
     : SettingsViewBase(context)
@@ -15,33 +18,33 @@ void AnalogPadConfigView::Display(Settings::Input::Port::AnalogPad &controllerSe
     auto &binds = controllerSettings.binds;
 
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Mode:");
+    ImGui::TextUnformatted(TR("Mode:"));
     ImGui::SameLine();
-    if (ImGui::RadioButton("Analog", m_context.analogPadInputs[portIndex].analogMode)) {
+    if (ImGui::RadioButton(TR("Analog"), m_context.analogPadInputs[portIndex].analogMode)) {
         m_context.analogPadInputs[portIndex].analogMode = true;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Digital", !m_context.analogPadInputs[portIndex].analogMode)) {
+    if (ImGui::RadioButton(TR("Digital"), !m_context.analogPadInputs[portIndex].analogMode)) {
         m_context.analogPadInputs[portIndex].analogMode = false;
     }
 
-    if (ImGui::Button("Restore defaults")) {
+    if (ImGui::Button(TR("Restore defaults"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, true));
         MakeDirty();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Clear all")) {
+    if (ImGui::Button(TR("Clear all"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, false));
         MakeDirty();
     }
 
-    ImGui::TextUnformatted("Left-click a button to assign a hotkey. Right-click to clear.");
+    ImGui::TextUnformatted(TR("Left-click a button to assign a hotkey. Right-click to clear."));
     m_unboundActionsWidget.Display();
     if (ImGui::BeginTable("hotkeys", 1 + input::kNumBindsPerInput,
                           ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY)) {
-        ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthFixed, 85.0f * imguiData->displayScale);
+        ImGui::TableSetupColumn(TR("Button"), ImGuiTableColumnFlags_WidthFixed, 85.0f * imguiData->displayScale);
         for (size_t i = 0; i < input::kNumBindsPerInput; i++) {
-            ImGui::TableSetupColumn(fmt::format("Hotkey {}", i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn(fmt::format(fmt::runtime(TR("Hotkey {}")), i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
         }
         ImGui::TableHeadersRow();
 

@@ -3,8 +3,11 @@
 #include <ymir/hw/scu/scu.hpp>
 
 #include <app/imgui_data.hpp>
+#include <app/ui/i18n.hpp>
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 SCUDSPDMARegistersView::SCUDSPDMARegistersView(ymir::scu::SCU &scu)
     : m_scu(scu) {}
@@ -38,7 +41,7 @@ void SCUDSPDMARegistersView::Display() {
         if (dsp.dmaToD0) {
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("From");
+            ImGui::TextUnformatted(TR("From"));
             ImGui::SameLine();
             if (ImGui::BeginCombo("##src", fmtRAMOp(dsp.dmaSrc, false), ImGuiComboFlags_WidthFitPreview)) {
                 for (uint32 i = 0; i < 4; i++) {
@@ -53,7 +56,7 @@ void SCUDSPDMARegistersView::Display() {
             ImGui::SameLine();
 
             ImGui::BeginGroup();
-            ImGui::TextUnformatted("to");
+            ImGui::TextUnformatted(TR("to"));
             ImGui::SameLine();
             ImGui::SetNextItemWidth(ImGui::GetStyle().FramePadding.x * 2 + hexCharWidth * 7);
             ImGui::PushFont(imguiData->fonts.monospace.regular, imguiData->fontSizes.medium);
@@ -66,7 +69,7 @@ void SCUDSPDMARegistersView::Display() {
         } else {
             ImGui::BeginGroup();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("From");
+            ImGui::TextUnformatted(TR("From"));
             ImGui::SameLine();
             ImGui::SetNextItemWidth(ImGui::GetStyle().FramePadding.x * 2 + hexCharWidth * 7);
             ImGui::PushFont(imguiData->fonts.monospace.regular, imguiData->fontSizes.medium);
@@ -80,7 +83,7 @@ void SCUDSPDMARegistersView::Display() {
             ImGui::SameLine();
 
             ImGui::BeginGroup();
-            ImGui::TextUnformatted("to");
+            ImGui::TextUnformatted(TR("to"));
             ImGui::SameLine();
             if (ImGui::BeginCombo("##dst", fmtRAMOp(dsp.dmaDst, true), ImGuiComboFlags_WidthFitPreview)) {
                 for (uint32 i = 0; i < 5; i++) {
@@ -93,7 +96,7 @@ void SCUDSPDMARegistersView::Display() {
             ImGui::EndGroup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Swap")) {
+        if (ImGui::Button(TR("Swap"))) {
             dsp.dmaToD0 = !dsp.dmaToD0;
             if (!dsp.dmaToD0) {
                 dsp.dmaAddrInc = std::min(dsp.dmaAddrInc, 4u);
@@ -104,7 +107,7 @@ void SCUDSPDMARegistersView::Display() {
     {
         ImGui::BeginGroup();
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Increment address by");
+        ImGui::TextUnformatted(TR("Increment address by"));
         ImGui::SameLine();
         if (ImGui::BeginCombo("##addr_inc", fmt::format("{}", dsp.dmaAddrInc).c_str(),
                               ImGuiComboFlags_WidthFitPreview)) {
@@ -127,13 +130,13 @@ void SCUDSPDMARegistersView::Display() {
         }
         ImGui::EndGroup();
         ImGui::SameLine();
-        ImGui::Checkbox("Hold", &dsp.dmaHold);
+        ImGui::Checkbox(TR("Hold"), &dsp.dmaHold);
     }
 
     {
         ImGui::BeginGroup();
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Count:");
+        ImGui::TextUnformatted(TR("Count:"));
         ImGui::SameLine();
         ImGui::SetNextItemWidth(ImGui::GetStyle().FramePadding.x * 2 + hexCharWidth * 2);
         ImGui::PushFont(imguiData->fonts.monospace.regular, imguiData->fontSizes.medium);
@@ -141,10 +144,10 @@ void SCUDSPDMARegistersView::Display() {
                            ImGuiInputTextFlags_CharsHexadecimal);
         ImGui::PopFont();
         ImGui::SameLine();
-        ImGui::TextUnformatted("longwords");
+        ImGui::TextUnformatted(TR("longwords"));
         ImGui::EndGroup();
         ImGui::SameLine();
-        if (ImGui::Button("Run transfer")) {
+        if (ImGui::Button(TR("Run transfer"))) {
             dsp.dmaRun = true;
         }
     }

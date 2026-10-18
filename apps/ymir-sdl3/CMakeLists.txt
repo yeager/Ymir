@@ -12,6 +12,8 @@ add_executable(ymir-sdl3
     src/app/message.hpp
     src/app/profile.cpp
     src/app/profile.hpp
+    src/app/ui/i18n.cpp
+    src/app/ui/i18n.hpp
     src/app/rewind_buffer.cpp
     src/app/rewind_buffer.hpp
     src/app/rom_manager.cpp

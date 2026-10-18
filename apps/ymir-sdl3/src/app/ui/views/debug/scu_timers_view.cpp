@@ -3,8 +3,11 @@
 #include <ymir/hw/scu/scu.hpp>
 
 #include <app/imgui_data.hpp>
+#include <app/ui/i18n.hpp>
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 SCUTimersView::SCUTimersView(ymir::scu::SCU &scu)
     : m_scu(scu) {}
@@ -20,7 +23,7 @@ void SCUTimersView::Display() {
     bool t1mode = probe.GetTimer1Mode();
 
     bool enable = probe.IsTimerEnabled();
-    if (ImGui::Checkbox("Enabled##timer", &enable)) {
+    if (ImGui::Checkbox(TR("Enabled##timer"), &enable)) {
         probe.SetTimerEnabled(enable);
     }
 
@@ -29,7 +32,7 @@ void SCUTimersView::Display() {
         if (ImGui::TableNextColumn()) {
             ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.medium);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Timer 0");
+            ImGui::TextUnformatted(TR("Timer 0"));
             ImGui::PopFont();
         }
         if (ImGui::TableNextColumn()) {
@@ -44,7 +47,7 @@ void SCUTimersView::Display() {
             ImGui::PopFont();
             ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Counter");
+            ImGui::TextUnformatted(TR("Counter"));
             ImGui::EndGroup();
         }
         if (ImGui::TableNextColumn()) {
@@ -57,7 +60,7 @@ void SCUTimersView::Display() {
             ImGui::PopFont();
             ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Compare");
+            ImGui::TextUnformatted(TR("Compare"));
             ImGui::EndGroup();
         }
 
@@ -65,7 +68,7 @@ void SCUTimersView::Display() {
         if (ImGui::TableNextColumn()) {
             ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.medium);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Timer 1");
+            ImGui::TextUnformatted(TR("Timer 1"));
             ImGui::PopFont();
         }
         if (ImGui::TableNextColumn()) {
@@ -78,15 +81,15 @@ void SCUTimersView::Display() {
             ImGui::PopFont();
             ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Reload");
+            ImGui::TextUnformatted(TR("Reload"));
             ImGui::EndGroup();
         }
         if (ImGui::TableNextColumn()) {
-            if (ImGui::RadioButton("Every line", !t1mode)) {
+            if (ImGui::RadioButton(TR("Every line"), !t1mode)) {
                 probe.SetTimer1Mode(false);
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("Timer 0 match", t1mode)) {
+            if (ImGui::RadioButton(TR("Timer 0 match"), t1mode)) {
                 probe.SetTimer1Mode(true);
             }
         }

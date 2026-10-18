@@ -1,12 +1,15 @@
 #include "sh2_divu_trace_view.hpp"
 
 #include <app/imgui_data.hpp>
+#include <app/ui/i18n.hpp>
 
 #include <cinttypes>
 
 using namespace ymir;
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 SH2DivisionUnitTraceView::SH2DivisionUnitTraceView(SH2Tracer &tracer)
     : m_tracer(tracer) {}
@@ -16,17 +19,17 @@ void SH2DivisionUnitTraceView::Display() {
 
     ImGui::BeginGroup();
 
-    ImGui::Checkbox("Enable", &m_tracer.traceDivisions);
+    ImGui::Checkbox(TR("Enable"), &m_tracer.traceDivisions);
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::BeginItemTooltip()) {
-        ImGui::TextUnformatted("You must also enable tracing in Debug > Enable tracing (F11)");
+        ImGui::TextUnformatted(TR("You must also enable tracing in Debug > Enable tracing (F11)"));
         ImGui::EndTooltip();
     }
     ImGui::SameLine();
-    ImGui::Checkbox("Display numbers in hexadecimal", &m_showHex);
+    ImGui::Checkbox(TR("Display numbers in hexadecimal"), &m_showHex);
     ImGui::SameLine();
-    if (ImGui::Button("Clear")) {
+    if (ImGui::Button(TR("Clear"))) {
         m_tracer.divisions.Clear();
         m_tracer.divStats.Clear();
         m_tracer.ResetDivisionCounter();
@@ -40,16 +43,16 @@ void SH2DivisionUnitTraceView::Display() {
     if (ImGui::BeginTable("divu_trace", 7,
                           ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable)) {
         ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_PreferSortDescending);
-        ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort);
-        ImGui::TableSetupColumn("Dividend", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+        ImGui::TableSetupColumn(TR("Size"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort);
+        ImGui::TableSetupColumn(TR("Dividend"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 paddingWidth * 2 + hexCharWidth * 16);
-        ImGui::TableSetupColumn("Divisor", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+        ImGui::TableSetupColumn(TR("Divisor"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 paddingWidth * 2 + hexCharWidth * 8);
-        ImGui::TableSetupColumn("Quotient", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+        ImGui::TableSetupColumn(TR("Quotient"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 paddingWidth * 2 + hexCharWidth * 8);
-        ImGui::TableSetupColumn("Remainder", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+        ImGui::TableSetupColumn(TR("Remainder"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 paddingWidth * 2 + hexCharWidth * 8);
-        ImGui::TableSetupColumn("Overflow", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
+        ImGui::TableSetupColumn(TR("Overflow"), ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
         ImGui::TableSetupScrollFreeze(1, 1);
         ImGui::TableHeadersRow();
 
@@ -119,9 +122,9 @@ void SH2DivisionUnitTraceView::Display() {
             if (ImGui::TableNextColumn()) {
                 if (trace.overflow) {
                     if (trace.overflowIntrEnable) {
-                        ImGui::TextUnformatted("yes+IRQ");
+                        ImGui::TextUnformatted(TR("yes+IRQ"));
                     } else {
-                        ImGui::TextUnformatted("yes");
+                        ImGui::TextUnformatted(TR("yes"));
                     }
                 }
             }

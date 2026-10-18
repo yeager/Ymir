@@ -1,8 +1,11 @@
 #include "virtua_gun_config_view.hpp"
 
 #include <app/imgui_data.hpp>
+#include <app/ui/i18n.hpp>
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 VirtuaGunConfigView::VirtuaGunConfigView(SharedContext &context)
     : SettingsViewBase(context)
@@ -20,21 +23,21 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
     // -------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText("Behavior");
+    ImGui::SeparatorText(TR("Behavior"));
     ImGui::PopFont();
 
-    if (ImGui::Button("Restore defaults##speed")) {
+    if (ImGui::Button(TR("Restore defaults##speed"))) {
         controllerSettings.speed = kDefaultSpeed;
         controllerSettings.speedBoostFactor = kDefaultSpeedBoostFactor;
         MakeDirty();
     }
 
     float speed = controllerSettings.speed.Get();
-    if (MakeDirty(ImGui::SliderFloat("Speed", &speed, kMinSpeed, kMaxSpeed, "%.0f", ImGuiSliderFlags_AlwaysClamp))) {
+    if (MakeDirty(ImGui::SliderFloat(TR("Speed"), &speed, kMinSpeed, kMaxSpeed, "%.0f", ImGuiSliderFlags_AlwaysClamp))) {
         controllerSettings.speed = speed;
     }
     float speedBoostFactor = controllerSettings.speedBoostFactor.Get() * 100.0f;
-    if (MakeDirty(ImGui::SliderFloat("Speed boost factor", &speedBoostFactor, kMinSpeedBoostFactor * 100.0f,
+    if (MakeDirty(ImGui::SliderFloat(TR("Speed boost factor"), &speedBoostFactor, kMinSpeedBoostFactor * 100.0f,
                                      kMaxSpeedBoostFactor * 100.0f, "%.0f%%", ImGuiSliderFlags_AlwaysClamp))) {
         controllerSettings.speedBoostFactor = speedBoostFactor / 100.0f;
     }
@@ -42,7 +45,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
     // -------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText("Crosshair");
+    ImGui::SeparatorText(TR("Crosshair"));
     ImGui::PopFont();
 
     ImGui::BeginGroup();
@@ -77,7 +80,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
 
         ImGui::Dummy(size);
 
-        ImGui::ColorEdit3("Background", m_crosshairPreviewBGColor.data(), ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit3(TR("Background"), m_crosshairPreviewBGColor.data(), ImGuiColorEditFlags_NoInputs);
     }
     ImGui::EndGroup();
 
@@ -93,7 +96,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Color");
+            ImGui::TextUnformatted(TR("Color"));
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-FLT_MIN);
             MakeDirty(ImGui::ColorEdit4("##color", xhair.color.data(), ImGuiColorEditFlags_AlphaBar));
@@ -101,7 +104,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Radius");
+            ImGui::TextUnformatted(TR("Radius"));
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-FLT_MIN);
             MakeDirty(ImGui::SliderFloat("##radius", &xhair.radius, kMinRadius, kMaxRadius, "%.1f",
@@ -110,7 +113,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Thickness");
+            ImGui::TextUnformatted(TR("Thickness"));
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-FLT_MIN);
             float thickness = xhair.thickness * 100.0f;
@@ -122,7 +125,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Rotation");
+            ImGui::TextUnformatted(TR("Rotation"));
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-FLT_MIN);
             MakeDirty(ImGui::SliderFloat("##rotation", &xhair.rotation, 0.0f, 90.0f, "%.1f\u00B0",
@@ -131,7 +134,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Stroke color");
+            ImGui::TextUnformatted(TR("Stroke color"));
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-FLT_MIN);
             MakeDirty(ImGui::ColorEdit4("##stroke_color", xhair.strokeColor.data(), ImGuiColorEditFlags_AlphaBar));
@@ -139,7 +142,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Stroke thickness");
+            ImGui::TextUnformatted(TR("Stroke thickness"));
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(-FLT_MIN);
             float strokeThickness = xhair.strokeThickness * 100.0f;
@@ -151,7 +154,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::EndTable();
         }
 
-        if (ImGui::Button("Restore defaults##crosshair")) {
+        if (ImGui::Button(TR("Restore defaults##crosshair"))) {
             xhair.color = kDefaultColor[portIndex];
             xhair.radius = kDefaultRadius[portIndex];
             xhair.thickness = kDefaultThickness[portIndex];
@@ -161,7 +164,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             MakeDirty();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Randomize##crosshair")) {
+        if (ImGui::Button(TR("Randomize##crosshair"))) {
 
             xhair.color = {m_randomDist(m_randomEngine), m_randomDist(m_randomEngine), m_randomDist(m_randomEngine),
                            m_randomDist(m_randomEngine) * 0.4f + 0.6f};
@@ -180,25 +183,25 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
     // -------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText("Binds");
+    ImGui::SeparatorText(TR("Binds"));
     ImGui::PopFont();
 
-    if (ImGui::Button("Restore defaults##binds")) {
+    if (ImGui::Button(TR("Restore defaults##binds"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, true));
         MakeDirty();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Clear all")) {
+    if (ImGui::Button(TR("Clear all"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, false));
         MakeDirty();
     }
 
-    ImGui::TextUnformatted("Left-click a button to assign a hotkey. Right-click to clear.");
+    ImGui::TextUnformatted(TR("Left-click a button to assign a hotkey. Right-click to clear."));
     m_unboundActionsWidget.Display();
     if (ImGui::BeginTable("hotkeys", 1 + input::kNumBindsPerInput, ImGuiTableFlags_SizingStretchProp)) {
-        ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthFixed, 90.0f * imguiData->displayScale);
+        ImGui::TableSetupColumn(TR("Button"), ImGuiTableColumnFlags_WidthFixed, 90.0f * imguiData->displayScale);
         for (size_t i = 0; i < input::kNumBindsPerInput; i++) {
-            ImGui::TableSetupColumn(fmt::format("Hotkey {}", i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn(fmt::format(fmt::runtime(TR("Hotkey {}")), i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
         }
         ImGui::TableHeadersRow();
 
@@ -235,11 +238,11 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
     // -------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText("Mouse binds");
+    ImGui::SeparatorText(TR("Mouse binds"));
     ImGui::PopFont();
 
     // TODO: configurable mouse inputs
-    ImGui::TextUnformatted("Mouse inputs are bound as follows:");
+    ImGui::TextUnformatted(TR("Mouse inputs are bound as follows:"));
 
     if (ImGui::BeginTable("mouse_hotkeys", 2, ImGuiTableFlags_SizingFixedFit)) {
         auto drawRow = [&](const char *name, const char *button) {
@@ -252,9 +255,9 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             }
         };
 
-        drawRow("Trigger", "Left button");
-        drawRow("Reload", "Right button");
-        drawRow("Start", "Middle button");
+        drawRow(TR("Trigger"), TR("Left button"));
+        drawRow(TR("Reload"), TR("Right button"));
+        drawRow(TR("Start"), TR("Middle button"));
 
         ImGui::EndTable();
     }

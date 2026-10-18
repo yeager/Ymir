@@ -2,6 +2,7 @@
 
 #include <app/events/gui_event_factory.hpp>
 
+#include <app/ui/i18n.hpp>
 #include <app/ui/widgets/common_widgets.hpp>
 #include <app/ui/widgets/peripheral_widgets.hpp>
 
@@ -14,6 +15,8 @@
 using namespace ymir;
 
 namespace app::ui {
+
+#define TR(text) i18n::tr(text)
 
 InputSettingsView::InputSettingsView(SharedContext &context)
     : SettingsViewBase(context) {}
@@ -28,7 +31,7 @@ void InputSettingsView::Display() {
         ImGui::TableNextRow();
         if (ImGui::TableNextColumn()) {
             ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-            ImGui::SeparatorText("Port 1");
+            ImGui::SeparatorText(TR("Port 1"));
             ImGui::PopFont();
 
             if (MakeDirty(widgets::Port1PeripheralSelector(m_context))) {
@@ -37,7 +40,7 @@ void InputSettingsView::Display() {
         }
         if (ImGui::TableNextColumn()) {
             ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-            ImGui::SeparatorText("Port 2");
+            ImGui::SeparatorText(TR("Port 2"));
             ImGui::PopFont();
 
             if (MakeDirty(widgets::Port2PeripheralSelector(m_context))) {
@@ -50,7 +53,7 @@ void InputSettingsView::Display() {
     // -------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText("Mouse");
+    ImGui::SeparatorText(TR("Mouse"));
     ImGui::PopFont();
 
     auto mouseCaptureModeRadio = [&](const char *name, Settings::Input::Mouse::CaptureMode value,
@@ -62,10 +65,10 @@ void InputSettingsView::Display() {
     };
 
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Capture mode:");
+    ImGui::TextUnformatted(TR("Capture mode:"));
     ImGui::SameLine();
     mouseCaptureModeRadio(
-        "System cursor", Settings::Input::Mouse::CaptureMode::SystemCursor,
+        TR("System cursor"), Settings::Input::Mouse::CaptureMode::SystemCursor,
         "Binds the system mouse cursor to a single Virtua Gun controller.\n"
         "\n"
         "This mode gives the smoothest experience - you simply point the cursor at the display and click to shoot. "
@@ -78,7 +81,7 @@ void InputSettingsView::Display() {
         "selection is ignored and mouse capture behaves as if using the Physical mouse mode.");
     ImGui::SameLine();
     mouseCaptureModeRadio(
-        "Physical mouse", Settings::Input::Mouse::CaptureMode::PhysicalMouse,
+        TR("Physical mouse"), Settings::Input::Mouse::CaptureMode::PhysicalMouse,
         "Binds a physical mouse to a Virtua Gun controller.\n"
         "\n"
         "This mode allows you to simultaneously bind multiple mice to many controllers.\n"
@@ -92,7 +95,7 @@ void InputSettingsView::Display() {
         "The system cursor is reenabled if Ymir loses focus or a window is opened by other means, such as opening the "
         "Settings window with the shortcut or triggering a debugger breakpoint.");
 
-    MakeDirty(ImGui::Checkbox("Lock mouse cursor to window", &settings.mouse.lockToDisplay));
+    MakeDirty(ImGui::Checkbox(TR("Lock mouse cursor to window"), &settings.mouse.lockToDisplay));
     widgets::ExplanationTooltip("When this option is enabled, if using system cursor capture mode, the mouse cursor "
                                 "will be constrained to the window area.",
                                 imguiData->displayScale);

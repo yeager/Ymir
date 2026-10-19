@@ -6,12 +6,11 @@
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 UpdateWindow::UpdateWindow(SharedContext &context)
     : WindowBase(context) {
 
-    m_windowConfig.name = TR("Update available");
+    m_windowConfig.name = _("Update available");
     m_windowConfig.flags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 }
 
@@ -31,23 +30,23 @@ void UpdateWindow::PrepareWindow() {
 }
 
 void UpdateWindow::DrawContents() {
-    ImGui::TextUnformatted(TR("A new version of Ymir is available."));
-    ImGui::Text("%s%s", TR("Current version: "), Ymir_VERSION);
-    ImGui::TextUnformatted(TR("New version: "));
+    ImGui::TextUnformatted(_("A new version of Ymir is available."));
+    ImGui::Text("%s%s", _("Current version: "), Ymir_VERSION);
+    ImGui::TextUnformatted(_("New version: "));
     ImGui::SameLine(0, 0);
     {
         std::unique_lock lock{m_context.locks.targetUpdate};
         if (m_context.targetUpdate) {
             auto &info = m_context.targetUpdate->info;
             ImGui::TextLinkOpenURL(info.version.to_string().c_str(), info.downloadURL.c_str());
-            ImGui::TextLinkOpenURL(TR("Release notes"), info.releaseNotesURL.c_str());
+            ImGui::TextLinkOpenURL(_("Release notes"), info.releaseNotesURL.c_str());
         } else {
-            ImGui::TextUnformatted(TR("Retrieving..."));
+            ImGui::TextUnformatted(_("Retrieving..."));
         }
     }
 
     ImGui::Separator();
-    if (ImGui::Button(TR("Close"))) {
+    if (ImGui::Button(_("Close"))) {
         Open = false;
     }
 }

@@ -18,7 +18,6 @@
 
 namespace app::services {
 
-#define TR(text) ui::i18n::tr(text)
 
 WindowManagerService::WindowManagerService(SharedContext &context, Settings &settings)
     : m_context(context)
@@ -109,7 +108,7 @@ void WindowManagerService::DrawGenericModal() {
 
         bool close = m_closeGenericModal;
         if (m_showOkButtonInGenericModal) {
-            if (ImGui::Button(TR("OK"), ImVec2(80 * imguiData->displayScale, 0 * imguiData->displayScale))) {
+            if (ImGui::Button(_("OK"), ImVec2(80 * imguiData->displayScale, 0 * imguiData->displayScale))) {
                 close = true;
             }
         }
@@ -124,7 +123,7 @@ void WindowManagerService::DrawGenericModal() {
 }
 
 void WindowManagerService::OpenSimpleErrorModal(std::string message) {
-    OpenGenericModal(TR("Error"), [=] { ImGui::Text("%s", message.c_str()); });
+    OpenGenericModal(_("Error"), [=] { ImGui::Text("%s", message.c_str()); });
 }
 
 void WindowManagerService::OpenGenericModal(std::string title, std::function<void()> fnContents, bool showOKButton) {
@@ -153,7 +152,7 @@ void WindowManagerService::OpenWelcomeModal(bool scanIPLROMs) {
         util::ROMLoadResult result;
     };
 
-    OpenGenericModal(TR("Welcome"), [=, this, nextScanDeadline = clk::now() + kScanInterval,
+    OpenGenericModal(_("Welcome"), [=, this, nextScanDeadline = clk::now() + kScanInterval,
                                  lastROMCount = m_context.romManager.GetIPLROMs().size(),
                                  romSelectResult = ROMSelectResult{}]() mutable {
         const YmirImGuiData *imguiData = GetYmirImGuiData();
@@ -170,29 +169,29 @@ void WindowManagerService::OpenWelcomeModal(bool scanIPLROMs) {
         ImGui::TextUnformatted("Ymir");
         ImGui::PopFont();
         ImGui::PushFont(imguiData->fonts.sansSerif.regular, imguiData->fontSizes.large);
-        ImGui::TextUnformatted(TR("Welcome to Ymir!"));
+        ImGui::TextUnformatted(_("Welcome to Ymir!"));
         ImGui::PopFont();
         ImGui::NewLine();
         ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.medium);
-        ImGui::TextColored(imguiData->colors.notice, TR("Ymir requires a valid IPL (BIOS) ROM to work."));
+        ImGui::TextColored(imguiData->colors.notice, _("Ymir requires a valid IPL (BIOS) ROM to work."));
         ImGui::PopFont();
 
         ImGui::NewLine();
-        ImGui::TextUnformatted(TR("Ymir will automatically load IPL ROMs placed in "));
+        ImGui::TextUnformatted(_("Ymir will automatically load IPL ROMs placed in "));
         ImGui::SameLine(0, 0);
         auto romPath = m_context.profile.GetPath(ProfilePath::IPLROMImages);
         if (ImGui::TextLink(fmt::format("{}", romPath).c_str())) {
             SDL_OpenURL(fmt::format("file:///{}", romPath).c_str());
         }
-        ImGui::TextUnformatted(TR("Alternatively, you can "));
+        ImGui::TextUnformatted(_("Alternatively, you can "));
         ImGui::SameLine(0, 0);
-        if (ImGui::TextLink(TR("manually select an IPL ROM"))) {
+        if (ImGui::TextLink(_("manually select an IPL ROM"))) {
             doSelectRom = true;
         }
         ImGui::SameLine(0, 0);
-        ImGui::TextUnformatted(TR(" or "));
+        ImGui::TextUnformatted(_(" or "));
         ImGui::SameLine(0, 0);
-        if (ImGui::TextLink(TR("manage the ROM settings in Settings > IPL"))) {
+        if (ImGui::TextLink(_("manage the ROM settings in Settings > IPL"))) {
             doOpenSettings = true;
         }
         ImGui::SameLine(0, 0);
@@ -200,9 +199,9 @@ void WindowManagerService::OpenWelcomeModal(bool scanIPLROMs) {
 
         if (!activeScanning) {
             ImGui::NewLine();
-            ImGui::TextUnformatted(TR("Ymir is not currently scanning for IPL ROMs."));
-            ImGui::TextUnformatted(TR("If you would like to actively scan for IPL ROMs, press the button below."));
-            if (ImGui::Button(TR("Start active scanning"))) {
+            ImGui::TextUnformatted(_("Ymir is not currently scanning for IPL ROMs."));
+            ImGui::TextUnformatted(_("If you would like to actively scan for IPL ROMs, press the button below."));
+            if (ImGui::Button(_("Start active scanning"))) {
                 activeScanning = true;
             }
             ImGui::NewLine();
@@ -210,22 +209,22 @@ void WindowManagerService::OpenWelcomeModal(bool scanIPLROMs) {
 
         if (romSelectResult.hasResult && !romSelectResult.result.succeeded) {
             ImGui::NewLine();
-            ImGui::Text(TR("The file %s does not contain a valid IPL ROM."),
+            ImGui::Text(_("The file %s does not contain a valid IPL ROM."),
                         fmt::format("{}", romSelectResult.path).c_str());
-            ImGui::Text(TR("Reason: %s."), romSelectResult.result.errorMessage.c_str());
+            ImGui::Text(_("Reason: %s."), romSelectResult.result.errorMessage.c_str());
         }
 
         ImGui::Separator();
 
-        if (ImGui::Button(TR("Open IPL ROMs directory"))) {
+        if (ImGui::Button(_("Open IPL ROMs directory"))) {
             SDL_OpenURL(fmt::format("file:///{}", m_context.profile.GetPath(ProfilePath::IPLROMImages)).c_str());
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Select IPL ROM..."))) {
+        if (ImGui::Button(_("Select IPL ROM..."))) {
             doSelectRom = true;
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Open IPL settings"))) {
+        if (ImGui::Button(_("Open IPL settings"))) {
             doOpenSettings = true;
         }
         ImGui::SameLine(); // this places the OK button next to these
@@ -235,9 +234,9 @@ void WindowManagerService::OpenWelcomeModal(bool scanIPLROMs) {
 
         if (doSelectRom && fileDialogService) {
             FileDialogParams params{
-                .dialogTitle = TR("Select IPL ROM"),
+                .dialogTitle = _("Select IPL ROM"),
                 .defaultPath = m_context.profile.GetPath(ProfilePath::IPLROMImages),
-                .filters = {{TR("ROM files (*.bin, *.rom)"), "bin;rom"}, {TR("All files (*.*)"), "*"}},
+                .filters = {{_("ROM files (*.bin, *.rom)"), "bin;rom"}, {_("All files (*.*)"), "*"}},
                 .userdata = &romSelectResult,
                 .callback =
                     [](void *userdata, const char *const *filelist, int filter) {

@@ -12,7 +12,6 @@
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 VideoSettingsView::VideoSettingsView(SharedContext &context)
     : SettingsViewBase(context) {}
@@ -24,7 +23,7 @@ void VideoSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("General"));
+    ImGui::SeparatorText(_("General"));
     ImGui::PopFont();
 
     // TODO: don't apply these settings immediately:
@@ -44,7 +43,7 @@ void VideoSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Software renderer"));
+    ImGui::SeparatorText(_("Software renderer"));
     ImGui::PopFont();
 
     widgets::settings::video::swrenderer::ThreadedVDP(m_context);
@@ -52,7 +51,7 @@ void VideoSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Enhancements"));
+    ImGui::SeparatorText(_("Enhancements"));
     ImGui::PopFont();
 
     widgets::settings::video::enhancements::Deinterlace(m_context);
@@ -61,11 +60,11 @@ void VideoSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Display"));
+    ImGui::SeparatorText(_("Display"));
     ImGui::PopFont();
 
-    MakeDirty(ImGui::Checkbox(TR("Force integer scaling"), &settings.forceIntegerScaling));
-    MakeDirty(ImGui::Checkbox(TR("Force aspect ratio"), &settings.forceAspectRatio));
+    MakeDirty(ImGui::Checkbox(_("Force integer scaling"), &settings.forceIntegerScaling));
+    MakeDirty(ImGui::Checkbox(_("Force aspect ratio"), &settings.forceAspectRatio));
     widgets::ExplanationTooltip("If disabled, forces square pixels.");
     ImGui::SameLine();
     if (MakeDirty(ImGui::Button("4:3"))) {
@@ -89,21 +88,21 @@ void VideoSettingsView::Display() {
 
     ImGui::Separator();
 
-    MakeDirty(ImGui::Checkbox(TR("Auto-fit window to screen"), &settings.autoResizeWindow));
+    MakeDirty(ImGui::Checkbox(_("Auto-fit window to screen"), &settings.autoResizeWindow));
     widgets::ExplanationTooltip("If forced aspect ratio is disabled, adjusts and recenters the window whenever the "
                                 "display resolution changes.");
     ImGui::SameLine();
     if (settings.displayVideoOutputInWindow) {
         ImGui::BeginDisabled();
     }
-    if (MakeDirty(ImGui::Button(TR("Fit now")))) {
+    if (MakeDirty(ImGui::Button(_("Fit now")))) {
         m_context.EnqueueEvent(events::gui::FitWindowToScreen());
     }
     if (settings.displayVideoOutputInWindow) {
         ImGui::EndDisabled();
     }
 
-    if (MakeDirty(ImGui::Checkbox(TR("Windowed video output"), &settings.displayVideoOutputInWindow))) {
+    if (MakeDirty(ImGui::Checkbox(_("Windowed video output"), &settings.displayVideoOutputInWindow))) {
         m_context.EnqueueEvent(events::gui::FitWindowToScreen());
     }
     widgets::ExplanationTooltip("Moves the display into a dedicated window.\n"
@@ -112,11 +111,11 @@ void VideoSettingsView::Display() {
     ImGui::Separator();
 
     bool fullScreen = settings.fullScreen.Get();
-    if (MakeDirty(ImGui::Checkbox(TR("Full screen"), &fullScreen))) {
+    if (MakeDirty(ImGui::Checkbox(_("Full screen"), &fullScreen))) {
         settings.fullScreen = fullScreen;
     }
 
-    MakeDirty(ImGui::Checkbox(TR("Double-click to toggle full screen"), &settings.doubleClickToFullScreen));
+    MakeDirty(ImGui::Checkbox(_("Double-click to toggle full screen"), &settings.doubleClickToFullScreen));
     widgets::ExplanationTooltip("This option will not work if you are using a Virtua Gun or Shuttle Mouse.");
 
     auto formatDisplay = [&](SDL_DisplayID id) -> std::string {
@@ -144,7 +143,7 @@ void VideoSettingsView::Display() {
                            pixelFormat->bits_per_pixel, desktopMode->refresh_rate);
     };
 
-    if (ImGui::BeginCombo(TR("Full screen display"), formatDisplay(m_context.display.id).c_str())) {
+    if (ImGui::BeginCombo(_("Full screen display"), formatDisplay(m_context.display.id).c_str())) {
         auto entry = [&](SDL_DisplayID id) {
             if (MakeDirty(ImGui::Selectable(formatDisplay(id).c_str(), m_context.display.id == id))) {
                 if (m_context.display.id != id) {
@@ -183,8 +182,8 @@ void VideoSettingsView::Display() {
         "\n"
         "The \"Current display\" option causes Ymir to go full screen on the display where the window is located at.");
 
-    if (ImGui::BeginCombo(TR("Full screen resolution"),
-                          settings.borderlessFullScreen ? TR("Borderless full screen")
+    if (ImGui::BeginCombo(_("Full screen resolution"),
+                          settings.borderlessFullScreen ? _("Borderless full screen")
                                                         : formatMode(settings.fullScreenMode).c_str(),
                           ImGuiComboFlags_HeightLarge)) {
         auto entry = [&](const display::DisplayMode &mode) {
@@ -199,7 +198,7 @@ void VideoSettingsView::Display() {
             }
         };
 
-        if (MakeDirty(ImGui::Selectable(TR("Borderless full screen"), settings.borderlessFullScreen))) {
+        if (MakeDirty(ImGui::Selectable(_("Borderless full screen"), settings.borderlessFullScreen))) {
             if (!settings.borderlessFullScreen) {
                 settings.borderlessFullScreen = true;
                 settings.fullScreenMode = {};

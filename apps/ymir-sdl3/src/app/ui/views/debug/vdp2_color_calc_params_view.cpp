@@ -12,7 +12,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 VDP2ColorCalcParamsView::VDP2ColorCalcParamsView(SharedContext &context, vdp::VDP &vdp)
     : m_context(context)
@@ -23,7 +22,7 @@ void VDP2ColorCalcParamsView::Display() {
     const auto &regs2 = probe.GetVDP2Regs();
 
     if (regs2.colorCalcParams.colorGradEnable) {
-        ImGui::TextUnformatted(TR("Color gradation: enabled on "));
+        ImGui::TextUnformatted(_("Color gradation: enabled on "));
         ImGui::SameLine(0, 0);
         switch (regs2.colorCalcParams.colorGradScreen) {
         case vdp::ColorGradScreen::Sprite: ImGui::TextUnformatted("Sprite"); break;
@@ -48,29 +47,29 @@ void VDP2ColorCalcParamsView::Display() {
         case vdp::ColorGradScreen::Invalid7: ImGui::TextUnformatted("(invalid) [7]"); break;
         }
     } else {
-        ImGui::TextUnformatted(TR("Color gradation: disabled"));
+        ImGui::TextUnformatted(_("Color gradation: disabled"));
     }
 
     if (regs2.colorCalcParams.extendedColorCalcEnable) {
-        ImGui::TextUnformatted(TR("Using extended color calculations"));
+        ImGui::TextUnformatted(_("Using extended color calculations"));
         if (regs2.colorCalcParams.colorGradEnable) {
             ImGui::SameLine();
-            ImGui::TextUnformatted(TR("(ignored; color gradation takes precedence)"));
+            ImGui::TextUnformatted(_("(ignored; color gradation takes precedence)"));
         }
     } else {
-        ImGui::TextUnformatted(TR("Using standard color calculations"));
+        ImGui::TextUnformatted(_("Using standard color calculations"));
     }
 
     if (regs2.colorCalcParams.useSecondScreenRatio) {
-        ImGui::TextUnformatted(TR("Using ratio from second screen"));
+        ImGui::TextUnformatted(_("Using ratio from second screen"));
     } else {
-        ImGui::TextUnformatted(TR("Using ratio from top screen"));
+        ImGui::TextUnformatted(_("Using ratio from top screen"));
     }
 
     if (regs2.colorCalcParams.useAdditiveBlend) {
-        ImGui::TextUnformatted(TR("Blend mode: Additive"));
+        ImGui::TextUnformatted(_("Blend mode: Additive"));
     } else {
-        ImGui::TextUnformatted(TR("Blend mode: Alpha (color ratio)"));
+        ImGui::TextUnformatted(_("Blend mode: Alpha (color ratio)"));
     }
 
     auto printWindowSet = [&]<bool hasSpriteWindow>(const vdp::WindowSet<hasSpriteWindow> &windowSet) {
@@ -83,7 +82,7 @@ void VDP2ColorCalcParamsView::Display() {
         ImGui::Text("%s", printer.ToString().c_str());
     };
 
-    ImGui::TextUnformatted(TR("Windows: "));
+    ImGui::TextUnformatted(_("Windows: "));
     ImGui::SameLine(0, 0);
     printWindowSet(regs2.colorCalcParams.windowSet);
 }

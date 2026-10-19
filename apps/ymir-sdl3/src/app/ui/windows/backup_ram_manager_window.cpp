@@ -12,7 +12,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 BackupMemoryManagerWindow::BackupMemoryManagerWindow(SharedContext &context)
     : WindowBase(context)
@@ -21,7 +20,7 @@ BackupMemoryManagerWindow::BackupMemoryManagerWindow(SharedContext &context)
 
     m_sysBupView.SetBackupMemory(&m_context.saturn.GetSystemMemory().GetInternalBackupRAM());
 
-    m_windowConfig.name = TR("Backup memory manager");
+    m_windowConfig.name = _("Backup memory manager");
 }
 
 void BackupMemoryManagerWindow::PrepareWindow() {
@@ -42,7 +41,7 @@ void BackupMemoryManagerWindow::DrawContents() {
 
         ImGui::TableNextRow();
         if (ImGui::TableNextColumn()) {
-            ImGui::SeparatorText(TR("System memory"));
+            ImGui::SeparatorText(_("System memory"));
             ImGui::PushID("sys_bup");
             m_sysBupView.Display();
             ImGui::PopID();
@@ -59,7 +58,7 @@ void BackupMemoryManagerWindow::DrawContents() {
 
             // Center vertically
             ImGui::Dummy(ImVec2(0, (avail.y - totalHeight) * 0.5f));
-            ImGui::TextUnformatted(TR("Copy"));
+            ImGui::TextUnformatted(_("Copy"));
 
             if (!hasCartBup) {
                 ImGui::BeginDisabled();
@@ -110,7 +109,7 @@ void BackupMemoryManagerWindow::DrawContents() {
             }
         }
         if (ImGui::TableNextColumn()) {
-            ImGui::SeparatorText(TR("Cartridge memory"));
+            ImGui::SeparatorText(_("Cartridge memory"));
 
             ImGui::PushID("cart_bup");
             std::unique_lock lock{m_context.locks.cart};

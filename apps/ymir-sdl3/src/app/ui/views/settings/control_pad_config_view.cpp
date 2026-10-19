@@ -5,7 +5,6 @@
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 ControlPadConfigView::ControlPadConfigView(SharedContext &context)
     : SettingsViewBase(context)
@@ -17,23 +16,23 @@ void ControlPadConfigView::Display(Settings::Input::Port::ControlPad &controller
     auto &settings = GetSettings();
     auto &binds = controllerSettings.binds;
 
-    if (ImGui::Button(TR("Restore defaults"))) {
+    if (ImGui::Button(_("Restore defaults"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, true));
         MakeDirty();
     }
     ImGui::SameLine();
-    if (ImGui::Button(TR("Clear all"))) {
+    if (ImGui::Button(_("Clear all"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, false));
         MakeDirty();
     }
 
-    ImGui::TextUnformatted(TR("Left-click a button to assign a hotkey. Right-click to clear."));
+    ImGui::TextUnformatted(_("Left-click a button to assign a hotkey. Right-click to clear."));
     m_unboundActionsWidget.Display();
     if (ImGui::BeginTable("hotkeys", 1 + input::kNumBindsPerInput,
                           ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY)) {
-        ImGui::TableSetupColumn(TR("Button"), ImGuiTableColumnFlags_WidthFixed, 70.0f * imguiData->displayScale);
+        ImGui::TableSetupColumn(_("Button"), ImGuiTableColumnFlags_WidthFixed, 70.0f * imguiData->displayScale);
         for (size_t i = 0; i < input::kNumBindsPerInput; i++) {
-            ImGui::TableSetupColumn(fmt::format(fmt::runtime(TR("Hotkey {}")), i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn(fmt::format(fmt::runtime(_("Hotkey {}")), i + 1).c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
         }
         ImGui::TableHeadersRow();
 

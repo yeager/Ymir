@@ -16,7 +16,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 using MidiPortType = Settings::Audio::MidiPort::Type;
 
@@ -30,25 +29,25 @@ void AudioSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("General"));
+    ImGui::SeparatorText(_("General"));
     ImGui::PopFont();
 
     static constexpr float kMinVolume = 0.0f;
     static constexpr float kMaxVolume = 100.0f;
     float volumePct = settings.volume * 100.0f;
-    if (MakeDirty(ImGui::SliderScalar(TR("Volume"), ImGuiDataType_Float, &volumePct, &kMinVolume, &kMaxVolume, "%.1lf%%",
+    if (MakeDirty(ImGui::SliderScalar(_("Volume"), ImGuiDataType_Float, &volumePct, &kMinVolume, &kMaxVolume, "%.1lf%%",
                                       ImGuiSliderFlags_AlwaysClamp))) {
         settings.volume = volumePct * 0.01f;
     }
     bool mute = settings.mute;
-    if (MakeDirty(ImGui::Checkbox(TR("Mute"), &mute))) {
+    if (MakeDirty(ImGui::Checkbox(_("Mute"), &mute))) {
         settings.mute = mute;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Quality"));
+    ImGui::SeparatorText(_("Quality"));
     ImGui::PopFont();
 
     widgets::settings::audio::InterpolationMode(m_context);
@@ -79,7 +78,7 @@ void AudioSettingsView::Display() {
     auto inputPort = settings.midiInputPort.Get();
 
     if (ImGui::BeginCombo(inputLabel.c_str(), inputPortName.c_str())) {
-        if (MakeDirty(ImGui::Selectable(TR("None"), inputPort.type == MidiPortType::None))) {
+        if (MakeDirty(ImGui::Selectable(_("None"), inputPort.type == MidiPortType::None))) {
             settings.midiInputPort = Settings::Audio::MidiPort{.id = {}, .type = MidiPortType::None};
         }
 
@@ -113,7 +112,7 @@ void AudioSettingsView::Display() {
     auto outputPort = settings.midiOutputPort.Get();
 
     if (ImGui::BeginCombo(outputLabel.c_str(), outputPortName.c_str())) {
-        if (MakeDirty(ImGui::Selectable(TR("None"), outputPort.type == MidiPortType::None))) {
+        if (MakeDirty(ImGui::Selectable(_("None"), outputPort.type == MidiPortType::None))) {
             settings.midiOutputPort = Settings::Audio::MidiPort{.id = {}, .type = MidiPortType::None};
         }
 
@@ -141,7 +140,7 @@ void AudioSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Accuracy"));
+    ImGui::SeparatorText(_("Accuracy"));
     ImGui::PopFont();
 
     widgets::settings::audio::StepGranularity(m_context);
@@ -149,7 +148,7 @@ void AudioSettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Performance"));
+    ImGui::SeparatorText(_("Performance"));
     ImGui::PopFont();
 
     widgets::settings::audio::ThreadedSCSP(m_context);

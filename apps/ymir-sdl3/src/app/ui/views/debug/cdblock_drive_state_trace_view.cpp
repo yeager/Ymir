@@ -8,7 +8,6 @@
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 static ImVec4 MakeColorFromU8(uint8 value) {
     ImVec4 color;
@@ -49,29 +48,29 @@ void CDDriveStateTraceView::Display() {
 
     ImGui::BeginGroup();
 
-    ImGui::Checkbox(TR("Enable"), &m_tracer.traceStateUpdates);
+    ImGui::Checkbox(_("Enable"), &m_tracer.traceStateUpdates);
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::BeginItemTooltip()) {
-        ImGui::TextUnformatted(TR("You must also enable tracing in Debug > Enable tracing (F11)"));
+        ImGui::TextUnformatted(_("You must also enable tracing in Debug > Enable tracing (F11)"));
         ImGui::EndTooltip();
     }
     ImGui::SameLine();
-    if (ImGui::Button(TR("Clear"))) {
+    if (ImGui::Button(_("Clear"))) {
         m_tracer.ClearStateUpdates();
     }
     if (!settings.cdblock.useLLE) {
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
-        ImGui::TextColored(imguiData->colors.notice, "%s", TR("CD Block LLE is disabled. Nothing will be traced here."));
+        ImGui::TextColored(imguiData->colors.notice, "%s", _("CD Block LLE is disabled. Nothing will be traced here."));
         ImGui::PopTextWrapPos();
     }
 
     if (ImGui::BeginTable("cdblock_cmd_trace", 3,
                           ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable)) {
         ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_PreferSortDescending);
-        ImGui::TableSetupColumn(TR("Command"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+        ImGui::TableSetupColumn(_("Command"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 paddingWidth * 2 + hexCharWidth * (2 * 13 + 1 * 12));
-        ImGui::TableSetupColumn(TR("Status"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+        ImGui::TableSetupColumn(_("Status"), ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 paddingWidth * 2 + hexCharWidth * (2 * 13 + 1 * 12));
         ImGui::TableSetupScrollFreeze(1, 1);
         ImGui::TableHeadersRow();

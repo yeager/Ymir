@@ -9,7 +9,6 @@
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 GUISettingsView::GUISettingsView(SharedContext &context)
     : SettingsViewBase(context) {}
@@ -22,18 +21,18 @@ void GUISettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("General"));
+    ImGui::SeparatorText(_("General"));
     ImGui::PopFont();
 
-    MakeDirty(ImGui::Checkbox(TR("Show game name on window title bar"), &guiSettings.showGameNameOnTitleBar));
+    MakeDirty(ImGui::Checkbox(_("Show game name on window title bar"), &guiSettings.showGameNameOnTitleBar));
     MakeDirty(
-        ImGui::Checkbox(TR("Show performance indicator on window title bar"), &guiSettings.showPerformanceOnTitleBar));
+        ImGui::Checkbox(_("Show performance indicator on window title bar"), &guiSettings.showPerformanceOnTitleBar));
     widgets::ExplanationTooltip("Display emulation speed, VDP2, VDP1 and GUI frame rates on title bar");
 
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("UI scaling"));
+    ImGui::SeparatorText(_("UI scaling"));
     ImGui::PopFont();
 
     // Round scale to steps of 25% and clamp to 100%-200% range
@@ -42,7 +41,7 @@ void GUISettingsView::Display() {
     uiScale = std::round(uiScale / 0.25) * 0.25;
     uiScale = std::clamp(uiScale, 1.00, 2.00);
 
-    if (MakeDirty(ImGui::Checkbox(fmt::format(fmt::runtime(TR("Override UI scale (current: {:.0f}%)")), uiScale * 100.0).c_str(),
+    if (MakeDirty(ImGui::Checkbox(fmt::format(fmt::runtime(_("Override UI scale (current: {:.0f}%)")), uiScale * 100.0).c_str(),
                                   &overrideUIScale))) {
         guiSettings.overrideUIScale = overrideUIScale;
         // Use current DPI setting when enabling the override
@@ -82,26 +81,26 @@ void GUISettingsView::Display() {
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("Behavior"));
+    ImGui::SeparatorText(_("Behavior"));
     ImGui::PopFont();
 
-    MakeDirty(ImGui::Checkbox(TR("Remember window geometry"), &guiSettings.rememberWindowGeometry));
+    MakeDirty(ImGui::Checkbox(_("Remember window geometry"), &guiSettings.rememberWindowGeometry));
     widgets::ExplanationTooltip("When enabled, the current window position and size will be restored the next time the "
                                 "application is started.");
 
     // -----------------------------------------------------------------------------------------------------------------
 
     ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.large);
-    ImGui::SeparatorText(TR("On-screen display"));
+    ImGui::SeparatorText(_("On-screen display"));
     ImGui::PopFont();
 
-    MakeDirty(ImGui::Checkbox(TR("Show messages"), &guiSettings.showMessages));
+    MakeDirty(ImGui::Checkbox(_("Show messages"), &guiSettings.showMessages));
     widgets::ExplanationTooltip(
         "When enabled, notification messages are displayed on the top-left corner of the window.");
 
     const bool isPAL = settings.system.videoStandard.Get() == ymir::core::config::sys::VideoStandard::PAL;
 
-    MakeDirty(ImGui::Checkbox(TR("Show frame rate"), &guiSettings.showFrameRateOSD));
+    MakeDirty(ImGui::Checkbox(_("Show frame rate"), &guiSettings.showFrameRateOSD));
     widgets::ExplanationTooltip(
         fmt::format(
             "Displays a small overlay with the VDP2, VDP1 and GUI frame rates, and the target emulation speed.\n"
@@ -123,17 +122,17 @@ void GUISettingsView::Display() {
             guiSettings.frameRateOSDPosition = value;
         }
     };
-    frameRateOSDOption(TR("Top left##fps_osd"), Settings::GUI::FrameRateOSDPosition::TopLeft);
+    frameRateOSDOption(_("Top left##fps_osd"), Settings::GUI::FrameRateOSDPosition::TopLeft);
     ImGui::SameLine();
-    frameRateOSDOption(TR("Top right##fps_osd"), Settings::GUI::FrameRateOSDPosition::TopRight);
+    frameRateOSDOption(_("Top right##fps_osd"), Settings::GUI::FrameRateOSDPosition::TopRight);
     ImGui::SameLine();
-    frameRateOSDOption(TR("Bottom left##fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomLeft);
+    frameRateOSDOption(_("Bottom left##fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomLeft);
     ImGui::SameLine();
-    frameRateOSDOption(TR("Bottom right##fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomRight);
+    frameRateOSDOption(_("Bottom right##fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomRight);
     ImGui::Unindent();
 
     MakeDirty(
-        ImGui::Checkbox(TR("Show speed indicators for modified speeds"), &guiSettings.showSpeedIndicatorForAllSpeeds));
+        ImGui::Checkbox(_("Show speed indicators for modified speeds"), &guiSettings.showSpeedIndicatorForAllSpeeds));
     widgets::ExplanationTooltip(
         "When enabled, the speed indicator will be displayed for any emulation speed other than 100%.\n"
         "When disabled, the speed indicator is only displayed while running in turbo speed.\n"

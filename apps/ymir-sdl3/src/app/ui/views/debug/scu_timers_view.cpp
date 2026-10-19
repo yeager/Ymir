@@ -7,7 +7,6 @@
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 SCUTimersView::SCUTimersView(ymir::scu::SCU &scu)
     : m_scu(scu) {}
@@ -23,7 +22,7 @@ void SCUTimersView::Display() {
     bool t1mode = probe.GetTimer1Mode();
 
     bool enable = probe.IsTimerEnabled();
-    if (ImGui::Checkbox(TR("Enabled##timer"), &enable)) {
+    if (ImGui::Checkbox(_("Enabled##timer"), &enable)) {
         probe.SetTimerEnabled(enable);
     }
 
@@ -32,7 +31,7 @@ void SCUTimersView::Display() {
         if (ImGui::TableNextColumn()) {
             ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.medium);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(TR("Timer 0"));
+            ImGui::TextUnformatted(_("Timer 0"));
             ImGui::PopFont();
         }
         if (ImGui::TableNextColumn()) {
@@ -47,7 +46,7 @@ void SCUTimersView::Display() {
             ImGui::PopFont();
             ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(TR("Counter"));
+            ImGui::TextUnformatted(_("Counter"));
             ImGui::EndGroup();
         }
         if (ImGui::TableNextColumn()) {
@@ -60,7 +59,7 @@ void SCUTimersView::Display() {
             ImGui::PopFont();
             ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(TR("Compare"));
+            ImGui::TextUnformatted(_("Compare"));
             ImGui::EndGroup();
         }
 
@@ -68,7 +67,7 @@ void SCUTimersView::Display() {
         if (ImGui::TableNextColumn()) {
             ImGui::PushFont(imguiData->fonts.sansSerif.bold, imguiData->fontSizes.medium);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(TR("Timer 1"));
+            ImGui::TextUnformatted(_("Timer 1"));
             ImGui::PopFont();
         }
         if (ImGui::TableNextColumn()) {
@@ -81,15 +80,15 @@ void SCUTimersView::Display() {
             ImGui::PopFont();
             ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(TR("Reload"));
+            ImGui::TextUnformatted(_("Reload"));
             ImGui::EndGroup();
         }
         if (ImGui::TableNextColumn()) {
-            if (ImGui::RadioButton(TR("Every line"), !t1mode)) {
+            if (ImGui::RadioButton(_("Every line"), !t1mode)) {
                 probe.SetTimer1Mode(false);
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton(TR("Timer 0 match"), t1mode)) {
+            if (ImGui::RadioButton(_("Timer 0 match"), t1mode)) {
                 probe.SetTimer1Mode(true);
             }
         }

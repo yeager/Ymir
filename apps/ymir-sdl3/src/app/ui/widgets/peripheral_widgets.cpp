@@ -12,7 +12,6 @@ using namespace ymir;
 
 namespace app::ui::widgets {
 
-#define TR(text) i18n::tr(text)
 
 bool PeripheralSelector(SharedContext &ctx, uint32 portIndex) {
     std::unique_lock lock{ctx.locks.peripherals};
@@ -36,7 +35,7 @@ bool PeripheralSelector(SharedContext &ctx, uint32 portIndex) {
             if (ImGui::TableNextColumn()) {
                 ImGui::AlignTextToFramePadding();
                 // TODO: multitap -- ImGui::Text("Slot %u:", slotIndex);
-                ImGui::TextUnformatted(TR("Peripheral:"));
+                ImGui::TextUnformatted(_("Peripheral:"));
             }
             if (ImGui::TableNextColumn()) {
                 ImGui::SetNextItemWidth(-1);
@@ -55,7 +54,7 @@ bool PeripheralSelector(SharedContext &ctx, uint32 portIndex) {
                 if (isNone) {
                     ImGui::BeginDisabled();
                 }
-                if (ImGui::Button(fmt::format("{}##{}_{}", TR("Configure"), portIndex, slotIndex).c_str())) {
+                if (ImGui::Button(fmt::format("{}##{}_{}", _("Configure"), portIndex, slotIndex).c_str())) {
                     ctx.EnqueueEvent(events::gui::OpenPeripheralBindsEditor(portIndex - 1, slotIndex));
                 }
                 if (isNone) {

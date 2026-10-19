@@ -528,6 +528,9 @@ if(APPLE)
 endif()
 
 find_package(cereal CONFIG REQUIRED)
+find_package(Gettext REQUIRED)
+find_program(GETTEXT_XGETTEXT_EXECUTABLE xgettext REQUIRED)
+find_package(Intl REQUIRED)
 find_package(cxxopts CONFIG REQUIRED)
 find_package(date CONFIG REQUIRED)
 find_package(OpenSSL CONFIG REQUIRED)
@@ -557,6 +560,7 @@ target_link_libraries(ymir-sdl3 PRIVATE
     discord-rpc
     RtMidi::rtmidi
     CURL::libcurl_static
+    Intl::Intl
     stb::stb
     dr_libs::dr_libs
 )
@@ -569,11 +573,35 @@ if (WIN32)
 endif ()
 target_compile_features(ymir-sdl3 PUBLIC cxx_std_20)
 
-## Embed every locale catalog placed in res/embed/i18n. CONFIGURE_DEPENDS
-## reruns CMake when translators add a language file.
-file(GLOB Ymir_sdl3_i18n_catalogs CONFIGURE_DEPENDS
-    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    res/embed/i18n/*.toml
+## Compile each gettext catalog explicitly. Add a matching command for every
+## new locale so catalog changes are visible in the build definition.
+set(Ymir_sdl3_locale_root "${CMAKE_CURRENT_BINARY_DIR}/locale")
+set(Ymir_sdl3_sv_mo "${Ymir_sdl3_locale_root}/sv/LC_MESSAGES/ymir-sdl3.mo")
+add_custom_command(
+    OUTPUT "${Ymir_sdl3_sv_mo}"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${Ymir_sdl3_locale_root}/sv/LC_MESSAGES"
+    COMMAND "${GETTEXT_MSGFMT_EXECUTABLE}" --check --output-file=${Ymir_sdl3_sv_mo}
+            "${CMAKE_CURRENT_SOURCE_DIR}/po/sv.po"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/sv.po"
+    VERBATIM
+)
+add_custom_target(ymir-sdl3-locales ALL DEPENDS "${Ymir_sdl3_sv_mo}")
+add_dependencies(ymir-sdl3 ymir-sdl3-locales)
+
+# Reuse the executable's explicit source list. This intentionally avoids
+# file(GLOB) so adding a translated source remains a visible build change.
+get_target_property(Ymir_sdl3_i18n_sources ymir-sdl3 SOURCES)
+list(FILTER Ymir_sdl3_i18n_sources INCLUDE REGEX "\\.(cpp|hpp)$")
+add_custom_target(ymir-sdl3-pot
+    COMMAND "${GETTEXT_XGETTEXT_EXECUTABLE}" --language=C++ --keyword=_ --from-code=UTF-8
+            --output=${CMAKE_CURRENT_SOURCE_DIR}/po/ymir-sdl3.pot ${Ymir_sdl3_i18n_sources}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    VERBATIM
+)
+add_custom_command(TARGET ymir-sdl3 POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${Ymir_sdl3_locale_root}" "$<TARGET_FILE_DIR:ymir-sdl3>/locale"
+    VERBATIM
 )
 
 ## Create embedded resource library
@@ -586,7 +614,6 @@ cmrc_add_resource_library(ymir-sdl3-rc
     res/embed/about/friends.txt
     res/embed/about/patreon.txt
 
-    ${Ymir_sdl3_i18n_catalogs}
 
     res/embed/fonts/MaterialSymbolsOutlined_Filled-Regular.ttf
     res/embed/fonts/MPLUSU-Ymir-Bold.ttf

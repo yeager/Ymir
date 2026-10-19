@@ -18,7 +18,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 static const char *GetVariantName(db::SystemVariant variant) {
     switch (variant) {
@@ -65,11 +64,11 @@ void IPLSettingsView::Display() {
     ImGui::Text("IPL ROMs in %s", fmt::format("{}", iplRomsPath).c_str());
     ImGui::PopTextWrapPos();
 
-    if (ImGui::Button(TR("Open directory"))) {
+    if (ImGui::Button(_("Open directory"))) {
         SDL_OpenURL(fmt::format("file:///{}", iplRomsPath).c_str());
     }
     ImGui::SameLine();
-    if (ImGui::Button(TR("Rescan"))) {
+    if (ImGui::Button(_("Rescan"))) {
         {
             std::unique_lock lock{m_context.locks.romManager};
             m_context.romManager.ScanIPLROMs(iplRomsPath);
@@ -84,11 +83,11 @@ void IPLSettingsView::Display() {
                           ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti |
                               ImGuiTableFlags_SortTristate,
                           ImVec2(0, 250 * imguiData->displayScale))) {
-        ImGui::TableSetupColumn(TR("Path"), ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_DefaultSort, 0.0f);
-        ImGui::TableSetupColumn(TR("Version"), ImGuiTableColumnFlags_WidthFixed, 50 * imguiData->displayScale);
-        ImGui::TableSetupColumn(TR("Date"), ImGuiTableColumnFlags_WidthFixed, 75 * imguiData->displayScale);
-        ImGui::TableSetupColumn(TR("Variant"), ImGuiTableColumnFlags_WidthFixed, 60 * imguiData->displayScale);
-        ImGui::TableSetupColumn(TR("Region"), ImGuiTableColumnFlags_WidthFixed, 105 * imguiData->displayScale);
+        ImGui::TableSetupColumn(_("Path"), ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_DefaultSort, 0.0f);
+        ImGui::TableSetupColumn(_("Version"), ImGuiTableColumnFlags_WidthFixed, 50 * imguiData->displayScale);
+        ImGui::TableSetupColumn(_("Date"), ImGuiTableColumnFlags_WidthFixed, 75 * imguiData->displayScale);
+        ImGui::TableSetupColumn(_("Variant"), ImGuiTableColumnFlags_WidthFixed, 60 * imguiData->displayScale);
+        ImGui::TableSetupColumn(_("Region"), ImGuiTableColumnFlags_WidthFixed, 105 * imguiData->displayScale);
         ImGui::TableSetupColumn("##use", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
                                 useButtonWidth);
         ImGui::TableSetupScrollFreeze(0, 1);

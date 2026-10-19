@@ -28,7 +28,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 static const char *GetCartTypeName(Settings::Cartridge::Type type) {
     switch (type) {
@@ -58,7 +57,7 @@ void CartridgeSettingsView::Display() {
 
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
 
-    ImGui::TextUnformatted(TR("Current cartridge: "));
+    ImGui::TextUnformatted(_("Current cartridge: "));
     ImGui::SameLine(0, 0);
     widgets::CartridgeInfo(m_context);
     {
@@ -70,7 +69,7 @@ void CartridgeSettingsView::Display() {
         }
     }
 
-    MakeDirty(ImGui::Checkbox(TR("Automatically switch to recommended cartridges"), &settings.autoLoadGameCarts));
+    MakeDirty(ImGui::Checkbox(_("Automatically switch to recommended cartridges"), &settings.autoLoadGameCarts));
     widgets::ExplanationTooltip(
         fmt::format("Certain games require specific cartridges to work:\n"
                     "- The King of Fighters '95 and Ultraman need their respective ROM cartridges\n"
@@ -83,14 +82,14 @@ void CartridgeSettingsView::Display() {
                     m_context.profile.GetPath(ProfilePath::ROMCartImages))
             .c_str());
 
-    if (ImGui::Button(TR("Open ROM cartridge images directory"))) {
+    if (ImGui::Button(_("Open ROM cartridge images directory"))) {
         SDL_OpenURL(fmt::format("file:///{}", m_context.profile.GetPath(ProfilePath::ROMCartImages)).c_str());
     }
 
     ImGui::Separator();
 
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(TR("Cartridge type:"));
+    ImGui::TextUnformatted(_("Cartridge type:"));
     ImGui::SameLine();
     if (ImGui::BeginCombo("##cart_type", GetCartTypeName(settings.type), ImGuiComboFlags_WidthFitPreview)) {
         for (auto type : kCartTypes) {
@@ -102,7 +101,7 @@ void CartridgeSettingsView::Display() {
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    if (ImGui::Button(TR("Insert"))) {
+    if (ImGui::Button(_("Insert"))) {
         m_context.EnqueueEvent(events::emu::InsertCartridgeFromSettings());
     }
 

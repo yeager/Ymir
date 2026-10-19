@@ -13,7 +13,6 @@
 
 namespace app::ui::widgets {
 
-#define TR(text) i18n::tr(text)
 
 InputCaptureWidget::InputCaptureWidget(SharedContext &context, UnboundActionsWidget &unboundActionsWidget)
     : m_context(context)
@@ -65,26 +64,26 @@ void InputCaptureWidget::DrawCapturePopup() {
         case Trigger: [[fallthrough]];
         case RepeatableTrigger: [[fallthrough]];
         case Button:
-            ImGui::TextUnformatted(TR("Press any key or gamepad button to map it.\n\n"
+            ImGui::TextUnformatted(_("Press any key or gamepad button to map it.\n\n"
                                       "Press Escape or click outside of this popup to cancel."));
             break;
         case ComboTrigger:
-            ImGui::TextUnformatted(TR("Press any key combo with at least one modifier key to map it.\n\n"
+            ImGui::TextUnformatted(_("Press any key combo with at least one modifier key to map it.\n\n"
                                       "Press Escape or click outside of this popup to cancel."));
             break;
         case AbsoluteMonopolarAxis1D:
-            ImGui::TextUnformatted(TR("Move any one-dimensional monopolar axis such as analog triggers to map it.\n\n"
+            ImGui::TextUnformatted(_("Move any one-dimensional monopolar axis such as analog triggers to map it.\n\n"
                                       "Press Escape or click outside of this popup to cancel."));
             break;
         case AbsoluteBipolarAxis1D: [[fallthrough]];
         case RelativeBipolarAxis1D:
-            ImGui::TextUnformatted(TR("Move any one-dimensional bipolar axis such as analog wheels or one direction of an "
+            ImGui::TextUnformatted(_("Move any one-dimensional bipolar axis such as analog wheels or one direction of an "
                                       "analog stick to map it.\n\n"
                                       "Press Escape or click outside of this popup to cancel."));
             break;
         case AbsoluteBipolarAxis2D: [[fallthrough]];
         case RelativeBipolarAxis2D:
-            ImGui::TextUnformatted(TR(
+            ImGui::TextUnformatted(_(
                 "Move any two-dimensional bipolar axis such as analog sticks or D-Pads to map it.\n\n"
                 "Press Escape or click outside of this popup to cancel."));
             break;

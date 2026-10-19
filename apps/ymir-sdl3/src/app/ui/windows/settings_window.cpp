@@ -8,7 +8,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 SettingsWindow::SettingsWindow(SharedContext &context)
     : WindowBase(context)
@@ -24,7 +23,7 @@ SettingsWindow::SettingsWindow(SharedContext &context)
     , m_cdblockSettingsView(context)
     , m_tweaksSettingsView(context) {
 
-    m_windowConfig.name = TR("Settings");
+    m_windowConfig.name = _("Settings");
 }
 
 void SettingsWindow::OpenTab(SettingsTab tab) {
@@ -55,48 +54,48 @@ void SettingsWindow::DrawContents() {
 
     m_windowConfig.allowClosingWithGamepad = true;
     if (ImGui::BeginTabBar("settings_tabs")) {
-        if (ImGui::BeginTabItem(TR("General"), nullptr, tabFlag(SettingsTab::General))) {
+        if (ImGui::BeginTabItem(_("General"), nullptr, tabFlag(SettingsTab::General))) {
             m_generalSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("GUI"), nullptr, tabFlag(SettingsTab::GUI))) {
+        if (ImGui::BeginTabItem(_("GUI"), nullptr, tabFlag(SettingsTab::GUI))) {
             m_guiSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("Hotkeys"), nullptr, tabFlag(SettingsTab::Hotkeys))) {
+        if (ImGui::BeginTabItem(_("Hotkeys"), nullptr, tabFlag(SettingsTab::Hotkeys))) {
             m_hotkeysSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("System"), nullptr, tabFlag(SettingsTab::System))) {
+        if (ImGui::BeginTabItem(_("System"), nullptr, tabFlag(SettingsTab::System))) {
             m_systemSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("IPL (BIOS)"), nullptr, tabFlag(SettingsTab::IPL))) {
+        if (ImGui::BeginTabItem(_("IPL (BIOS)"), nullptr, tabFlag(SettingsTab::IPL))) {
             m_iplSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("Input"), nullptr, tabFlag(SettingsTab::Input))) {
+        if (ImGui::BeginTabItem(_("Input"), nullptr, tabFlag(SettingsTab::Input))) {
             // m_windowConfig.allowClosingWithGamepad = false;
             m_inputSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("Video"), nullptr, tabFlag(SettingsTab::Video))) {
+        if (ImGui::BeginTabItem(_("Video"), nullptr, tabFlag(SettingsTab::Video))) {
             m_videoSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("Audio"), nullptr, tabFlag(SettingsTab::Audio))) {
+        if (ImGui::BeginTabItem(_("Audio"), nullptr, tabFlag(SettingsTab::Audio))) {
             m_audioSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("Cartridge"), nullptr, tabFlag(SettingsTab::Cartridge))) {
+        if (ImGui::BeginTabItem(_("Cartridge"), nullptr, tabFlag(SettingsTab::Cartridge))) {
             m_cartSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("CD Block"), nullptr, tabFlag(SettingsTab::CDBlock))) {
+        if (ImGui::BeginTabItem(_("CD Block"), nullptr, tabFlag(SettingsTab::CDBlock))) {
             m_cdblockSettingsView.Display();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TR("Tweaks"), nullptr, tabFlag(SettingsTab::Tweaks))) {
+        if (ImGui::BeginTabItem(_("Tweaks"), nullptr, tabFlag(SettingsTab::Tweaks))) {
             m_tweaksSettingsView.Display();
             ImGui::EndTabItem();
         }

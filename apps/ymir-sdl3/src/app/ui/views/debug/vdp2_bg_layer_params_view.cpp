@@ -13,7 +13,6 @@ using namespace ymir;
 
 namespace app::ui {
 
-#define TR(text) i18n::tr(text)
 
 VDP2BGLayerParamsView::VDP2BGLayerParamsView(vdp::VDP &vdp)
     : m_vdp(vdp) {}
@@ -26,9 +25,9 @@ void VDP2BGLayerParamsView::Display() {
 
     auto printYesNo = [&](bool value) {
         if (value) {
-            ImGui::TextUnformatted(TR("yes"));
+            ImGui::TextUnformatted(_("yes"));
         } else {
-            ImGui::TextUnformatted(TR("no"));
+            ImGui::TextUnformatted(_("no"));
         }
     };
 
@@ -46,15 +45,15 @@ void VDP2BGLayerParamsView::Display() {
 
         auto printType = [&](bool bitmap) {
             if (bitmap) {
-                ImGui::TextUnformatted(TR("Bitmap"));
+                ImGui::TextUnformatted(_("Bitmap"));
             } else {
-                ImGui::TextUnformatted(TR("Scroll"));
+                ImGui::TextUnformatted(_("Scroll"));
             }
         };
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Type"));
+        ImGui::TextUnformatted(_("Type"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -80,7 +79,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Plane/bitmap size"));
+        ImGui::TextUnformatted(_("Plane/bitmap size"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -107,7 +106,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Char. pattern size"));
+        ImGui::TextUnformatted(_("Char. pattern size"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -125,7 +124,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Reduction"));
+        ImGui::TextUnformatted(_("Reduction"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -159,7 +158,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Color format"));
+        ImGui::TextUnformatted(_("Color format"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -177,7 +176,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Transparency"));
+        ImGui::TextUnformatted(_("Transparency"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -195,7 +194,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Shadow"));
+        ImGui::TextUnformatted(_("Shadow"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -213,7 +212,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Gradation"));
+        ImGui::TextUnformatted(_("Gradation"));
         static constexpr vdp::ColorGradScreen kColorGradScreens[] = {
             vdp::ColorGradScreen::NBG0_RBG1, vdp::ColorGradScreen::NBG1_EXBG, vdp::ColorGradScreen::NBG2,
             vdp::ColorGradScreen::NBG3,      vdp::ColorGradScreen::RBG0,      vdp::ColorGradScreen::NBG0_RBG1,
@@ -245,7 +244,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Mosaic"));
+        ImGui::TextUnformatted(_("Mosaic"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -265,7 +264,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Priority number"));
+        ImGui::TextUnformatted(_("Priority number"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -283,16 +282,16 @@ void VDP2BGLayerParamsView::Display() {
 
         auto printPriorityMode = [&](vdp::PriorityMode priorityMode) {
             switch (priorityMode) {
-            case vdp::PriorityMode::PerScreen: ImGui::TextUnformatted(TR("Screen")); break;
-            case vdp::PriorityMode::PerCharacter: ImGui::TextUnformatted(TR("Character")); break;
-            case vdp::PriorityMode::PerDot: ImGui::TextUnformatted(TR("Dot")); break;
-            default: ImGui::TextUnformatted(TR("Illegal")); break;
+            case vdp::PriorityMode::PerScreen: ImGui::TextUnformatted(_("Screen")); break;
+            case vdp::PriorityMode::PerCharacter: ImGui::TextUnformatted(_("Character")); break;
+            case vdp::PriorityMode::PerDot: ImGui::TextUnformatted(_("Dot")); break;
+            default: ImGui::TextUnformatted(_("Illegal")); break;
             }
         };
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Priority mode"));
+        ImGui::TextUnformatted(_("Priority mode"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -318,7 +317,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Color calc. ratio"));
+        ImGui::TextUnformatted(_("Color calc. ratio"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -337,10 +336,10 @@ void VDP2BGLayerParamsView::Display() {
         auto printColorCalcMode = [&](const vdp::BGParams &params) {
             if (params.colorCalcEnable) {
                 switch (params.specialColorCalcMode) {
-                case vdp::SpecialColorCalcMode::PerScreen: ImGui::TextUnformatted(TR("Screen")); break;
-                case vdp::SpecialColorCalcMode::PerCharacter: ImGui::TextUnformatted(TR("Character")); break;
-                case vdp::SpecialColorCalcMode::PerDot: ImGui::TextUnformatted(TR("Dot")); break;
-                case vdp::SpecialColorCalcMode::ColorDataMSB: ImGui::TextUnformatted(TR("Color MSB")); break;
+                case vdp::SpecialColorCalcMode::PerScreen: ImGui::TextUnformatted(_("Screen")); break;
+                case vdp::SpecialColorCalcMode::PerCharacter: ImGui::TextUnformatted(_("Character")); break;
+                case vdp::SpecialColorCalcMode::PerDot: ImGui::TextUnformatted(_("Dot")); break;
+                case vdp::SpecialColorCalcMode::ColorDataMSB: ImGui::TextUnformatted(_("Color MSB")); break;
                 }
             } else {
                 ImGui::TextUnformatted("-");
@@ -349,7 +348,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Color calc. mode"));
+        ImGui::TextUnformatted(_("Color calc. mode"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -367,7 +366,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("LNCL insertion"));
+        ImGui::TextUnformatted(_("LNCL insertion"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -393,7 +392,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Special function"));
+        ImGui::TextUnformatted(_("Special function"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -411,7 +410,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Vert. cell scroll"));
+        ImGui::TextUnformatted(_("Vert. cell scroll"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -433,7 +432,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("X line scroll"));
+        ImGui::TextUnformatted(_("X line scroll"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -455,7 +454,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Y line scroll"));
+        ImGui::TextUnformatted(_("Y line scroll"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -477,7 +476,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Line zoom"));
+        ImGui::TextUnformatted(_("Line zoom"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -499,7 +498,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Scroll X"));
+        ImGui::TextUnformatted(_("Scroll X"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -518,7 +517,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Scroll Y"));
+        ImGui::TextUnformatted(_("Scroll Y"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -536,7 +535,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Scroll X inc."));
+        ImGui::TextUnformatted(_("Scroll X inc."));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -554,7 +553,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Scroll Y inc."));
+        ImGui::TextUnformatted(_("Scroll Y inc."));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {
@@ -582,7 +581,7 @@ void VDP2BGLayerParamsView::Display() {
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(TR("Windows"));
+        ImGui::TextUnformatted(_("Windows"));
         for (uint32 i = 0; i < 4; i++) {
             ImGui::TableNextColumn();
             if (regs2.bgEnabled[i]) {

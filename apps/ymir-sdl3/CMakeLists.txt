@@ -573,19 +573,26 @@ if (WIN32)
 endif ()
 target_compile_features(ymir-sdl3 PUBLIC cxx_std_20)
 
-## Compile each gettext catalog explicitly. Add a matching command for every
-## new locale so catalog changes are visible in the build definition.
 set(Ymir_sdl3_locale_root "${CMAKE_CURRENT_BINARY_DIR}/locale")
-set(Ymir_sdl3_sv_mo "${Ymir_sdl3_locale_root}/sv/LC_MESSAGES/ymir-sdl3.mo")
-add_custom_command(
-    OUTPUT "${Ymir_sdl3_sv_mo}"
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${Ymir_sdl3_locale_root}/sv/LC_MESSAGES"
-    COMMAND "${GETTEXT_MSGFMT_EXECUTABLE}" --check --output-file=${Ymir_sdl3_sv_mo}
-            "${CMAKE_CURRENT_SOURCE_DIR}/po/sv.po"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/sv.po"
-    VERBATIM
-)
-add_custom_target(ymir-sdl3-locales ALL DEPENDS "${Ymir_sdl3_sv_mo}")
+
+# Each locale is listed explicitly below. Adding one language is a single call,
+# while the build definition still shows every catalog that ships with Ymir.
+function(ymir_sdl3_add_locale locale)
+    set(locale_mo "${Ymir_sdl3_locale_root}/${locale}/LC_MESSAGES/ymir-sdl3.mo")
+    add_custom_command(
+        OUTPUT "${locale_mo}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${Ymir_sdl3_locale_root}/${locale}/LC_MESSAGES"
+        COMMAND "${GETTEXT_MSGFMT_EXECUTABLE}" --check --output-file=${locale_mo}
+                "${CMAKE_CURRENT_SOURCE_DIR}/po/${locale}.po"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/${locale}.po"
+        VERBATIM
+    )
+    list(APPEND Ymir_sdl3_locale_outputs "${locale_mo}")
+    set(Ymir_sdl3_locale_outputs "${Ymir_sdl3_locale_outputs}" PARENT_SCOPE)
+endfunction()
+
+ymir_sdl3_add_locale(sv)
+add_custom_target(ymir-sdl3-locales ALL DEPENDS ${Ymir_sdl3_locale_outputs})
 add_dependencies(ymir-sdl3 ymir-sdl3-locales)
 
 # Reuse the executable's explicit source list. This intentionally avoids

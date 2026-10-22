@@ -685,7 +685,7 @@ void SystemStateWindow::DrawCartridge() {
 }
 
 void SystemStateWindow::DrawPeripherals() {
-    if (ImGui::Button(_("Configure##peripherals"))) {
+    if (ImGui::Button(TR_ID("Configure", "peripherals"))) {
         m_context.EnqueueEvent(events::gui::OpenSettings(SettingsTab::Input));
     }
 

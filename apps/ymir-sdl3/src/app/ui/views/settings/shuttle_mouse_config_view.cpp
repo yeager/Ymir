@@ -24,7 +24,7 @@ void ShuttleMouseConfigView::Display(Settings::Input::Port::ShuttleMouse &contro
     ImGui::SeparatorText(_("Behavior"));
     ImGui::PopFont();
 
-    if (ImGui::Button(_("Restore defaults##speed"))) {
+    if (ImGui::Button(TR_ID("Restore defaults", "speed"))) {
         controllerSettings.speed = kDefaultSpeed;
         controllerSettings.speedBoostFactor = kDefaultSpeedBoostFactor;
         controllerSettings.sensitivity = kDefaultSensitivity;
@@ -52,7 +52,7 @@ void ShuttleMouseConfigView::Display(Settings::Input::Port::ShuttleMouse &contro
     ImGui::SeparatorText(_("Binds"));
     ImGui::PopFont();
 
-    if (ImGui::Button(_("Restore defaults##binds"))) {
+    if (ImGui::Button(TR_ID("Restore defaults", "binds"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, true));
         MakeDirty();
     }

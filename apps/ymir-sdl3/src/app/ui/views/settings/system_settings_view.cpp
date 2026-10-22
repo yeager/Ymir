@@ -154,11 +154,11 @@ void SystemSettingsView::Display() {
                                 "- Virtual: Runs a virtual RTC synced to emulation speed.\n\n"
                                 "For deterministic behavior, use a virtual RTC synced to a fixed time point on reset.");
     ImGui::SameLine();
-    if (MakeDirty(ImGui::RadioButton(_("Host##rtc"), settings.rtc.mode == core::config::rtc::Mode::Host))) {
+    if (MakeDirty(ImGui::RadioButton(TR_ID("Host", "rtc"), settings.rtc.mode == core::config::rtc::Mode::Host))) {
         settings.rtc.mode = core::config::rtc::Mode::Host;
     }
     ImGui::SameLine();
-    if (MakeDirty(ImGui::RadioButton(_("Virtual##rtc"), settings.rtc.mode == core::config::rtc::Mode::Virtual))) {
+    if (MakeDirty(ImGui::RadioButton(TR_ID("Virtual", "rtc"), settings.rtc.mode == core::config::rtc::Mode::Virtual))) {
         settings.rtc.mode = core::config::rtc::Mode::Virtual;
     }
 
@@ -190,12 +190,12 @@ void SystemSettingsView::Display() {
         // TODO: request emulator to update date/time so that it is updated in real time
         widgets::ExplanationTooltip(_("This may occasionally stop updating because the virtual RTC is only updated when the game reads from it."));
 
-        if (ImGui::Button(_("Set to host time##curr_time"))) {
+        if (ImGui::Button(TR_ID("Set to host time", "curr_time"))) {
             rtc.SetDateTime(util::datetime::host());
             smpc.PersistData();
         }
         ImGui::SameLine();
-        if (ImGui::Button(_("Set to starting point##curr_time"))) {
+        if (ImGui::Button(TR_ID("Set to starting point", "curr_time"))) {
             rtc.SetDateTime(util::datetime::from_timestamp(settings.rtc.virtHardResetTimestamp));
             smpc.PersistData();
         }
@@ -230,7 +230,7 @@ void SystemSettingsView::Display() {
             if (MakeDirty(widgets::DateTimeSelector("virt_base_time", dateTime))) {
                 settings.rtc.virtHardResetTimestamp = util::datetime::to_timestamp(dateTime);
             }
-            if (MakeDirty(ImGui::Button(_("Set to host time##virt_base_time")))) {
+            if (MakeDirty(ImGui::Button(TR_ID("Set to host time", "virt_base_time")))) {
                 settings.rtc.virtHardResetTimestamp = util::datetime::to_timestamp(util::datetime::host());
             }
         }
@@ -303,7 +303,7 @@ void SystemSettingsView::Display() {
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
         ImGui::Text(_("Currently using internal backup memory image from %s"), fmt::format("{}", intBupPath).c_str());
         ImGui::PopTextWrapPos();
-        if (ImGui::Button(_("Open containing directory##int_bup"))) {
+        if (ImGui::Button(TR_ID("Open containing directory", "int_bup"))) {
             SDL_OpenURL(fmt::format("file:///{}", intBupPath.parent_path()).c_str());
         }
     }

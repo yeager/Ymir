@@ -593,7 +593,7 @@ add_dependencies(ymir-sdl3 ymir-sdl3-locales)
 get_target_property(Ymir_sdl3_i18n_sources ymir-sdl3 SOURCES)
 list(FILTER Ymir_sdl3_i18n_sources INCLUDE REGEX "\\.(cpp|hpp)$")
 add_custom_target(ymir-sdl3-pot
-    COMMAND "${GETTEXT_XGETTEXT_EXECUTABLE}" --language=C++ --keyword=_ --from-code=UTF-8
+    COMMAND "${GETTEXT_XGETTEXT_EXECUTABLE}" --language=C++ --keyword=_ --keyword=TR_ID:1 --from-code=UTF-8
             --output=${CMAKE_CURRENT_SOURCE_DIR}/po/ymir-sdl3.pot ${Ymir_sdl3_i18n_sources}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     VERBATIM

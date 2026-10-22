@@ -75,7 +75,7 @@ void GeneralSettingsView::Display() {
     if (ImGui::BeginTable("emu_speed", 3, ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableNextRow();
         if (ImGui::TableNextColumn()) {
-            if (MakeDirty(ImGui::RadioButton(_("Primary##emu_speed"), !settings.useAltSpeed))) {
+            if (MakeDirty(ImGui::RadioButton(TR_ID("Primary", "emu_speed"), !settings.useAltSpeed))) {
                 settings.useAltSpeed = false;
             }
         }
@@ -90,14 +90,14 @@ void GeneralSettingsView::Display() {
             }
         }
         if (ImGui::TableNextColumn()) {
-            if (MakeDirty(ImGui::Button(_("Reset##main_emu_speed")))) {
+            if (MakeDirty(ImGui::Button(TR_ID("Reset", "main_emu_speed")))) {
                 settings.mainSpeedFactor = 1.0;
             }
         }
 
         ImGui::TableNextRow();
         if (ImGui::TableNextColumn()) {
-            if (MakeDirty(ImGui::RadioButton(_("Alternate##emu_speed"), settings.useAltSpeed))) {
+            if (MakeDirty(ImGui::RadioButton(TR_ID("Alternate", "emu_speed"), settings.useAltSpeed))) {
                 settings.useAltSpeed = true;
             }
         }
@@ -112,7 +112,7 @@ void GeneralSettingsView::Display() {
             }
         }
         if (ImGui::TableNextColumn()) {
-            if (MakeDirty(ImGui::Button(_("Reset##alt_emu_speed")))) {
+            if (MakeDirty(ImGui::Button(TR_ID("Reset", "alt_emu_speed")))) {
                 settings.altSpeedFactor = 0.5;
             }
         }

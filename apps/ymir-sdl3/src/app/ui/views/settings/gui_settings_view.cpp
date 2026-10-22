@@ -122,13 +122,13 @@ void GUISettingsView::Display() {
             guiSettings.frameRateOSDPosition = value;
         }
     };
-    frameRateOSDOption(_("Top left##fps_osd"), Settings::GUI::FrameRateOSDPosition::TopLeft);
+    frameRateOSDOption(TR_ID("Top left", "fps_osd"), Settings::GUI::FrameRateOSDPosition::TopLeft);
     ImGui::SameLine();
-    frameRateOSDOption(_("Top right##fps_osd"), Settings::GUI::FrameRateOSDPosition::TopRight);
+    frameRateOSDOption(TR_ID("Top right", "fps_osd"), Settings::GUI::FrameRateOSDPosition::TopRight);
     ImGui::SameLine();
-    frameRateOSDOption(_("Bottom left##fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomLeft);
+    frameRateOSDOption(TR_ID("Bottom left", "fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomLeft);
     ImGui::SameLine();
-    frameRateOSDOption(_("Bottom right##fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomRight);
+    frameRateOSDOption(TR_ID("Bottom right", "fps_osd"), Settings::GUI::FrameRateOSDPosition::BottomRight);
     ImGui::Unindent();
 
     MakeDirty(

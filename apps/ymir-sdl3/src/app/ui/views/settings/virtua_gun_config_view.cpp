@@ -25,7 +25,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
     ImGui::SeparatorText(_("Behavior"));
     ImGui::PopFont();
 
-    if (ImGui::Button(_("Restore defaults##speed"))) {
+    if (ImGui::Button(TR_ID("Restore defaults", "speed"))) {
         controllerSettings.speed = kDefaultSpeed;
         controllerSettings.speedBoostFactor = kDefaultSpeedBoostFactor;
         MakeDirty();
@@ -153,7 +153,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             ImGui::EndTable();
         }
 
-        if (ImGui::Button(_("Restore defaults##crosshair"))) {
+        if (ImGui::Button(TR_ID("Restore defaults", "crosshair"))) {
             xhair.color = kDefaultColor[portIndex];
             xhair.radius = kDefaultRadius[portIndex];
             xhair.thickness = kDefaultThickness[portIndex];
@@ -163,7 +163,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
             MakeDirty();
         }
         ImGui::SameLine();
-        if (ImGui::Button(_("Randomize##crosshair"))) {
+        if (ImGui::Button(TR_ID("Randomize", "crosshair"))) {
 
             xhair.color = {m_randomDist(m_randomEngine), m_randomDist(m_randomEngine), m_randomDist(m_randomEngine),
                            m_randomDist(m_randomEngine) * 0.4f + 0.6f};
@@ -185,7 +185,7 @@ void VirtuaGunConfigView::Display(Settings::Input::Port::VirtuaGun &controllerSe
     ImGui::SeparatorText(_("Binds"));
     ImGui::PopFont();
 
-    if (ImGui::Button(_("Restore defaults##binds"))) {
+    if (ImGui::Button(TR_ID("Restore defaults", "binds"))) {
         m_unboundActionsWidget.Capture(settings.ResetBinds(binds, true));
         MakeDirty();
     }

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Ymir\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 13:02+0200\n"
+"POT-Creation-Date: 2026-10-22 13:02+0200\n"
 "PO-Revision-Date: 2026-10-15 10:04+0100\n"
 "Last-Translator: Daniel Nylander <po@danielnylander.se>\n"
 "Language-Team: Swedish <tp-sv@listor.tp-sv.se>\n"
@@ -918,8 +918,9 @@ msgid "Run transfer"
 msgstr "Kör överföring"
 
 #: src/app/ui/views/debug/scu_timers_view.cpp:25
-msgid "Enabled##timer"
-msgstr "Aktiverad##timer"
+#: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:134
+msgid "Enabled"
+msgstr "Aktiverad"
 
 #: src/app/ui/views/debug/scu_timers_view.cpp:34
 msgid "Timer 0"
@@ -977,10 +978,6 @@ msgstr "Övervakningspunkter (Ctrl+Skift+F9)"
 #: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:123
 msgid "Dump disassembly range (Ctrl+D)"
 msgstr "Dumpa avassembleringsintervall (Ctrl+D)"
-
-#: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:134
-msgid "Enabled"
-msgstr "Aktiverad"
 
 #: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:144
 msgid "Suspended"
@@ -1249,6 +1246,11 @@ msgstr "Digital"
 #: src/app/ui/views/settings/control_pad_config_view.cpp:19
 #: src/app/ui/views/settings/hotkeys_settings_view.cpp:18
 #: src/app/ui/views/settings/mission_stick_config_view.cpp:30
+#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:27
+#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:55
+#: src/app/ui/views/settings/virtua_gun_config_view.cpp:28
+#: src/app/ui/views/settings/virtua_gun_config_view.cpp:156
+#: src/app/ui/views/settings/virtua_gun_config_view.cpp:188
 msgid "Restore defaults"
 msgstr "Återställ standardvärden"
 
@@ -1409,20 +1411,21 @@ msgid "Emulation speed"
 msgstr "Emuleringshastighet"
 
 #: src/app/ui/views/settings/general_settings_view.cpp:78
-msgid "Primary##emu_speed"
-msgstr "Primär##emu_speed"
+msgid "Primary"
+msgstr "Primär"
 
 #: src/app/ui/views/settings/general_settings_view.cpp:93
-msgid "Reset##main_emu_speed"
-msgstr "Återställ##main_emu_speed"
+#: src/app/ui/views/settings/general_settings_view.cpp:115
+#: src/app/ui/views/settings/system_settings_view.cpp:185
+#: src/app/ui/widgets/settings_widgets.cpp:63
+#: src/app/ui/widgets/settings_widgets.cpp:84
+#: src/app/ui/windows/system_state_window.cpp:427
+msgid "Reset"
+msgstr "Återställ"
 
 #: src/app/ui/views/settings/general_settings_view.cpp:100
-msgid "Alternate##emu_speed"
-msgstr "Alternativ##emu_speed"
-
-#: src/app/ui/views/settings/general_settings_view.cpp:115
-msgid "Reset##alt_emu_speed"
-msgstr "Återställ##alt_emu_speed"
+msgid "Alternate"
+msgstr "Alternativ"
 
 #: src/app/ui/views/settings/general_settings_view.cpp:123
 msgid "Pause when unfocused"
@@ -1533,20 +1536,20 @@ msgid "Show frame rate"
 msgstr "Visa bildfrekvens"
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:125
-msgid "Top left##fps_osd"
-msgstr "Övre vänster##fps_osd"
+msgid "Top left"
+msgstr "Övre vänster"
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:127
-msgid "Top right##fps_osd"
-msgstr "Övre höger##fps_osd"
+msgid "Top right"
+msgstr "Övre höger"
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:129
-msgid "Bottom left##fps_osd"
-msgstr "Nedre vänster##fps_osd"
+msgid "Bottom left"
+msgstr "Nedre vänster"
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:131
-msgid "Bottom right##fps_osd"
-msgstr "Nedre höger##fps_osd"
+msgid "Bottom right"
+msgstr "Nedre höger"
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:135
 msgid "Show speed indicators for modified speeds"
@@ -1596,11 +1599,6 @@ msgstr "Tre axlar"
 msgid "Six-axis"
 msgstr "Sex axlar"
 
-#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:27
-#: src/app/ui/views/settings/virtua_gun_config_view.cpp:28
-msgid "Restore defaults##speed"
-msgstr "Återställ standardvärden##speed"
-
 #: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:35
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:35
 msgid "Speed"
@@ -1619,11 +1617,6 @@ msgstr "Muskänslighet"
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:185
 msgid "Binds"
 msgstr "Bindningar"
-
-#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:55
-#: src/app/ui/views/settings/virtua_gun_config_view.cpp:188
-msgid "Restore defaults##binds"
-msgstr "Återställ standardvärden##binds"
 
 #: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:65
 msgid "Left, middle and right mouse buttons are mapped normally."
@@ -1673,12 +1666,12 @@ msgid "Real-Time Clock"
 msgstr "Realtidsklocka"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:157
-msgid "Host##rtc"
-msgstr "Värddator##rtc"
+msgid "Host"
+msgstr "Värddator"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:161
-msgid "Virtual##rtc"
-msgstr "Virtuell##rtc"
+msgid "Virtual"
+msgstr "Virtuell"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:166
 msgid "Current date/time:"
@@ -1692,13 +1685,6 @@ msgstr "Tidsförskjutning för värddatorn:"
 msgid "seconds"
 msgstr "sekunder"
 
-#: src/app/ui/views/settings/system_settings_view.cpp:185
-#: src/app/ui/widgets/settings_widgets.cpp:63
-#: src/app/ui/widgets/settings_widgets.cpp:84
-#: src/app/ui/windows/system_state_window.cpp:427
-msgid "Reset"
-msgstr "Återställ"
-
 #: src/app/ui/views/settings/system_settings_view.cpp:191
 msgid ""
 "This may occasionally stop updating because the virtual RTC is only updated "
@@ -1708,12 +1694,13 @@ msgstr ""
 "uppdateras när spelet läser från den."
 
 #: src/app/ui/views/settings/system_settings_view.cpp:193
-msgid "Set to host time##curr_time"
-msgstr "Ange värddatorns tid##curr_time"
+#: src/app/ui/views/settings/system_settings_view.cpp:233
+msgid "Set to host time"
+msgstr "Ange värddatorns tid"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:198
-msgid "Set to starting point##curr_time"
-msgstr "Ange starttidpunkt##curr_time"
+msgid "Set to starting point"
+msgstr "Ange starttidpunkt"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:214
 msgid "Hard reset behavior:"
@@ -1735,10 +1722,6 @@ msgstr "Synkronisera med värddatorns tid"
 #: src/app/ui/views/settings/system_settings_view.cpp:224
 msgid "Reset to starting point"
 msgstr "Återställ till starttidpunkt"
-
-#: src/app/ui/views/settings/system_settings_view.cpp:233
-msgid "Set to host time##virt_base_time"
-msgstr "Ange värddatorns tid##virt_base_time"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:243
 msgid "Internal backup memory"
@@ -1775,18 +1758,115 @@ msgid "Currently using internal backup memory image from %s"
 msgstr "Använder för närvarande intern reservminnesavbild från %s"
 
 #: src/app/ui/views/settings/system_settings_view.cpp:306
-msgid "Open containing directory##int_bup"
-msgstr "Öppna innehållande katalog##int_bup"
+msgid "Open containing directory"
+msgstr "Öppna innehållande katalog"
 
-#: src/app/ui/views/settings/video_settings_view.cpp:46
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:25
+msgid ""
+"The options listed in this tab affect emulation accuracy.\n"
+"If you encounter an issue running some games, try using the recommended or "
+"maximum quality/accuracy/compatibility presets below.\n"
+"The performance presets may cause issues with some games.\n"
+"When reporting issues, make sure to include this list:"
+msgstr ""
+"Alternativen på den här fliken påverkar emuleringens noggrannhet.\n"
+"Om vissa spel inte fungerar kan du prova de rekommenderade eller högsta "
+"förinställningarna för kvalitet, noggrannhet eller kompatibilitet nedan.\n"
+"Prestandaförinställningarna kan orsaka problem i vissa spel.\n"
+"Ta med denna lista när du rapporterar problem:"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:127
+msgid "Copy to clipboard"
+msgstr "Kopiera till urklipp"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:141
+#: src/app/ui/views/settings/video_settings_view.cpp:54
+msgid "Enhancements"
+msgstr "Förbättringar"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:145
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:195
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:294
+msgid "Presets:"
+msgstr "Förinställningar:"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:147
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:197
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:296
+msgid "Recommended"
+msgstr "Rekommenderad"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:152
+msgid ""
+"Strikes a good balance between quality and performance without compromising "
+"compatibility."
+msgstr ""
+"Ger en bra balans mellan kvalitet och prestanda utan att kompromissa med "
+"kompatibiliteten."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:157
+msgid "Best quality"
+msgstr "Bästa kvalitet"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:162
+msgid "Maximizes quality with no regard for performance."
+msgstr "Maximerar kvaliteten utan hänsyn till prestandan."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:167
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:239
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:320
+msgid "Best performance"
+msgstr "Bästa prestanda"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:172
+msgid "Maximizes performance with no regard for quality."
+msgstr "Maximerar prestandan utan hänsyn till kvaliteten."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:211
+msgid ""
+"Strikes a good balance between accuracy and performance without compromising "
+"compatibility."
+msgstr ""
+"Ger en bra balans mellan noggrannhet och prestanda utan att kompromissa med "
+"kompatibiliteten."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:216
+msgid "Best accuracy"
+msgstr "Bästa noggrannhet"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:234
+msgid "Maximizes accuracy with no regard for performance."
+msgstr "Maximerar noggrannheten utan hänsyn till prestandan."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:253
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:327
+msgid ""
+"Maximizes performance with no regard for accuracy.\n"
+"Reduces compatibility with some games."
+msgstr ""
+"Maximerar prestandan utan hänsyn till noggrannheten.\n"
+"Minskar kompatibiliteten med vissa spel."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:303
+msgid "Strikes a good balance between compatibility and performance."
+msgstr "Ger en bra balans mellan kompatibilitet och prestanda."
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:308
+msgid "Best compatibility"
+msgstr "Bästa kompatibilitet"
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:315
+msgid "Maximizes compatibility with no regard for performance."
+msgstr "Maximerar kompatibiliteten utan hänsyn till prestandan."
+
 #: src/app/ui/views/settings/tweaks_settings_view.cpp:338
+#: src/app/ui/views/settings/video_settings_view.cpp:46
 msgid "Software renderer"
 msgstr "Programvarurenderare"
 
-#: src/app/ui/views/settings/video_settings_view.cpp:54
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:141
-msgid "Enhancements"
-msgstr "Förbättringar"
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:344
+msgid "Hardware renderer"
+msgstr "Maskinvarurenderare"
 
 #: src/app/ui/views/settings/video_settings_view.cpp:63
 msgid "Display"
@@ -1845,13 +1925,9 @@ msgstr "Konturfärg"
 msgid "Stroke thickness"
 msgstr "Konturtjocklek"
 
-#: src/app/ui/views/settings/virtua_gun_config_view.cpp:156
-msgid "Restore defaults##crosshair"
-msgstr "Återställ standardvärden##crosshair"
-
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:166
-msgid "Randomize##crosshair"
-msgstr "Slumpa##crosshair"
+msgid "Randomize"
+msgstr "Slumpa"
 
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:240
 msgid "Mouse binds"
@@ -1880,115 +1956,6 @@ msgstr "Starta"
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:259
 msgid "Middle button"
 msgstr "Mittenknapp"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:25
-msgid ""
-"The options listed in this tab affect emulation accuracy.\n"
-"If you encounter an issue running some games, try using the recommended or "
-"maximum quality/accuracy/compatibility presets below.\n"
-"The performance presets may cause issues with some games.\n"
-"When reporting issues, make sure to include this list:"
-msgstr ""
-"Alternativen på den här fliken påverkar emuleringens noggrannhet.\n"
-"Om vissa spel inte fungerar kan du prova de rekommenderade eller högsta "
-"förinställningarna för kvalitet, noggrannhet eller kompatibilitet nedan.\n"
-"Prestandaförinställningarna kan orsaka problem i vissa spel.\n"
-"Ta med denna lista när du rapporterar problem:"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:127
-msgid "Copy to clipboard"
-msgstr "Kopiera till urklipp"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:145
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:195
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:294
-msgid "Presets:"
-msgstr "Förinställningar:"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:147
-msgid "Recommended##enhancements"
-msgstr "Rekommenderad##enhancements"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:152
-msgid ""
-"Strikes a good balance between quality and performance without compromising "
-"compatibility."
-msgstr ""
-"Ger en bra balans mellan kvalitet och prestanda utan att kompromissa med "
-"kompatibiliteten."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:157
-msgid "Best quality##enhancements"
-msgstr "Bästa kvalitet##enhancements"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:162
-msgid "Maximizes quality with no regard for performance."
-msgstr "Maximerar kvaliteten utan hänsyn till prestandan."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:167
-msgid "Best performance##enhancements"
-msgstr "Bästa prestanda##enhancements"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:172
-msgid "Maximizes performance with no regard for quality."
-msgstr "Maximerar prestandan utan hänsyn till kvaliteten."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:197
-msgid "Recommended##accuracy"
-msgstr "Rekommenderad##accuracy"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:211
-msgid ""
-"Strikes a good balance between accuracy and performance without compromising "
-"compatibility."
-msgstr ""
-"Ger en bra balans mellan noggrannhet och prestanda utan att kompromissa med "
-"kompatibiliteten."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:216
-msgid "Best accuracy##accuracy"
-msgstr "Bästa noggrannhet##accuracy"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:234
-msgid "Maximizes accuracy with no regard for performance."
-msgstr "Maximerar noggrannheten utan hänsyn till prestandan."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:239
-msgid "Best performance##accuracy"
-msgstr "Bästa prestanda##accuracy"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:253
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:327
-msgid ""
-"Maximizes performance with no regard for accuracy.\n"
-"Reduces compatibility with some games."
-msgstr ""
-"Maximerar prestandan utan hänsyn till noggrannheten.\n"
-"Minskar kompatibiliteten med vissa spel."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:296
-msgid "Recommended##performance"
-msgstr "Rekommenderad##performance"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:303
-msgid "Strikes a good balance between compatibility and performance."
-msgstr "Ger en bra balans mellan kompatibilitet och prestanda."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:308
-msgid "Best compatibility##performance"
-msgstr "Bästa kompatibilitet##performance"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:315
-msgid "Maximizes compatibility with no regard for performance."
-msgstr "Maximerar kompatibiliteten utan hänsyn till prestandan."
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:320
-msgid "Best performance##performance"
-msgstr "Bästa prestanda##performance"
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:344
-msgid "Hardware renderer"
-msgstr "Maskinvarurenderare"
 
 #: src/app/ui/widgets/cartridge_widgets.cpp:22
 #, c-format
@@ -2056,6 +2023,7 @@ msgid "Peripheral:"
 msgstr "Kringutrustning:"
 
 #: src/app/ui/widgets/peripheral_widgets.cpp:57
+#: src/app/ui/windows/system_state_window.cpp:688
 msgid "Configure"
 msgstr "Konfigurera"
 
@@ -2702,10 +2670,6 @@ msgstr "16 Mbit ROM"
 msgid "Remove"
 msgstr "Ta ut"
 
-#: src/app/ui/windows/system_state_window.cpp:688
-msgid "Configure##peripherals"
-msgstr "Konfigurera##peripherals"
-
 #: src/app/ui/windows/system_state_window.cpp:699
 msgid "Port 1:"
 msgstr "Port 1:"
@@ -2798,46 +2762,3 @@ msgstr "Hämtar…"
 #: src/app/ui/windows/update_window.cpp:49
 msgid "Close"
 msgstr "Stäng"
-
-#~ msgid "Registers##vdp1"
-#~ msgstr "Register##vdp1"
-
-#~ msgid "Registers##vdp2"
-#~ msgstr "Register##vdp2"
-
-#~ msgid "South Korea"
-#~ msgstr "Sydkorea"
-
-#~ msgid "Dev kit"
-#~ msgstr "Utvecklingskit"
-
-#~ msgid "Factory reset"
-#~ msgstr "Fabriksåterställ"
-
-#~ msgid ""
-#~ "Enables emulation of the SH-2 cache.\n"
-#~ "A few games require this to work properly.\n"
-#~ "Reduces emulation performance by about 10%.\n"
-#~ "\n"
-#~ "Upon enabling this option, both SH-2 CPUs' caches will be flushed."
-#~ msgstr ""
-#~ "Aktiverar emulering av SH-2-cachen.\n"
-#~ "Några få spel kräver detta för att fungera korrekt.\n"
-#~ "Minskar emuleringsprestandan med omkring 10 %.\n"
-#~ "\n"
-#~ "När alternativet aktiveras töms båda SH-2-processornas cachar."
-
-#~ msgid ""
-#~ "- Host: Syncs the emulated RTC to your system's clock.\n"
-#~ "- Virtual: Runs a virtual RTC synced to emulation speed.\n"
-#~ "\n"
-#~ "For deterministic behavior, use a virtual RTC synced to a fixed time "
-#~ "point on reset."
-#~ msgstr ""
-#~ "- Värddator: Synkroniserar den emulerade realtidsklockan med "
-#~ "systemklockan.\n"
-#~ "- Virtuell: Kör en virtuell realtidsklocka som synkroniseras med "
-#~ "emuleringshastigheten.\n"
-#~ "\n"
-#~ "Använd en virtuell realtidsklocka synkroniserad med en fast tidpunkt vid "
-#~ "återställning för förutsägbart beteende."

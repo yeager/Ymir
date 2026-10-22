@@ -22,7 +22,7 @@ void SCUTimersView::Display() {
     bool t1mode = probe.GetTimer1Mode();
 
     bool enable = probe.IsTimerEnabled();
-    if (ImGui::Checkbox(_("Enabled##timer"), &enable)) {
+    if (ImGui::Checkbox(TR_ID("Enabled", "timer"), &enable)) {
         probe.SetTimerEnabled(enable);
     }
 

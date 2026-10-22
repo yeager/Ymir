@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 13:02+0200\n"
+"POT-Creation-Date: 2026-10-22 13:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -913,7 +913,8 @@ msgid "Run transfer"
 msgstr ""
 
 #: src/app/ui/views/debug/scu_timers_view.cpp:25
-msgid "Enabled##timer"
+#: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:134
+msgid "Enabled"
 msgstr ""
 
 #: src/app/ui/views/debug/scu_timers_view.cpp:34
@@ -971,10 +972,6 @@ msgstr ""
 
 #: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:123
 msgid "Dump disassembly range (Ctrl+D)"
-msgstr ""
-
-#: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:134
-msgid "Enabled"
 msgstr ""
 
 #: src/app/ui/views/debug/sh2_debug_toolbar_view.cpp:144
@@ -1244,6 +1241,11 @@ msgstr ""
 #: src/app/ui/views/settings/control_pad_config_view.cpp:19
 #: src/app/ui/views/settings/hotkeys_settings_view.cpp:18
 #: src/app/ui/views/settings/mission_stick_config_view.cpp:30
+#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:27
+#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:55
+#: src/app/ui/views/settings/virtua_gun_config_view.cpp:28
+#: src/app/ui/views/settings/virtua_gun_config_view.cpp:156
+#: src/app/ui/views/settings/virtua_gun_config_view.cpp:188
 msgid "Restore defaults"
 msgstr ""
 
@@ -1402,19 +1404,20 @@ msgid "Emulation speed"
 msgstr ""
 
 #: src/app/ui/views/settings/general_settings_view.cpp:78
-msgid "Primary##emu_speed"
+msgid "Primary"
 msgstr ""
 
 #: src/app/ui/views/settings/general_settings_view.cpp:93
-msgid "Reset##main_emu_speed"
+#: src/app/ui/views/settings/general_settings_view.cpp:115
+#: src/app/ui/views/settings/system_settings_view.cpp:185
+#: src/app/ui/widgets/settings_widgets.cpp:63
+#: src/app/ui/widgets/settings_widgets.cpp:84
+#: src/app/ui/windows/system_state_window.cpp:427
+msgid "Reset"
 msgstr ""
 
 #: src/app/ui/views/settings/general_settings_view.cpp:100
-msgid "Alternate##emu_speed"
-msgstr ""
-
-#: src/app/ui/views/settings/general_settings_view.cpp:115
-msgid "Reset##alt_emu_speed"
+msgid "Alternate"
 msgstr ""
 
 #: src/app/ui/views/settings/general_settings_view.cpp:123
@@ -1526,19 +1529,19 @@ msgid "Show frame rate"
 msgstr ""
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:125
-msgid "Top left##fps_osd"
+msgid "Top left"
 msgstr ""
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:127
-msgid "Top right##fps_osd"
+msgid "Top right"
 msgstr ""
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:129
-msgid "Bottom left##fps_osd"
+msgid "Bottom left"
 msgstr ""
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:131
-msgid "Bottom right##fps_osd"
+msgid "Bottom right"
 msgstr ""
 
 #: src/app/ui/views/settings/gui_settings_view.cpp:135
@@ -1589,11 +1592,6 @@ msgstr ""
 msgid "Six-axis"
 msgstr ""
 
-#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:27
-#: src/app/ui/views/settings/virtua_gun_config_view.cpp:28
-msgid "Restore defaults##speed"
-msgstr ""
-
 #: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:35
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:35
 msgid "Speed"
@@ -1611,11 +1609,6 @@ msgstr ""
 #: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:52
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:185
 msgid "Binds"
-msgstr ""
-
-#: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:55
-#: src/app/ui/views/settings/virtua_gun_config_view.cpp:188
-msgid "Restore defaults##binds"
 msgstr ""
 
 #: src/app/ui/views/settings/shuttle_mouse_config_view.cpp:65
@@ -1662,11 +1655,11 @@ msgid "Real-Time Clock"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:157
-msgid "Host##rtc"
+msgid "Host"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:161
-msgid "Virtual##rtc"
+msgid "Virtual"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:166
@@ -1681,13 +1674,6 @@ msgstr ""
 msgid "seconds"
 msgstr ""
 
-#: src/app/ui/views/settings/system_settings_view.cpp:185
-#: src/app/ui/widgets/settings_widgets.cpp:63
-#: src/app/ui/widgets/settings_widgets.cpp:84
-#: src/app/ui/windows/system_state_window.cpp:427
-msgid "Reset"
-msgstr ""
-
 #: src/app/ui/views/settings/system_settings_view.cpp:191
 msgid ""
 "This may occasionally stop updating because the virtual RTC is only updated "
@@ -1695,11 +1681,12 @@ msgid ""
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:193
-msgid "Set to host time##curr_time"
+#: src/app/ui/views/settings/system_settings_view.cpp:233
+msgid "Set to host time"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:198
-msgid "Set to starting point##curr_time"
+msgid "Set to starting point"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:214
@@ -1720,10 +1707,6 @@ msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:224
 msgid "Reset to starting point"
-msgstr ""
-
-#: src/app/ui/views/settings/system_settings_view.cpp:233
-msgid "Set to host time##virt_base_time"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:243
@@ -1761,17 +1744,103 @@ msgid "Currently using internal backup memory image from %s"
 msgstr ""
 
 #: src/app/ui/views/settings/system_settings_view.cpp:306
-msgid "Open containing directory##int_bup"
+msgid "Open containing directory"
 msgstr ""
 
-#: src/app/ui/views/settings/video_settings_view.cpp:46
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:25
+msgid ""
+"The options listed in this tab affect emulation accuracy.\n"
+"If you encounter an issue running some games, try using the recommended or "
+"maximum quality/accuracy/compatibility presets below.\n"
+"The performance presets may cause issues with some games.\n"
+"When reporting issues, make sure to include this list:"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:127
+msgid "Copy to clipboard"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:141
+#: src/app/ui/views/settings/video_settings_view.cpp:54
+msgid "Enhancements"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:145
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:195
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:294
+msgid "Presets:"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:147
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:197
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:296
+msgid "Recommended"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:152
+msgid ""
+"Strikes a good balance between quality and performance without compromising "
+"compatibility."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:157
+msgid "Best quality"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:162
+msgid "Maximizes quality with no regard for performance."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:167
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:239
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:320
+msgid "Best performance"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:172
+msgid "Maximizes performance with no regard for quality."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:211
+msgid ""
+"Strikes a good balance between accuracy and performance without compromising "
+"compatibility."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:216
+msgid "Best accuracy"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:234
+msgid "Maximizes accuracy with no regard for performance."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:253
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:327
+msgid ""
+"Maximizes performance with no regard for accuracy.\n"
+"Reduces compatibility with some games."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:303
+msgid "Strikes a good balance between compatibility and performance."
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:308
+msgid "Best compatibility"
+msgstr ""
+
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:315
+msgid "Maximizes compatibility with no regard for performance."
+msgstr ""
+
 #: src/app/ui/views/settings/tweaks_settings_view.cpp:338
+#: src/app/ui/views/settings/video_settings_view.cpp:46
 msgid "Software renderer"
 msgstr ""
 
-#: src/app/ui/views/settings/video_settings_view.cpp:54
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:141
-msgid "Enhancements"
+#: src/app/ui/views/settings/tweaks_settings_view.cpp:344
+msgid "Hardware renderer"
 msgstr ""
 
 #: src/app/ui/views/settings/video_settings_view.cpp:63
@@ -1831,12 +1900,8 @@ msgstr ""
 msgid "Stroke thickness"
 msgstr ""
 
-#: src/app/ui/views/settings/virtua_gun_config_view.cpp:156
-msgid "Restore defaults##crosshair"
-msgstr ""
-
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:166
-msgid "Randomize##crosshair"
+msgid "Randomize"
 msgstr ""
 
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:240
@@ -1865,104 +1930,6 @@ msgstr ""
 
 #: src/app/ui/views/settings/virtua_gun_config_view.cpp:259
 msgid "Middle button"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:25
-msgid ""
-"The options listed in this tab affect emulation accuracy.\n"
-"If you encounter an issue running some games, try using the recommended or "
-"maximum quality/accuracy/compatibility presets below.\n"
-"The performance presets may cause issues with some games.\n"
-"When reporting issues, make sure to include this list:"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:127
-msgid "Copy to clipboard"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:145
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:195
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:294
-msgid "Presets:"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:147
-msgid "Recommended##enhancements"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:152
-msgid ""
-"Strikes a good balance between quality and performance without compromising "
-"compatibility."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:157
-msgid "Best quality##enhancements"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:162
-msgid "Maximizes quality with no regard for performance."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:167
-msgid "Best performance##enhancements"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:172
-msgid "Maximizes performance with no regard for quality."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:197
-msgid "Recommended##accuracy"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:211
-msgid ""
-"Strikes a good balance between accuracy and performance without compromising "
-"compatibility."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:216
-msgid "Best accuracy##accuracy"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:234
-msgid "Maximizes accuracy with no regard for performance."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:239
-msgid "Best performance##accuracy"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:253
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:327
-msgid ""
-"Maximizes performance with no regard for accuracy.\n"
-"Reduces compatibility with some games."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:296
-msgid "Recommended##performance"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:303
-msgid "Strikes a good balance between compatibility and performance."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:308
-msgid "Best compatibility##performance"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:315
-msgid "Maximizes compatibility with no regard for performance."
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:320
-msgid "Best performance##performance"
-msgstr ""
-
-#: src/app/ui/views/settings/tweaks_settings_view.cpp:344
-msgid "Hardware renderer"
 msgstr ""
 
 #: src/app/ui/widgets/cartridge_widgets.cpp:22
@@ -2012,6 +1979,7 @@ msgid "Peripheral:"
 msgstr ""
 
 #: src/app/ui/widgets/peripheral_widgets.cpp:57
+#: src/app/ui/windows/system_state_window.cpp:688
 msgid "Configure"
 msgstr ""
 
@@ -2648,10 +2616,6 @@ msgstr ""
 
 #: src/app/ui/windows/system_state_window.cpp:669
 msgid "Remove"
-msgstr ""
-
-#: src/app/ui/windows/system_state_window.cpp:688
-msgid "Configure##peripherals"
 msgstr ""
 
 #: src/app/ui/windows/system_state_window.cpp:699

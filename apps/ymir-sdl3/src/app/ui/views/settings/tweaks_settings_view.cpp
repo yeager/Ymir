@@ -144,7 +144,7 @@ void TweaksSettingsView::DisplayEnhancements() {
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(_("Presets:"));
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Recommended##enhancements")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Recommended", "enhancements")))) {
         settings.video.enhancements.deinterlace = false;
         settings.video.enhancements.transparentMeshes = true;
     }
@@ -154,7 +154,7 @@ void TweaksSettingsView::DisplayEnhancements() {
     }
 
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Best quality##enhancements")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Best quality", "enhancements")))) {
         settings.video.enhancements.deinterlace = true;
         settings.video.enhancements.transparentMeshes = true;
     }
@@ -164,7 +164,7 @@ void TweaksSettingsView::DisplayEnhancements() {
     }
 
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Best performance##enhancements")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Best performance", "enhancements")))) {
         settings.video.enhancements.deinterlace = false;
         settings.video.enhancements.transparentMeshes = false;
     }
@@ -194,7 +194,7 @@ void TweaksSettingsView::DisplayAccuracyOptions() {
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(_("Presets:"));
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Recommended##accuracy")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Recommended", "accuracy")))) {
         m_context.EnqueueEvent(events::emu::SetEmulateSH2Cache(false));
 
         settings.system.emulateSH2Cache = false;
@@ -213,7 +213,7 @@ void TweaksSettingsView::DisplayAccuracyOptions() {
     }
 
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Best accuracy##accuracy")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Best accuracy", "accuracy")))) {
         m_context.EnqueueEvent(events::emu::SetEmulateSH2Cache(true));
 
         settings.system.emulateSH2Cache = true;
@@ -236,7 +236,7 @@ void TweaksSettingsView::DisplayAccuracyOptions() {
     }
 
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Best performance##accuracy")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Best performance", "accuracy")))) {
         m_context.EnqueueEvent(events::emu::SetEmulateSH2Cache(false));
 
         settings.system.emulateSH2Cache = false;
@@ -293,7 +293,7 @@ void TweaksSettingsView::DisplayPerformanceOptions() {
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(_("Presets:"));
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Recommended##performance")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Recommended", "performance")))) {
         m_context.EnqueueEvent(events::emu::EnableThreadedVDP1(true));
         m_context.EnqueueEvent(events::emu::EnableThreadedVDP2(true));
         m_context.EnqueueEvent(events::emu::EnableThreadedDeinterlacer(true));
@@ -305,7 +305,7 @@ void TweaksSettingsView::DisplayPerformanceOptions() {
     }
 
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Best compatibility##performance")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Best compatibility", "performance")))) {
         m_context.EnqueueEvent(events::emu::EnableThreadedVDP1(false));
         m_context.EnqueueEvent(events::emu::EnableThreadedVDP2(true));
         m_context.EnqueueEvent(events::emu::EnableThreadedDeinterlacer(true));
@@ -317,7 +317,7 @@ void TweaksSettingsView::DisplayPerformanceOptions() {
     }
 
     ImGui::SameLine();
-    if (MakeDirty(ImGui::Button(_("Best performance##performance")))) {
+    if (MakeDirty(ImGui::Button(TR_ID("Best performance", "performance")))) {
         m_context.EnqueueEvent(events::emu::EnableThreadedVDP1(true));
         m_context.EnqueueEvent(events::emu::EnableThreadedVDP2(true));
         m_context.EnqueueEvent(events::emu::EnableThreadedDeinterlacer(true));

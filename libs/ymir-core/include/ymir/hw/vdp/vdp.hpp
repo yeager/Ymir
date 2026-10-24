@@ -275,6 +275,7 @@ private:
     debug::IVDPTracer *m_tracer = nullptr;
     uint64 m_vdp1FrameCounter = 0;
     uint32 m_vdp1CommandIndex = 0;
+    uint32 m_vdp1CommandRootAddress = 0;
 
     core::Configuration &m_config;
 

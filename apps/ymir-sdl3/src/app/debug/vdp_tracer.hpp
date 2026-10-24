@@ -13,7 +13,10 @@ struct VDPTracer final : ymir::debug::IVDPTracer {
     struct Entry {
         uint64 frame;
         uint32 index;
+        uint32 rootAddress;
         uint32 address;
+        sint32 localX;
+        sint32 localY;
         std::array<uint16, 16> words;
     };
 
@@ -24,13 +27,14 @@ struct VDPTracer final : ymir::debug::IVDPTracer {
     uint64 dropped = 0;
 
     bool IsEnabled() const final { return enabled.load(std::memory_order_relaxed); }
-    void Command(uint64 frame, uint32 index, uint32 address, const std::array<uint16, 16> &words) final {
+    void Command(uint64 frame, uint32 index, uint32 rootAddress, uint32 address, sint32 localX, sint32 localY,
+                 const std::array<uint16, 16> &words) final {
         std::lock_guard lock(mutex);
         if (entries.size() == kCapacity) {
             entries.pop_front();
             ++dropped;
         }
-        entries.push_back({frame, index, address, words});
+        entries.push_back({frame, index, rootAddress, address, localX, localY, words});
     }
     void Clear() {
         std::lock_guard lock(mutex);

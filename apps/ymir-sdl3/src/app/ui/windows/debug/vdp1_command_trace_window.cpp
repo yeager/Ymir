@@ -70,12 +70,15 @@ void VDP1CommandTraceWindow::DrawContents() {
             for (size_t i = 0; i < 16; ++i) {
                 out << ",word" << i;
             }
+            out << ",frame_root,local_x,local_y";
             out << '\n';
             for (const auto &entry : snapshot) {
                 out << entry.frame << ',' << entry.index << ",0x" << std::hex << entry.address << std::dec;
                 for (uint16 word : entry.words) {
                     out << ",0x" << std::hex << word << std::dec;
                 }
+                out << ",0x" << std::hex << entry.rootAddress << std::dec << ',' << entry.localX << ','
+                    << entry.localY;
                 out << '\n';
             }
             out.close();

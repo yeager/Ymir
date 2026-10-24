@@ -20,6 +20,7 @@
 
 #include <fstream>
 #include <memory>
+#include <vector>
 
 using namespace ymir;
 
@@ -160,6 +161,27 @@ EmuEvent SetVDPTrace(bool enable) {
 
 EmuEvent DumpMemory() {
     return RunFunction([](SharedContext &ctx) {
+        // Take the VDP cursor and command history together on the emulation
+        // thread. The rest of this callback dumps memory without advancing
+        // Saturn, so the bundle can join a traced frame to the same VRAM.
+        const auto &vdp = ctx.saturn.instance->VDP;
+        const auto &vdp1Regs = vdp.GetProbe().GetVDP1Regs();
+        const auto &vdp1State = vdp.GetProbe().GetVDP1State();
+        const uint64 captureFrame = vdp.GetVDP1FrameIndex();
+        const uint32 captureCommandIndex = vdp.GetVDP1CommandIndex();
+        const uint32 captureCommandAddress = vdp1Regs.currCommandAddress;
+        const sint32 captureLocalX = vdp1State.localCoordX;
+        const sint32 captureLocalY = vdp1State.localCoordY;
+        const auto &tracer = ctx.tracers.VDP;
+        std::vector<VDPTracer::Entry> traceSnapshot;
+        uint64 traceDropped = 0;
+        const bool traceEnabled = tracer.enabled.load(std::memory_order_relaxed);
+        {
+            std::lock_guard lock(tracer.mutex);
+            traceSnapshot.assign(tracer.entries.begin(), tracer.entries.end());
+            traceDropped = tracer.dropped;
+        }
+
         auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
         std::error_code error{};
         std::filesystem::create_directories(dumpPath, error);
@@ -218,10 +240,6 @@ EmuEvent DumpMemory() {
             ctx.saturn.instance->VDP.DumpVDP2Registers(out);
         }
         {
-            const auto &vdp = ctx.saturn.instance->VDP;
-            const auto &probe = vdp.GetProbe();
-            const auto &vdp1Regs = probe.GetVDP1Regs();
-            const auto &vdp1State = probe.GetVDP1State();
             std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
             out << "format=ymir-vdp-register-snapshot-v1\n"
                 << "register_byte_order=big_endian\n"
@@ -230,11 +248,55 @@ EmuEvent DumpMemory() {
                 << "vdp1_register_bytes=32\n"
                 << "vdp2_register_address_base=0x00000000\n"
                 << "vdp2_register_bytes=512\n"
-                << "vdp1_frame_index=" << vdp.GetVDP1FrameIndex() << '\n'
-                << "vdp1_next_command_index=" << vdp.GetVDP1CommandIndex() << '\n'
-                << "vdp1_current_command_address=" << vdp1Regs.currCommandAddress << '\n'
-                << "vdp1_local_x=" << vdp1State.localCoordX << '\n'
-                << "vdp1_local_y=" << vdp1State.localCoordY << '\n';
+                << "vdp1_frame_index=" << captureFrame << '\n'
+                << "vdp1_next_command_index=" << captureCommandIndex << '\n'
+                << "vdp1_current_command_address=" << captureCommandAddress << '\n'
+                << "vdp1_local_x=" << captureLocalX << '\n'
+                << "vdp1_local_y=" << captureLocalY << '\n';
+        }
+        {
+            std::ofstream out{dumpPath / "vdp1-command-trace.csv"};
+            bool traceWritten = false;
+            size_t traceRowsForCaptureFrame = 0;
+            if (!out) {
+                devlog::warn<grp::base>("Could not write VDP1 command trace in {}", dumpPath);
+            } else {
+                out << "frame,index,address";
+                for (size_t i = 0; i < 16; ++i) {
+                    out << ",word" << i;
+                }
+                out << ",frame_root,local_x,local_y\n";
+                for (const auto &entry : traceSnapshot) {
+                    if (entry.frame == captureFrame) {
+                        ++traceRowsForCaptureFrame;
+                    }
+                    out << entry.frame << ',' << entry.index << ",0x" << std::hex << entry.address << std::dec;
+                    for (uint16 word : entry.words) {
+                        out << ",0x" << std::hex << word << std::dec;
+                    }
+                    out << ",0x" << std::hex << entry.rootAddress << std::dec << ',' << entry.localX << ','
+                        << entry.localY << '\n';
+                }
+                out.close();
+                traceWritten = static_cast<bool>(out);
+            }
+            std::ofstream manifest{dumpPath / "vdp1-capture-bundle.txt"};
+            manifest << "format=ymir-vdp1-capture-bundle-v1\n"
+                    << "capture_frame_index=" << captureFrame << '\n'
+                    << "capture_next_command_index=" << captureCommandIndex << '\n'
+                    << "capture_current_command_address=" << captureCommandAddress << '\n'
+                    << "capture_local_x=" << captureLocalX << '\n'
+                    << "capture_local_y=" << captureLocalY << '\n'
+                    << "trace_enabled=" << (traceEnabled ? 1 : 0) << '\n'
+                    << "trace_file=vdp1-command-trace.csv\n"
+                    << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
+                    << "trace_rows=" << traceSnapshot.size() << '\n'
+                    << "trace_rows_for_capture_frame=" << traceRowsForCaptureFrame << '\n'
+                    << "trace_dropped_total=" << traceDropped << '\n';
+            if (!traceSnapshot.empty()) {
+                manifest << "trace_first_frame=" << traceSnapshot.front().frame << '\n'
+                         << "trace_last_frame=" << traceSnapshot.back().frame << '\n';
+            }
         }
         {
             std::ofstream out{dumpPath / "scu-dsp-prog.bin", std::ios::binary};

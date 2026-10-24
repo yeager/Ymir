@@ -252,6 +252,14 @@ public:
     // If transparent mesh rendering is enabled, also dumps the transparent mesh framebuffer in the same order.
     void DumpVDP1Framebuffers(std::ostream &out) const;
 
+    [[nodiscard]] uint64 GetVDP1FrameIndex() const {
+        return m_vdp1FrameCounter == 0 ? 0 : m_vdp1FrameCounter - 1;
+    }
+
+    [[nodiscard]] uint32 GetVDP1CommandIndex() const {
+        return m_vdp1CommandIndex;
+    }
+
     // -------------------------------------------------------------------------
     // VDP1 framebuffer access
 

@@ -92,6 +92,16 @@ The `-u` option forces usage of the OS's user profile folder (e.g. `C:\Users\<us
 
 `-D` starts the emulator with debug tracing enabled.
 
+For a frame-aligned VDP1 capture, enable **Debug > VDP > Command trace** and
+then use **Debug > Dump all memory**. The dump now writes
+`vdp1-command-trace.csv` and `vdp1-capture-bundle.txt` beside the VDP1/VDP2
+VRAM and register files. Their frame cursor, command cursor, local coordinates,
+trace row count and dropped-row count are sampled in the same emulation-thread
+callback as the memory images. A nonzero `trace_dropped_total` means the
+bounded trace buffer discarded earlier commands; `trace_file_complete=0`
+means the CSV could not be fully written. This bundle provides frame
+provenance for reverse engineering and does not assert game-specific meaning.
+
 `-F` starts the emulator in fast-forward mode.
 
 `-E` captures all unhandled exceptions, which can be useful to troubleshoot crashes or failure to start the emulator.

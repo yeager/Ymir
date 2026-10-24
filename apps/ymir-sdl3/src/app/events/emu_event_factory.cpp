@@ -146,8 +146,15 @@ EmuEvent SetDebugTrace(bool enable) {
             ctx.saturn.instance->CDBlock.UseTracer(&ctx.tracers.CDBlock);
             ctx.saturn.instance->CDDrive.UseTracer(&ctx.tracers.CDDrive);
             ctx.saturn.instance->YGR.UseTracer(&ctx.tracers.YGR);
+            ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
         }
         ctx.DisplayMessage(fmt::format("Debug tracing {}", (enable ? "enabled" : "disabled")));
+    });
+}
+
+EmuEvent SetVDPTrace(bool enable) {
+    return RunFunction([=](SharedContext &ctx) {
+        ctx.saturn.instance->VDP.UseTracer(enable ? &ctx.tracers.VDP : nullptr);
     });
 }
 

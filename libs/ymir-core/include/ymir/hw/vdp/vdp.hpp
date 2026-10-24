@@ -16,6 +16,7 @@
 #include "vdp_devlog.hpp"
 
 #include <ymir/debug/vdp_tracer_base.hpp>
+#include <ymir/debug/vdp2_memory_tracer_base.hpp>
 #include <ymir/core/configuration.hpp>
 #include <ymir/core/scheduler.hpp>
 #include <ymir/sys/bus.hpp>
@@ -260,6 +261,17 @@ public:
         return m_vdp1CommandIndex;
     }
 
+    /// Attach a VDP2 memory write tracer. Passing nullptr detaches the tracer.
+    void UseVDP2MemoryTracer(debug::IVDP2MemoryTracer *tracer) {
+        m_vdp2MemoryTracer = tracer;
+    }
+
+    /// Returns the VDP1 frame index used to timestamp VDP2 memory writes.
+    [[nodiscard]] uint64 GetVDP2MemoryTraceFrameIndex() const {
+        return m_vdp1FrameCounter == 0 ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
+                                       : m_vdp1FrameCounter - 1;
+    }
+
     // -------------------------------------------------------------------------
     // VDP1 framebuffer access
 
@@ -284,6 +296,7 @@ private:
     uint64 m_vdp1FrameCounter = 0;
     uint32 m_vdp1CommandIndex = 0;
     uint32 m_vdp1CommandRootAddress = 0;
+    debug::IVDP2MemoryTracer *m_vdp2MemoryTracer = nullptr;
 
     core::Configuration &m_config;
 

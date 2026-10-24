@@ -20,6 +20,7 @@
 
 #include <fstream>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 using namespace ymir;
@@ -140,6 +141,8 @@ EmuEvent SetDebugTrace(bool enable) {
     return RunFunction([=](SharedContext &ctx) {
         ctx.saturn.instance->EnableDebugTracing(enable);
         ctx.saturn.instance->VDP.UseTracer(enable ? &ctx.tracers.VDP : nullptr);
+        ctx.saturn.instance->VDP.UseVDP2MemoryTracer(
+            ctx.tracers.VDP2Memory.enabled.load(std::memory_order_relaxed) ? &ctx.tracers.VDP2Memory : nullptr);
         if (enable) {
             ctx.saturn.instance->masterSH2.UseTracer(&ctx.tracers.masterSH2);
             ctx.saturn.instance->slaveSH2.UseTracer(&ctx.tracers.slaveSH2);
@@ -156,6 +159,114 @@ EmuEvent SetDebugTrace(bool enable) {
 EmuEvent SetVDPTrace(bool enable) {
     return RunFunction([=](SharedContext &ctx) {
         ctx.saturn.instance->VDP.UseTracer(enable ? &ctx.tracers.VDP : nullptr);
+    });
+}
+
+EmuEvent SetVDP2MemoryTrace(bool enable) {
+    return RunFunction([=](SharedContext &ctx) {
+        auto &saturn = *ctx.saturn.instance;
+        if (enable) {
+            saturn.EnableDebugTracing(true);
+            saturn.VDP.UseVDP2MemoryTracer(&ctx.tracers.VDP2Memory);
+            ctx.DisplayMessage("VDP2 memory write tracing enabled");
+        } else {
+            saturn.VDP.UseVDP2MemoryTracer(nullptr);
+            ctx.DisplayMessage("VDP2 memory write tracing disabled");
+        }
+    });
+}
+
+EmuEvent ExportVDP2MemoryTrace() {
+    return RunFunction([](SharedContext &ctx) {
+        auto &saturn = *ctx.saturn.instance;
+        auto &tracer = ctx.tracers.VDP2Memory;
+        const uint64 captureFrame = saturn.VDP.GetVDP2MemoryTraceFrameIndex();
+        std::vector<VDP2MemoryTracer::Entry> traceSnapshot;
+        uint64 dropped = 0;
+        {
+            std::lock_guard lock(tracer.mutex);
+            traceSnapshot.assign(tracer.entries.begin(), tracer.entries.end());
+            dropped = tracer.dropped;
+        }
+        const auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
+        std::error_code error{};
+        std::filesystem::create_directories(dumpPath, error);
+        if (error) {
+            devlog::warn<grp::base>("Could not create dump directory {}: {}", dumpPath, error.message());
+            return;
+        }
+        auto writeFile = [&](const std::filesystem::path &path, auto dump) {
+            std::ofstream out(path, std::ios::binary);
+            if (!out) {
+                return false;
+            }
+            dump(out);
+            out.close();
+            return static_cast<bool>(out);
+        };
+        const bool vramWritten = writeFile(dumpPath / "vdp2-vram.bin", [&](auto &out) {
+            saturn.VDP.DumpVDP2VRAM(out);
+        });
+        const bool cramWritten = writeFile(dumpPath / "vdp2-cram.bin", [&](auto &out) {
+            saturn.VDP.DumpVDP2CRAM(out);
+        });
+        const bool registersWritten = writeFile(dumpPath / "vdp2-registers.bin", [&](auto &out) {
+            saturn.VDP.DumpVDP2Registers(out);
+        });
+        const bool traceWritten = writeFile(dumpPath / "vdp2-memory-write-trace.csv", [&](auto &out) {
+            out << "vdp1_frame,memory,address,width,value\n";
+            for (const auto &entry : traceSnapshot) {
+                if (entry.vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
+                    out << "unknown";
+                } else {
+                    out << entry.vdp1Frame;
+                }
+                out << ',' << (entry.type == ymir::debug::VDP2MemoryType::VRAM ? "VRAM" : "CRAM") << ",0x"
+                    << std::hex << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width) << ",0x"
+                    << std::hex << entry.value << std::dec << '\n';
+            }
+        });
+        std::ofstream manifest(dumpPath / "vdp2-memory-write-bundle.txt");
+        if (!manifest) {
+            devlog::warn<grp::base>("Could not write VDP2 memory trace receipt in {}", dumpPath);
+            return;
+        }
+        manifest << "format=ymir-vdp2-memory-write-bundle-v1\n"
+                 << "current_vdp1_frame_index=";
+        if (captureFrame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
+            manifest << "unknown\n";
+        } else {
+            manifest << captureFrame << '\n';
+        }
+        manifest << "address_begin=0x" << std::hex << tracer.addressBegin.load(std::memory_order_relaxed) << '\n'
+                 << "address_end_exclusive=0x" << tracer.addressEnd.load(std::memory_order_relaxed) << '\n'
+                 << std::dec << "trace_vram=" << (tracer.traceVRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
+                 << "trace_cram=" << (tracer.traceCRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
+                 << "vdp2_vram_file_complete=" << (vramWritten ? 1 : 0) << '\n'
+                 << "vdp2_cram_file_complete=" << (cramWritten ? 1 : 0) << '\n'
+                 << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
+                 << "trace_rows=" << traceSnapshot.size() << '\n'
+                 << "trace_dropped_total=" << dropped << '\n';
+        if (!traceSnapshot.empty()) {
+            const auto writeFrame = [&](std::string_view key, uint64 frame) {
+                manifest << key << '=';
+                if (frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
+                    manifest << "unknown\n";
+                } else {
+                    manifest << frame << '\n';
+                }
+            };
+            writeFrame("first_vdp1_frame_index", traceSnapshot.front().vdp1Frame);
+            writeFrame("last_vdp1_frame_index", traceSnapshot.back().vdp1Frame);
+        }
+        manifest << "bundle_complete=" << (vramWritten && cramWritten && registersWritten && traceWritten ? 1 : 0)
+                 << '\n';
+        manifest.close();
+        if (!vramWritten || !cramWritten || !registersWritten || !traceWritten || !manifest) {
+            devlog::warn<grp::base>("VDP2 memory trace bundle is incomplete in {}", dumpPath);
+        } else {
+            ctx.DisplayMessage("Exported synchronized VDP2 memory trace bundle");
+        }
     });
 }
 

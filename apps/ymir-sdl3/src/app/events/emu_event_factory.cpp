@@ -198,6 +198,10 @@ EmuEvent DumpMemory() {
             ctx.saturn.instance->VDP.DumpVDP1VRAM(out);
         }
         {
+            std::ofstream out{dumpPath / "vdp1-registers.bin", std::ios::binary};
+            ctx.saturn.instance->VDP.DumpVDP1Registers(out);
+        }
+        {
             std::ofstream out{dumpPath / "vdp1-fbs.bin", std::ios::binary};
             ctx.saturn.instance->VDP.DumpVDP1Framebuffers(out);
         }
@@ -208,6 +212,29 @@ EmuEvent DumpMemory() {
         {
             std::ofstream out{dumpPath / "vdp2-cram.bin", std::ios::binary};
             ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "vdp2-registers.bin", std::ios::binary};
+            ctx.saturn.instance->VDP.DumpVDP2Registers(out);
+        }
+        {
+            const auto &vdp = ctx.saturn.instance->VDP;
+            const auto &probe = vdp.GetProbe();
+            const auto &vdp1Regs = probe.GetVDP1Regs();
+            const auto &vdp1State = probe.GetVDP1State();
+            std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
+            out << "format=ymir-vdp-register-snapshot-v1\n"
+                << "register_byte_order=big_endian\n"
+                << "register_word_bytes=2\n"
+                << "vdp1_register_address_base=0x00000000\n"
+                << "vdp1_register_bytes=32\n"
+                << "vdp2_register_address_base=0x00000000\n"
+                << "vdp2_register_bytes=512\n"
+                << "vdp1_frame_index=" << vdp.GetVDP1FrameIndex() << '\n'
+                << "vdp1_next_command_index=" << vdp.GetVDP1CommandIndex() << '\n'
+                << "vdp1_current_command_address=" << vdp1Regs.currCommandAddress << '\n'
+                << "vdp1_local_x=" << vdp1State.localCoordX << '\n'
+                << "vdp1_local_y=" << vdp1State.localCoordY << '\n';
         }
         {
             std::ofstream out{dumpPath / "scu-dsp-prog.bin", std::ios::binary};

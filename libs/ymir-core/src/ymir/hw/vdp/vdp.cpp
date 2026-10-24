@@ -312,12 +312,28 @@ void VDP::DumpVDP1VRAM(std::ostream &out) const {
     out.write((const char *)m_state.mem1.VRAM.data(), m_state.mem1.VRAM.size());
 }
 
+void VDP::DumpVDP1Registers(std::ostream &out) const {
+    for (uint32 address = 0; address < 0x20; address += sizeof(uint16)) {
+        const uint16 value = m_state.regs1.Read<true>(address);
+        out.put(static_cast<char>(value >> 8));
+        out.put(static_cast<char>(value & 0xFF));
+    }
+}
+
 void VDP::DumpVDP2VRAM(std::ostream &out) const {
     out.write((const char *)m_state.mem2.VRAM.data(), m_state.mem2.VRAM.size());
 }
 
 void VDP::DumpVDP2CRAM(std::ostream &out) const {
     out.write((const char *)m_state.mem2.CRAM.data(), m_state.mem2.CRAM.size());
+}
+
+void VDP::DumpVDP2Registers(std::ostream &out) const {
+    for (uint32 address = 0; address < 0x200; address += sizeof(uint16)) {
+        const uint16 value = m_state.regs2.Read<true>(address);
+        out.put(static_cast<char>(value >> 8));
+        out.put(static_cast<char>(value & 0xFF));
+    }
 }
 
 void VDP::DumpVDP1Framebuffers(std::ostream &out) const {

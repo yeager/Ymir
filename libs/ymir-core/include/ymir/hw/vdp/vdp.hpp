@@ -239,12 +239,24 @@ public:
         return m_virtuaGunJitter;
     }
 
+    // Returns the active VDP1 frame and the next command dispatch index.
+    // These values are intended for debugger snapshots on the emulation thread.
+    uint64 GetVDP1FrameIndex() const {
+        return m_vdp1FrameCounter == 0 ? 0 : m_vdp1FrameCounter - 1;
+    }
+
+    uint32 GetVDP1CommandIndex() const {
+        return m_vdp1CommandIndex;
+    }
+
     // -------------------------------------------------------------------------
     // Memory dumps
 
     void DumpVDP1VRAM(std::ostream &out) const;
+    void DumpVDP1Registers(std::ostream &out) const;
     void DumpVDP2VRAM(std::ostream &out) const;
     void DumpVDP2CRAM(std::ostream &out) const;
+    void DumpVDP2Registers(std::ostream &out) const;
 
     // Dumps draw framebuffer followed by display framebuffer.
     // If transparent mesh rendering is enabled, also dumps the transparent mesh framebuffer in the same order.

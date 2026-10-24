@@ -20,6 +20,7 @@
 #include <app/debug/sh2_tracer.hpp>
 #include <app/debug/ygr_tracer.hpp>
 #include <app/debug/vdp_tracer.hpp>
+#include <app/debug/vdp2_memory_tracer.hpp>
 
 #include <app/events/emu_event.hpp>
 #include <app/events/gui_event.hpp>
@@ -732,6 +733,7 @@ struct SharedContext {
         CDDriveTracer CDDrive;
         YGRTracer YGR;
         VDPTracer VDP;
+        VDP2MemoryTracer VDP2Memory;
     } tracers;
 
     struct Images {

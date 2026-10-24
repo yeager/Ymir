@@ -5,6 +5,7 @@
 #include "vdp2_bg_layer_params_window.hpp"
 #include "vdp2_color_calc_params_window.hpp"
 #include "vdp2_cram_window.hpp"
+#include "vdp2_memory_trace_window.hpp"
 #include "vdp2_debug_overlay_window.hpp"
 #include "vdp2_layer_visibility_window.hpp"
 #include "vdp2_registers_window.hpp"
@@ -26,7 +27,8 @@ struct VDPWindowSet {
         , vdp2WindowParams(context)
         , vdp2DebugOverlay(context)
         , vdp2VRAMAccessPatterns(context)
-        , vdp2CRAM(context) {}
+        , vdp2CRAM(context)
+        , vdp2MemoryTrace(context) {}
 
     void DisplayAll() {
         vdp1Regs.Display();
@@ -40,6 +42,7 @@ struct VDPWindowSet {
         vdp2DebugOverlay.Display();
         vdp2VRAMAccessPatterns.Display();
         vdp2CRAM.Display();
+        vdp2MemoryTrace.Display();
     }
 
     VDP1RegistersWindow vdp1Regs;
@@ -53,6 +56,7 @@ struct VDPWindowSet {
     VDP2DebugOverlayWindow vdp2DebugOverlay;
     VDP2VRAMAccessPatternsWindow vdp2VRAMAccessPatterns;
     VDP2CRAMWindow vdp2CRAM;
+    VDP2MemoryTraceWindow vdp2MemoryTrace;
 };
 
 } // namespace app::ui

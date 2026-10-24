@@ -2736,6 +2736,7 @@ void App::RunEmulator() {
                         ImGui::MenuItem("Debug overlay", nullptr, &windowSet.vdp2DebugOverlay.Open);
                         ImGui::MenuItem("VRAM access patterns", nullptr, &windowSet.vdp2VRAMAccessPatterns.Open);
                         ImGui::MenuItem("Color RAM palette", nullptr, &windowSet.vdp2CRAM.Open);
+                        ImGui::MenuItem("Memory write trace", nullptr, &windowSet.vdp2MemoryTrace.Open);
 
                         ImGui::EndMenu();
                     }

@@ -108,6 +108,8 @@ EmuEvent SwitchVDPRenderer(bool verbose = true);
 
 EmuEvent SetDebugTrace(bool enable);
 EmuEvent SetVDPTrace(bool enable);
+EmuEvent SetVDP2MemoryTrace(bool enable);
+EmuEvent ExportVDP2MemoryTrace();
 EmuEvent DumpMemory();
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
 

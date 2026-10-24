@@ -46,6 +46,10 @@ void VDP::Reset(bool hard) {
     m_exclusiveMonitor = false;
 
     m_state.Reset(hard);
+    m_vdp1FrameCounter = 0;
+    if (m_vdp2MemoryTracer != nullptr) {
+        m_vdp2MemoryTracer->Reset();
+    }
     m_renderer->Reset(hard);
 
     m_VDP1TimingPenaltyCycles = 0;
@@ -435,8 +439,15 @@ FORCE_INLINE T VDP::VDP2ReadVRAM(uint32 address) const {
 
 template <mem_primitive_16 T>
 FORCE_INLINE void VDP::VDP2WriteVRAM(uint32 address, T value) {
-    m_state.mem2.WriteVRAM<T>(address, value,
-                              [&](uint32 address, T value) { m_renderer->VDP2WriteVRAM(address, value); });
+    m_state.mem2.WriteVRAM<T>(address, value, [&](uint32 mappedAddress, T mappedValue) {
+        m_renderer->VDP2WriteVRAM(mappedAddress, mappedValue);
+        if (m_vdp2MemoryTracer != nullptr && m_vdp2MemoryTracer->IsEnabled()) {
+            const uint64 frame = m_vdp1FrameCounter == 0
+                                     ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
+                                     : m_vdp1FrameCounter - 1;
+            m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T), mappedValue);
+        }
+    });
 }
 
 template <mem_primitive_16 T, bool peek>
@@ -452,6 +463,12 @@ template <mem_primitive_16 T, bool poke>
 FORCE_INLINE void VDP::VDP2WriteCRAM(uint32 address, T value) {
     m_state.mem2.WriteCRAM<T>(address, value, [&](uint32 address, T value) {
         m_renderer->VDP2WriteCRAM(address, value);
+        if (m_vdp2MemoryTracer != nullptr && m_vdp2MemoryTracer->IsEnabled()) {
+            const uint64 frame = m_vdp1FrameCounter == 0
+                                     ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
+                                     : m_vdp1FrameCounter - 1;
+            m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::CRAM, address, sizeof(T), value);
+        }
         if constexpr (!poke) {
             devlog::trace<grp::vdp2_regs>("{}-bit VDP2 CRAM write to {:05X} = {:X}", sizeof(T) * 8, address, value);
         }

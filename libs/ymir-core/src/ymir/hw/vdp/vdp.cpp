@@ -972,6 +972,7 @@ void VDP::VDP1BeginFrame() {
 
     m_state.regs1.returnAddress = kVDP1NoReturn;
     m_state.regs1.nextCommandAddress = 0;
+    m_vdp1CommandRootAddress = m_state.regs1.nextCommandAddress;
     m_state.regs1.currFrameEnded = false;
     m_vdp1CommandIndex = 0;
     const uint64 frame = m_vdp1FrameCounter++;
@@ -1028,13 +1029,15 @@ uint64 VDP::VDP1ProcessCommand() {
     const VDP1Command::Control control{.u16 = VDP1ReadVRAM<uint16>(cmdAddress)};
     m_state.regs1.currCommandAddress = cmdAddress;
 
+    const uint32 commandIndex = m_vdp1CommandIndex++;
     if (m_tracer != nullptr && m_tracer->IsEnabled()) {
         std::array<uint16, 16> words{};
         for (size_t i = 0; i < words.size(); ++i) {
             words[i] = VDP1ReadVRAM<uint16>(cmdAddress + static_cast<uint32>(i * sizeof(uint16)));
         }
-        m_tracer->Command(m_vdp1FrameCounter == 0 ? 0 : m_vdp1FrameCounter - 1, m_vdp1CommandIndex++, cmdAddress,
-                          words);
+        m_tracer->Command(m_vdp1FrameCounter == 0 ? 0 : m_vdp1FrameCounter - 1, commandIndex,
+                          m_vdp1CommandRootAddress, cmdAddress, m_state.state1.localCoordX,
+                          m_state.state1.localCoordY, words);
     }
 
     devlog::trace<grp::vdp1_cmd>("Processing command {:04X} @ {:05X}", control.u16, cmdAddress);

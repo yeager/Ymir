@@ -151,6 +151,12 @@ EmuEvent SetDebugTrace(bool enable) {
     });
 }
 
+EmuEvent SetVDPTrace(bool enable) {
+    return RunFunction([=](SharedContext &ctx) {
+        ctx.saturn.instance->VDP.UseTracer(enable ? &ctx.tracers.VDP : nullptr);
+    });
+}
+
 namespace {
 
 void DumpAllMemory(SharedContext &ctx) {

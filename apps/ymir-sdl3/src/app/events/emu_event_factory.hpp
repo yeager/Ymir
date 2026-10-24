@@ -107,6 +107,7 @@ EmuEvent UseNullVDPRenderer(util::Event &event);
 EmuEvent SwitchVDPRenderer(bool verbose = true);
 
 EmuEvent SetDebugTrace(bool enable);
+EmuEvent SetVDPTrace(bool enable);
 EmuEvent DumpMemory();
 EmuEvent RunFramesAndDump(uint32 frameCount);
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);

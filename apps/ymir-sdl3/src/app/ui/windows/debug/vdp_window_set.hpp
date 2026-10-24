@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vdp1_registers_window.hpp"
+#include "vdp1_command_trace_window.hpp"
 #include "vdp2_bg_layer_params_window.hpp"
 #include "vdp2_color_calc_params_window.hpp"
 #include "vdp2_cram_window.hpp"
@@ -16,6 +17,7 @@ namespace app::ui {
 struct VDPWindowSet {
     VDPWindowSet(SharedContext &context)
         : vdp1Regs(context)
+        , vdp1CommandTrace(context)
         , vdp2Regs(context)
         , vdp2LayerVisibility(context)
         , vdp2BGLayerParams(context)
@@ -28,6 +30,7 @@ struct VDPWindowSet {
 
     void DisplayAll() {
         vdp1Regs.Display();
+        vdp1CommandTrace.Display();
         vdp2Regs.Display();
         vdp2LayerVisibility.Display();
         vdp2BGLayerParams.Display();
@@ -40,6 +43,7 @@ struct VDPWindowSet {
     }
 
     VDP1RegistersWindow vdp1Regs;
+    VDP1CommandTraceWindow vdp1CommandTrace;
     VDP2RegistersWindow vdp2Regs;
     VDP2LayerVisibilityWindow vdp2LayerVisibility;
     VDP2BGLayerParamsWindow vdp2BGLayerParams;

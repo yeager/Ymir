@@ -2734,6 +2734,7 @@ void App::RunEmulator() {
                         ImGui::TextUnformatted("VDP1");
                         ImGui::EndDisabled();
                         ImGui::MenuItem("Registers##vdp1", nullptr, &windowSet.vdp1Regs.Open);
+                        ImGui::MenuItem("Command trace##vdp1", nullptr, &windowSet.vdp1CommandTrace.Open);
 
                         ImGui::Separator();
                         ImGui::BeginDisabled();

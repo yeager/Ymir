@@ -15,6 +15,7 @@
 
 #include "vdp_devlog.hpp"
 
+#include <ymir/debug/vdp_tracer_base.hpp>
 #include <ymir/core/configuration.hpp>
 #include <ymir/core/scheduler.hpp>
 #include <ymir/sys/bus.hpp>
@@ -221,6 +222,11 @@ public:
         return m_skipEmptyVDP1Table;
     }
 
+    /// Attach a VDP1 command tracer. Passing nullptr detaches the current tracer.
+    void UseTracer(debug::IVDPTracer *tracer) {
+        m_tracer = tracer;
+    }
+
     // Introduce a small amount of jitter to latched Virtua Gun coordinates.
     //
     // Death Crimson is the only known game that detects perfectly stable shots as reloads. Enabling this option
@@ -266,6 +272,9 @@ public:
 
 private:
     VDPState m_state;
+    debug::IVDPTracer *m_tracer = nullptr;
+    uint64 m_vdp1FrameCounter = 0;
+    uint32 m_vdp1CommandIndex = 0;
 
     core::Configuration &m_config;
 

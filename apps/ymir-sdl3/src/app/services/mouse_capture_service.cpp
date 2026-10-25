@@ -24,11 +24,6 @@ MouseCaptureService::~MouseCaptureService() {
 }
 
 bool MouseCaptureService::CaptureMouse(uint32 id, uint32 port) {
-    // Prevent capturing global mouse
-    if (id == 0) {
-        return false;
-    }
-
     // Bail out if mouse is already bound to a peripheral
     if (m_capturedMice.contains(id)) {
         return false;
@@ -50,11 +45,6 @@ bool MouseCaptureService::CaptureMouse(uint32 id, uint32 port) {
 }
 
 bool MouseCaptureService::ReleaseMouse(uint32 id) {
-    // Prevent releasing global mouse
-    if (id == 0) {
-        return false;
-    }
-
     // Bail out if mouse not bound to a peripheral
     if (!m_capturedMice.contains(id)) {
         return false;
@@ -170,6 +160,7 @@ void MouseCaptureService::ConnectMouseToPeripheral(uint32 id) {
     }
 
     CaptureMode captureMode = m_settings.input.mouse.captureMode;
+    bool captureGlobalMouseAsShuttle = false;
 
     // Force PhysicalMouse mode if a Shuttle Mouse is connected to any port
     for (uint32 port : candidates) {
@@ -191,10 +182,22 @@ void MouseCaptureService::ConnectMouseToPeripheral(uint32 id) {
         // Force global mouse ID when in system cursor capture mode
         id = 0;
     } else if (id == 0) {
-        // Engage mouse capture in physical mouse capture mode when using the global mouse ID
-        m_mouseCaptureActive = true;
-        ConfigureMouseCapture();
-        return;
+        // SDL's global mouse ID is the only mouse exposed by some virtual
+        // displays (including Xvfb). Shuttle Mouse needs relative motion and
+        // button events mapped to its peripheral, so capture it like any
+        // other mouse. Keep the legacy capture-only behavior for peripherals
+        // that do not consume relative mouse reports.
+        for (uint32 port : candidates) {
+            if (m_settings.input.ports[port].type == PeripheralType::ShuttleMouse) {
+                captureGlobalMouseAsShuttle = true;
+                break;
+            }
+        }
+        if (!captureGlobalMouseAsShuttle) {
+            m_mouseCaptureActive = true;
+            ConfigureMouseCapture();
+            return;
+        }
     }
 
     // TODO: allow user to pick port when there are multiple candidates
@@ -205,7 +208,15 @@ void MouseCaptureService::ConnectMouseToPeripheral(uint32 id) {
     //   - if mouse capture mode changes
     //   - if the target mouse is removed
     //   - if the valid controller list is changed
-    const uint32 port = *candidates.begin();
+    uint32 port = *candidates.begin();
+    if (captureGlobalMouseAsShuttle) {
+        for (uint32 candidate : candidates) {
+            if (m_settings.input.ports[candidate].type == PeripheralType::ShuttleMouse) {
+                port = candidate;
+                break;
+            }
+        }
+    }
     const PeripheralType type = m_settings.input.ports[port].type;
 
     assert(type == PeripheralType::VirtuaGun || type == PeripheralType::ShuttleMouse);

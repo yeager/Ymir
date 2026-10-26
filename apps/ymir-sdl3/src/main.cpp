@@ -13,7 +13,6 @@
 #include <memory>
 
 int main(int argc, char **argv) {
-    constexpr unsigned kMaxCaptureFrames = 60000;
 #if defined(_WIN32)
     // NOTE: Setting the main thread name on Linux and macOS replaces the process name displayed on tools like `top`.
     util::SetCurrentThreadName("Main thread");
@@ -39,8 +38,6 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.enableDebugTracing)->default_value("false"));
     options.add_options()("load-state", "Load save-state slot after media initialization",
                           cxxopts::value(progOpts.captureLoadStateSlot)->default_value("0"));
-    options.add_options()("capture-frames", "Run this many frames after loading a state, then dump memory",
-                          cxxopts::value(progOpts.captureFramesAfterLoad)->default_value("0"));
     options.add_options()("dump-memory", "Dump memory after optional state load",
                           cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
@@ -55,15 +52,6 @@ int main(int argc, char **argv) {
         auto result = options.parse(argc, argv);
         if (progOpts.captureLoadStateSlot > 10) {
             fmt::println("--load-state must be between 1 and 10");
-            return -1;
-        }
-        if (progOpts.captureFramesAfterLoad != 0
-            && (progOpts.captureLoadStateSlot == 0 || !progOpts.dumpMemoryAtStartup)) {
-            fmt::println("--capture-frames requires --load-state and --dump-memory");
-            return -1;
-        }
-        if (progOpts.captureFramesAfterLoad > kMaxCaptureFrames) {
-            fmt::println("--capture-frames must not exceed {}", kMaxCaptureFrames);
             return -1;
         }
         if (showHelp) {

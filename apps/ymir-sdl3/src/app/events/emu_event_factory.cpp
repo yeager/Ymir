@@ -151,133 +151,118 @@ EmuEvent SetDebugTrace(bool enable) {
     });
 }
 
-namespace {
-
-void DumpAllMemory(SharedContext &ctx) {
-    auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
-    std::error_code error{};
-    std::filesystem::create_directories(dumpPath, error);
-    if (error) {
-        devlog::warn<grp::base>("Could not create dump directory {}: {}", dumpPath, error.message());
-        return;
-    }
-
-    devlog::info<grp::base>("Dumping all memory to {}...", dumpPath);
-    {
-        std::ofstream out{dumpPath / "msh2-cache-data.bin", std::ios::binary};
-        ctx.saturn.instance->masterSH2.DumpCacheData(out);
-    }
-    {
-        std::ofstream out{dumpPath / "msh2-cache-addrtag.bin", std::ios::binary};
-        ctx.saturn.instance->masterSH2.DumpCacheAddressTag(out);
-    }
-    {
-        std::ofstream out{dumpPath / "ssh2-cache-data.bin", std::ios::binary};
-        ctx.saturn.instance->slaveSH2.DumpCacheData(out);
-    }
-    {
-        std::ofstream out{dumpPath / "ssh2-cache-addrtag.bin", std::ios::binary};
-        ctx.saturn.instance->slaveSH2.DumpCacheAddressTag(out);
-    }
-    {
-        std::ofstream out{dumpPath / "wram-lo.bin", std::ios::binary};
-        ctx.saturn.instance->mem.DumpWRAMLow(out);
-    }
-    {
-        std::ofstream out{dumpPath / "wram-hi.bin", std::ios::binary};
-        ctx.saturn.instance->mem.DumpWRAMHigh(out);
-    }
-    {
-        std::ofstream out{dumpPath / "vdp1-vram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP1VRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "vdp1-fbs.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP1Framebuffers(out);
-    }
-    {
-        std::ofstream out{dumpPath / "vdp2-vram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2VRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "vdp2-cram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scu-dsp-prog.bin", std::ios::binary};
-        ctx.saturn.instance->SCU.DumpDSPProgramRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scu-dsp-data.bin", std::ios::binary};
-        ctx.saturn.instance->SCU.DumpDSPDataRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scu-dsp-regs.bin", std::ios::binary};
-        ctx.saturn.instance->SCU.DumpDSPRegs(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-wram.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpWRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-mpro.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_MPRO(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-temp.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_TEMP(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-mems.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_MEMS(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-coef.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_COEF(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-madrs.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_MADRS(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-mixs.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_MIXS(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-efreg.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_EFREG(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-exts.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSP_EXTS(out);
-    }
-    {
-        std::ofstream out{dumpPath / "scsp-dsp-regs.bin", std::ios::binary};
-        ctx.saturn.instance->SCSP.DumpDSPRegs(out);
-    }
-    {
-        std::ofstream out{dumpPath / "sh1-ram.bin", std::ios::binary};
-        ctx.saturn.instance->SH1.DumpRAM(out);
-    }
-    {
-        std::ofstream out{dumpPath / "cdb-dram.bin", std::ios::binary};
-        ctx.saturn.instance->DumpCDBlockDRAM(out);
-    }
-    devlog::info<grp::base>("Dump complete");
-}
-
-} // namespace
-
 EmuEvent DumpMemory() {
-    return RunFunction(DumpAllMemory);
-}
-
-EmuEvent RunFramesAndDump(uint32 frameCount) {
-    return RunFunction([=](SharedContext &ctx) {
-        for (uint32 frame = 0; frame < frameCount; frame++) {
-            ctx.saturn.instance->RunFrame();
+    return RunFunction([](SharedContext &ctx) {
+        auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
+        std::error_code error{};
+        std::filesystem::create_directories(dumpPath, error);
+        if (error) {
+            devlog::warn<grp::base>("Could not create dump directory {}: {}", dumpPath, error.message());
+            return;
         }
-        DumpAllMemory(ctx);
+
+        devlog::info<grp::base>("Dumping all memory to {}...", dumpPath);
+        {
+            std::ofstream out{dumpPath / "msh2-cache-data.bin", std::ios::binary};
+            ctx.saturn.instance->masterSH2.DumpCacheData(out);
+        }
+        {
+            std::ofstream out{dumpPath / "msh2-cache-addrtag.bin", std::ios::binary};
+            ctx.saturn.instance->masterSH2.DumpCacheAddressTag(out);
+        }
+        {
+            std::ofstream out{dumpPath / "ssh2-cache-data.bin", std::ios::binary};
+            ctx.saturn.instance->slaveSH2.DumpCacheData(out);
+        }
+        {
+            std::ofstream out{dumpPath / "ssh2-cache-addrtag.bin", std::ios::binary};
+            ctx.saturn.instance->slaveSH2.DumpCacheAddressTag(out);
+        }
+        {
+            std::ofstream out{dumpPath / "wram-lo.bin", std::ios::binary};
+            ctx.saturn.instance->mem.DumpWRAMLow(out);
+        }
+        {
+            std::ofstream out{dumpPath / "wram-hi.bin", std::ios::binary};
+            ctx.saturn.instance->mem.DumpWRAMHigh(out);
+        }
+        {
+            std::ofstream out{dumpPath / "vdp1-vram.bin", std::ios::binary};
+            ctx.saturn.instance->VDP.DumpVDP1VRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "vdp1-fbs.bin", std::ios::binary};
+            ctx.saturn.instance->VDP.DumpVDP1Framebuffers(out);
+        }
+        {
+            std::ofstream out{dumpPath / "vdp2-vram.bin", std::ios::binary};
+            ctx.saturn.instance->VDP.DumpVDP2VRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "vdp2-cram.bin", std::ios::binary};
+            ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scu-dsp-prog.bin", std::ios::binary};
+            ctx.saturn.instance->SCU.DumpDSPProgramRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scu-dsp-data.bin", std::ios::binary};
+            ctx.saturn.instance->SCU.DumpDSPDataRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scu-dsp-regs.bin", std::ios::binary};
+            ctx.saturn.instance->SCU.DumpDSPRegs(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-wram.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpWRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-mpro.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_MPRO(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-temp.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_TEMP(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-mems.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_MEMS(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-coef.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_COEF(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-madrs.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_MADRS(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-mixs.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_MIXS(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-efreg.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_EFREG(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-exts.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSP_EXTS(out);
+        }
+        {
+            std::ofstream out{dumpPath / "scsp-dsp-regs.bin", std::ios::binary};
+            ctx.saturn.instance->SCSP.DumpDSPRegs(out);
+        }
+        {
+            std::ofstream out{dumpPath / "sh1-ram.bin", std::ios::binary};
+            ctx.saturn.instance->SH1.DumpRAM(out);
+        }
+        {
+            std::ofstream out{dumpPath / "cdb-dram.bin", std::ios::binary};
+            ctx.saturn.instance->DumpCDBlockDRAM(out);
+        }
+        devlog::info<grp::base>("Dump complete");
     });
 }
 
@@ -688,7 +673,7 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
     return RunFunction([=](SharedContext &ctx) { ctx.saturn.instance->SCSP.SetStepGranularity(granularity); });
 }
 
-EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad) {
+EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -824,11 +809,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad)
 
             ctx.EnqueueEvent(events::gui::StateLoaded(slotIndex));
             if (dumpAfterLoad) {
-                if (framesAfterLoad != 0) {
-                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad));
-                } else {
-                    ctx.EnqueueEvent(DumpMemory());
-                }
+                ctx.EnqueueEvent(DumpMemory());
             }
         } else {
             devlog::warn<grp::base>("Failed to load save state");

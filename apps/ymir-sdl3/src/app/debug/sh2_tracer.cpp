@@ -24,6 +24,11 @@ void SH2Tracer::ResetDMATraces() {
     }
 }
 
+void SH2Tracer::ResetMemoryWriteTrace() {
+    memoryWrites.Clear();
+    memoryWritesDropped = 0;
+}
+
 void SH2Tracer::Attached() {
     execAnalyst.Clear();
 }
@@ -42,6 +47,16 @@ void SH2Tracer::ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) {
     }
 
     instructions.Write({pc, opcode, delaySlot});
+}
+
+void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {
+    if (!traceMemoryWrites || address < memoryWriteAddressBegin || address >= memoryWriteAddressEnd) {
+        return;
+    }
+    if (memoryWrites.Count() == memoryWrites.Capacity()) {
+        memoryWritesDropped++;
+    }
+    memoryWrites.Write({pc, address, value, width});
 }
 
 void SH2Tracer::DelaySlot(uint32 pc, uint32 target) {

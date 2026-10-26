@@ -110,6 +110,11 @@ transfer starts. The SCU trace retains at most 1,024 entries and reports its
 overflow status as unknown, so it is evidence for recorded transfers rather
 than a claim that no other SCU transfer occurred.
 
+`sh2-vdp2-write-trace.csv` and its bundle record the master or slave SH-2
+instruction PC that directly wrote a VDP2 VRAM/CRAM bus address. This trace is
+bounded to 250,000 entries per SH-2 and reports dropped entries. It records CPU
+writes only; DMA-originated VDP2 writes remain represented by the DMA traces.
+
 `--capture-start-frame N --capture-start-hold N` can add a deterministic
 Control Pad 1 Start press to that same capture route. The frame is zero-based
 after the state load and the hold length is measured in emulated frames. Both

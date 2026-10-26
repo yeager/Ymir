@@ -466,6 +466,36 @@ void DumpAllMemory(SharedContext &ctx) {
                        << "retention_capacity=" << ctx.tracers.SCU.dmaTransfers.Capacity() << '\n'
                        << "overflow=unknown\n"
                        << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
+
+        std::ofstream sh2MemoryOut{dumpPath / "sh2-vdp2-write-trace.csv"};
+        bool sh2MemoryWritten = false;
+        size_t sh2MemoryRows = 0;
+        if (!sh2MemoryOut) {
+            devlog::warn<grp::base>("Could not write SH-2 VDP2 write trace in {}", dumpPath);
+        } else {
+            sh2MemoryOut << "sh2,pc,address,width,value\n";
+            const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
+                for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
+                    const auto entry = tracer.memoryWrites.Read(i);
+                    sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.address << std::dec
+                                 << ',' << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value
+                                 << std::dec << '\n';
+                    sh2MemoryRows++;
+                }
+            };
+            writeMemoryTracer("master", ctx.tracers.masterSH2);
+            writeMemoryTracer("slave", ctx.tracers.slaveSH2);
+            sh2MemoryOut.close();
+            sh2MemoryWritten = static_cast<bool>(sh2MemoryOut);
+        }
+        std::ofstream sh2MemoryManifest{dumpPath / "sh2-vdp2-write-trace-bundle.txt"};
+        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v1\n"
+                          << "trace_file=sh2-vdp2-write-trace.csv\n"
+                          << "trace_file_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n'
+                          << "trace_rows=" << sh2MemoryRows << '\n'
+                          << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
+                          << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
+                          << "bundle_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n';
     }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
@@ -608,6 +638,12 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.tracers.slaveSH2.traceDMA = true;
                 ctx.tracers.masterSH2.ResetDMATraces();
                 ctx.tracers.slaveSH2.ResetDMATraces();
+                for (auto *tracer : {&ctx.tracers.masterSH2, &ctx.tracers.slaveSH2}) {
+                    tracer->traceMemoryWrites = true;
+                    tracer->memoryWriteAddressBegin = 0x05E00000;
+                    tracer->memoryWriteAddressEnd = 0x05F01000;
+                    tracer->ResetMemoryWriteTrace();
+                }
                 ctx.tracers.SCU.traceDMA = true;
                 ctx.tracers.SCU.ClearDMATransfers();
             }

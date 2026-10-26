@@ -13,12 +13,16 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     void ResetDivisionCounter();
     void ResetDMACounter(uint32 channel);
     void ResetDMATraces();
+    void ResetMemoryWriteTrace();
 
     bool traceInstructions = false;
     bool traceInterrupts = false;
     bool traceExceptions = false;
     bool traceDivisions = false;
     bool traceDMA = false;
+    bool traceMemoryWrites = false;
+    uint32 memoryWriteAddressBegin = 0;
+    uint32 memoryWriteAddressEnd = 0;
 
     struct InstructionInfo {
         uint32 pc;
@@ -73,11 +77,20 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
         std::vector<XferUnit> units;*/
     };
 
+    struct MemoryWriteInfo {
+        uint32 pc;
+        uint32 address;
+        uint32 value;
+        uint8 width;
+    };
+
     util::RingBuffer<InstructionInfo, 16384> instructions;
     util::RingBuffer<InterruptInfo, 1024> interrupts;
     util::RingBuffer<ExceptionInfo, 1024> exceptions;
     util::RingBuffer<DivisionInfo, 1024> divisions;
     std::array<util::RingBuffer<DMAInfo, 1024>, 2> dmaTransfers;
+    util::RingBuffer<MemoryWriteInfo, 250000> memoryWrites;
+    uint64 memoryWritesDropped = 0;
 
     struct DivisionStatistics {
         uint64 div32s = 0;
@@ -123,6 +136,7 @@ private:
     void Reset(uint32 pc, uint32 sp, bool watchdogInitiated) final;
 
     void ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) final;
+    void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) final;
     void DelaySlot(uint32 pc, uint32 target) final;
     void Branch(uint32 pc, uint32 target) final;
     void BranchDelay(uint32 target) final;

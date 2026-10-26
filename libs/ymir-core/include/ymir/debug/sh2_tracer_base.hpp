@@ -42,6 +42,13 @@ struct ISH2Tracer {
     /// @param[in] delaySlot indicates if the instruction is executing in a delay slot
     virtual void ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) {}
 
+    /// Invoked immediately before a CPU data-memory write is committed.
+    /// @param[in] pc the instruction program counter
+    /// @param[in] address the physical Saturn bus address
+    /// @param[in] width the write width in bytes
+    /// @param[in] value the written value
+    virtual void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {}
+
     /// @brief Invoked when the CPU finishes a delayed branch, that is, executes an instruction in a delay slot.
     /// @param[in] pc the current program counter
     /// @param[in] target the target address

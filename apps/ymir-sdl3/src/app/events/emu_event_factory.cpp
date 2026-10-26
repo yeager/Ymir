@@ -673,7 +673,7 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
     return RunFunction([=](SharedContext &ctx) { ctx.saturn.instance->SCSP.SetStepGranularity(granularity); });
 }
 
-EmuEvent LoadState(uint32 slotIndex) {
+EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -808,6 +808,9 @@ EmuEvent LoadState(uint32 slotIndex) {
             saves.PushUndoLoadState(std::move(undoLoadState));
 
             ctx.EnqueueEvent(events::gui::StateLoaded(slotIndex));
+            if (dumpAfterLoad) {
+                ctx.EnqueueEvent(DumpMemory());
+            }
         } else {
             devlog::warn<grp::base>("Failed to load save state");
         }

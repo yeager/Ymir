@@ -136,7 +136,10 @@ EmuEvent EnableThreadedDeinterlacer(bool enable);
 EmuEvent EnableThreadedSCSP(bool enable);
 EmuEvent SetSCSPStepGranularity(uint32 granularity);
 
-EmuEvent LoadState(uint32 slotIndex);
+// When dumpAfterLoad is true, memory is dumped only after the state has passed
+// all validation and loaded successfully. This prevents a reset-state dump from
+// being mistaken for a requested capture.
+EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false);
 EmuEvent SaveState(uint32 slotIndex);
 EmuEvent UndoSaveState();
 EmuEvent UndoLoadState();

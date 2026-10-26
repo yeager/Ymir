@@ -1217,14 +1217,6 @@ void App::RunEmulator() {
     if (m_options.enableDebugTracing) {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
     }
-    if (m_options.captureNoPresent) {
-        // A no-present CLI capture owns the complete emulation interval and
-        // exits after its dump.  Audio output and audio-buffer pacing are not
-        // meaningful there, and would otherwise throttle the frame loop to
-        // the host playback clock.
-        m_context.audioSystem.SetSync(false);
-        m_context.audioSystem.SetSilent(true);
-    }
     if (m_options.captureVDP2MemoryWrites) {
         m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);
         m_context.tracers.VDP2Memory.Clear();

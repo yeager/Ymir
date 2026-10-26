@@ -56,6 +56,11 @@ struct ISH2Tracer {
     /// @param[in] width the read width in bytes
     virtual void MemoryRead(uint32 pc, uint32 address, uint8 width) {}
 
+    /// Whether the tracer currently wants CPU data-memory reads.
+    /// This is sampled when the tracer is attached so disabled read tracing
+    /// adds no per-read virtual dispatch to debug sessions.
+    virtual bool IsMemoryReadTracingEnabled() const { return false; }
+
     /// @brief Invoked when the CPU finishes a delayed branch, that is, executes an instruction in a delay slot.
     /// @param[in] pc the current program counter
     /// @param[in] target the target address

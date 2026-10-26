@@ -126,6 +126,7 @@ public:
             m_tracer->Detached();
         }
         m_tracer = tracer;
+        m_traceMemoryReads = tracer != nullptr && tracer->IsMemoryReadTracingEnabled();
         if (tracer != nullptr) {
             tracer->Attached();
         }
@@ -992,6 +993,7 @@ private:
 
     Probe m_probe{*this};
     debug::ISH2Tracer *m_tracer = nullptr;
+    bool m_traceMemoryReads = false;
 
     std::array<bool, 2> m_dmacTraced; // whether each DMA channel has had a transfer traced
 

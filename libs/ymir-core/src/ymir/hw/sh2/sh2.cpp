@@ -661,7 +661,7 @@ T SH2::MemRead(uint32 address) {
     }
 
     if constexpr (!instrFetch && !peek) {
-        if (m_tracer != nullptr) {
+        if (m_traceMemoryReads) {
             m_tracer->MemoryRead(PC, address & 0x7FFFFFFu, sizeof(T));
         }
     }

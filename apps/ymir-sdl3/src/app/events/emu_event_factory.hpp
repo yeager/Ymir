@@ -108,6 +108,7 @@ EmuEvent SwitchVDPRenderer(bool verbose = true);
 
 EmuEvent SetDebugTrace(bool enable);
 EmuEvent DumpMemory();
+EmuEvent RunFramesAndDump(uint32 frameCount);
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
 
 EmuEvent InsertPeripheral(uint32 port, ymir::peripheral::PeripheralType type);
@@ -137,9 +138,10 @@ EmuEvent EnableThreadedSCSP(bool enable);
 EmuEvent SetSCSPStepGranularity(uint32 granularity);
 
 // When dumpAfterLoad is true, memory is dumped only after the state has passed
-// all validation and loaded successfully. This prevents a reset-state dump from
-// being mistaken for a requested capture.
-EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false);
+// all validation and loaded successfully. framesAfterLoad are executed on the
+// emulator thread before that dump, preventing reset-state captures and
+// unscheduled frames from being mistaken for a requested capture.
+EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false, uint32 framesAfterLoad = 0);
 EmuEvent SaveState(uint32 slotIndex);
 EmuEvent UndoSaveState();
 EmuEvent UndoLoadState();

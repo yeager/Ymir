@@ -519,12 +519,6 @@ int App::Run(const CommandLineOptions &options) {
     }
 
     m_saveStateService.LoadSaveStates();
-    if (options.captureLoadStateSlot != 0) {
-        m_context.EnqueueEvent(events::emu::LoadState(options.captureLoadStateSlot - 1));
-    }
-    if (options.dumpMemoryAtStartup) {
-        m_context.EnqueueEvent(events::emu::DumpMemory());
-    }
 
     m_context.debuggers.dirty = false;
     m_context.debuggers.dirtyTimestamp = clk::now();
@@ -1219,6 +1213,15 @@ void App::RunEmulator() {
 
     if (m_options.enableDebugTracing) {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
+    }
+    if (m_options.dumpMemoryAtStartup) {
+        if (m_options.captureLoadStateSlot != 0) {
+            m_context.EnqueueEvent(events::emu::LoadState(m_options.captureLoadStateSlot - 1, true));
+        } else {
+            m_context.EnqueueEvent(events::emu::DumpMemory());
+        }
+    } else if (m_options.captureLoadStateSlot != 0) {
+        m_context.EnqueueEvent(events::emu::LoadState(m_options.captureLoadStateSlot - 1));
     }
 
     // ---------------------------------

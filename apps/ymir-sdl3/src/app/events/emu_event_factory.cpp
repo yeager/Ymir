@@ -224,8 +224,6 @@ void DumpAllMemory(SharedContext &ctx) {
             << "vdp1_register_bytes=32\n"
             << "vdp2_register_address_base=0x00000000\n"
             << "vdp2_register_bytes=512\n"
-            << "vdp1_frame_index=" << vdp.GetVDP1FrameIndex() << '\n'
-            << "vdp1_next_command_index=" << vdp.GetVDP1CommandIndex() << '\n'
             << "vdp1_current_command_address=" << vdp1Regs.currCommandAddress << '\n'
             << "vdp1_local_x=" << vdp1State.localCoordX << '\n'
             << "vdp1_local_y=" << vdp1State.localCoordY << '\n';

@@ -26,6 +26,9 @@ struct CommandLineOptions {
     uint32_t vdp2PixelFetchEndX = 320;
     unsigned captureLoadStateSlot = 0;
     unsigned captureFramesAfterLoad = 0;
+    bool captureControlPadStart = false;
+    unsigned captureControlPadStartFrame = 0;
+    unsigned captureControlPadStartHoldFrames = 0;
     bool dumpMemoryAtStartup = false;
 };
 

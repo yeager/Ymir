@@ -272,7 +272,7 @@ EmuEvent DumpMemory() {
     return RunFunction(DumpAllMemory);
 }
 
-EmuEvent RunFramesAndDump(uint32 frameCount) {
+EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames) {
     return RunFunction([=](SharedContext &ctx) {
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();
         const bool threadedVDP1 = settings.video.swRenderer.threadedVDP1.Get();
@@ -285,9 +285,20 @@ EmuEvent RunFramesAndDump(uint32 frameCount) {
         settings.video.swRenderer.threadedVDP1 = false;
         settings.video.swRenderer.threadedVDP2 = false;
         settings.video.swRenderer.threadedDeinterlacer = false;
+        using Button = ymir::peripheral::Button;
+        auto &controlPad = ctx.controlPadInputs[0];
+        const auto initialStartState = controlPad.buttons & Button::Start;
         for (uint32 frame = 0; frame < frameCount; frame++) {
+            const bool holdStart = controlPadStartHoldFrames != 0 && frame >= controlPadStartFrame
+                                   && frame - controlPadStartFrame < controlPadStartHoldFrames;
+            if (holdStart) {
+                controlPad.buttons &= ~Button::Start;
+            } else {
+                controlPad.buttons |= Button::Start;
+            }
             ctx.saturn.instance->RunFrame();
         }
+        controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
         DumpAllMemory(ctx);
         settings.video.swRenderer.threadedVDP1 = threadedVDP1;
         settings.video.swRenderer.threadedVDP2 = threadedVDP2;
@@ -702,7 +713,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
     return RunFunction([=](SharedContext &ctx) { ctx.saturn.instance->SCSP.SetStepGranularity(granularity); });
 }
 
-EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad) {
+EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
+                   uint32 controlPadStartHoldFrames) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -839,7 +851,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad)
             ctx.EnqueueEvent(events::gui::StateLoaded(slotIndex));
             if (dumpAfterLoad) {
                 if (framesAfterLoad != 0) {
-                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad));
+                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad, controlPadStartFrame, controlPadStartHoldFrames));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

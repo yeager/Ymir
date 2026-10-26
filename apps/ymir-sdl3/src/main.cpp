@@ -50,6 +50,10 @@ int main(int argc, char **argv) {
     try {
 #endif
         auto result = options.parse(argc, argv);
+        if (progOpts.captureLoadStateSlot > 10) {
+            fmt::println("--load-state must be between 1 and 10");
+            return -1;
+        }
         if (showHelp) {
             fmt::println("{}", options.help());
             return 0;

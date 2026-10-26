@@ -127,6 +127,16 @@ recorded. The trace retains the newest 250,000 matching reads per SH-2 and
 reports discarded rows; it is diagnostic evidence, not a claim of ownership
 or rendering semantics.
 
+`--trace-sh2-writes-begin ADDRESS --trace-sh2-writes-end ADDRESS` records
+master and slave SH-2 data writes in an independently selected, start-inclusive
+and end-exclusive physical bus-address range during that same deterministic
+`--debug` frame capture. It writes `sh2-memory-write-trace.csv` and
+`sh2-memory-write-trace-bundle.txt` beside the dump. A row contains the SH-2
+PC, current call-site, physical destination address, width, and value. The
+trace retains the newest 250,000 matching writes per SH-2 and reports discarded
+rows. It records direct CPU stores only, not DMA traffic or a source-resource
+ownership claim.
+
 `--capture-start-frame N --capture-start-hold N`,
 `--capture-start-repeat-frame N --capture-start-repeat-hold N`,
 `--capture-a-frame N --capture-a-hold N`,

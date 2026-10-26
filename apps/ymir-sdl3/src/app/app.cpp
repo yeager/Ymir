@@ -1222,8 +1222,8 @@ void App::RunEmulator() {
         // exits after its dump.  Audio output and audio-buffer pacing are not
         // meaningful there, and would otherwise throttle the frame loop to
         // the host playback clock.
-        m_audioSystem.SetSync(false);
-        m_audioSystem.SetSilent(true);
+        m_context.audioSystem.SetSync(false);
+        m_context.audioSystem.SetSilent(true);
     }
     if (m_options.captureVDP2MemoryWrites) {
         m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);

@@ -2,7 +2,6 @@
 
 #include "gui_event_factory.hpp"
 
-#include <app/audio_system.hpp>
 #include <app/shared_context.hpp>
 
 #include <app/services/graphics_service.hpp>
@@ -737,9 +736,6 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         const bool threadedVDP1 = settings.video.swRenderer.threadedVDP1.Get();
         const bool threadedVDP2 = settings.video.swRenderer.threadedVDP2.Get();
         const bool threadedDeinterlacer = settings.video.swRenderer.threadedDeinterlacer.Get();
-        auto &audio = ctx.serviceLocator.GetRequired<AudioSystem>();
-        const bool audioSync = audio.IsSync();
-        const bool audioSilent = audio.IsSilent();
 
         // Each capture step must observe the renderer's completed state. The
         // software renderer provides that guarantee only while it is local to
@@ -747,15 +743,6 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         settings.video.swRenderer.threadedVDP1 = false;
         settings.video.swRenderer.threadedVDP2 = false;
         settings.video.swRenderer.threadedDeinterlacer = false;
-        // A CLI-owned capture advances frames synchronously and never needs
-        // real-time audio pacing.  Keeping audio sync enabled can throttle a
-        // no-present capture to the host playback clock.
-        audio.SetSync(false);
-        audio.SetSilent(true);
-        util::ScopeGuard restoreAudio{[&] {
-            audio.SetSilent(audioSilent);
-            audio.SetSync(audioSync);
-        }};
         using Button = ymir::peripheral::Button;
         auto &controlPad = ctx.controlPadInputs[0];
         const auto initialStartState = controlPad.buttons & Button::Start;

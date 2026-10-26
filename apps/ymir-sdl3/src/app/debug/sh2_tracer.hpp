@@ -79,6 +79,8 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
 
     struct MemoryWriteInfo {
         uint32 pc;
+        uint32 callerReturnAddress;
+        uint32 callerTarget;
         uint32 address;
         uint32 value;
         uint8 width;

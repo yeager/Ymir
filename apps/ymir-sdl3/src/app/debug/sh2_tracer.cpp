@@ -56,7 +56,14 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
     if (memoryWrites.Count() == memoryWrites.Capacity()) {
         memoryWritesDropped++;
     }
-    memoryWrites.Write({pc, address, value, width});
+    uint32 callerReturnAddress = 0;
+    uint32 callerTarget = 0;
+    const auto callStack = execAnalyst.GetCurrentCallStack();
+    if (!callStack.empty()) {
+        callerReturnAddress = callStack.back().address;
+        callerTarget = callStack.back().target;
+    }
+    memoryWrites.Write({pc, callerReturnAddress, callerTarget, address, value, width});
 }
 
 void SH2Tracer::DelaySlot(uint32 pc, uint32 target) {

@@ -473,13 +473,14 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!sh2MemoryOut) {
             devlog::warn<grp::base>("Could not write SH-2 VDP2 write trace in {}", dumpPath);
         } else {
-            sh2MemoryOut << "sh2,pc,address,width,value\n";
+            sh2MemoryOut << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
             const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
                     const auto entry = tracer.memoryWrites.Read(i);
-                    sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.address << std::dec
-                                 << ',' << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value
-                                 << std::dec << '\n';
+                    sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
+                                 << ",0x" << entry.callerTarget << ",0x" << entry.address << std::dec << ','
+                                 << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
+                                 << '\n';
                     sh2MemoryRows++;
                 }
             };

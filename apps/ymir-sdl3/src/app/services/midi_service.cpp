@@ -176,6 +176,10 @@ void MIDIService::DoInit(std::function<void()> onComplete) {
         SetInput(input);
         SetOutput(output);
     }
+
+    if (onComplete) {
+        onComplete();
+    }
 }
 
 } // namespace app::services

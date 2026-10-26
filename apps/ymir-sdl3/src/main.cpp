@@ -63,6 +63,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("capture-screenshot", "Save a screenshot after a deterministic frame capture",
                           cxxopts::value(progOpts.captureScreenshotAtEnd)->default_value("false"));
+    options.add_options()("capture-save-state", "Save this slot after a deterministic frame capture",
+                          cxxopts::value(progOpts.captureSaveStateSlot)->default_value("0"));
     options.add_options()("capture-no-present", "Run a deterministic frame capture without presenting GUI frames",
                           cxxopts::value(progOpts.captureNoPresent)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
@@ -87,6 +89,10 @@ int main(int argc, char **argv) {
             fmt::println("--load-state must be between 1 and 10");
             return -1;
         }
+        if (progOpts.captureSaveStateSlot > 10) {
+            fmt::println("--capture-save-state must be between 1 and 10");
+            return -1;
+        }
         if (progOpts.captureFramesAfterLoad != 0
             && (progOpts.captureLoadStateSlot == 0 || !progOpts.dumpMemoryAtStartup)) {
             fmt::println("--capture-frames requires --load-state and --dump-memory");
@@ -108,6 +114,10 @@ int main(int argc, char **argv) {
             progOpts.captureFramesAfterLoad != 0 ? progOpts.captureFramesAfterLoad : progOpts.captureFramesFromBoot;
         if (progOpts.captureScreenshotAtEnd && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
             fmt::println("--capture-screenshot requires a frame capture and --dump-memory");
+            return -1;
+        }
+        if (progOpts.captureSaveStateSlot != 0 && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
+            fmt::println("--capture-save-state requires a frame capture and --dump-memory");
             return -1;
         }
         if (progOpts.captureNoPresent && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {

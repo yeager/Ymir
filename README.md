@@ -132,6 +132,12 @@ timing.
 loop and memory dump. It requires a frame capture and `--dump-memory`, and
 writes to the selected profile's `screenshots/` directory.
 
+`--capture-save-state N` saves slot `N` after the same frame loop and dump.
+It requires a frame capture and `--dump-memory`. The saved state is written to
+the selected profile and can be loaded later with `--load-state N`, which makes
+long boot or title-to-game captures practical to inspect in smaller follow-up
+runs.
+
 `--capture-no-present` is for automated deterministic captures on a host whose
 window compositor cannot present frames reliably. It keeps normal renderer
 initialization so emulation uses the configured video path, but deliberately

@@ -629,7 +629,8 @@ EmuEvent DumpMemory() {
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
                           uint32 controlPadStartRepeatFrame, uint32 controlPadStartRepeatHoldFrames,
                           uint32 controlPadAFrame, uint32 controlPadAHoldFrames, uint32 controlPadCFrame,
-                          uint32 controlPadCHoldFrames, bool captureScreenshot, bool quitWhenComplete) {
+                          uint32 controlPadCHoldFrames, bool captureScreenshot, bool quitWhenComplete,
+                          uint32 saveStateSlot) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
@@ -710,6 +711,18 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             controlPad.buttons = (controlPad.buttons & ~Button::C) | initialCState;
         }
         DumpAllMemory(ctx);
+        if (saveStateSlot != 0) {
+            const uint32 slotIndex = saveStateSlot - 1;
+            auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
+            {
+                auto lock = std::unique_lock{saves.SlotMutex(slotIndex)};
+                auto *slot = saves.Push(slotIndex);
+                assert(slot != nullptr);
+                ctx.saturn.instance->SaveState(*slot->state);
+                slot->timestamp = std::chrono::system_clock::now();
+            }
+            saves.PersistSaveState(slotIndex);
+        }
         if (captureScreenshot) {
             ctx.EnqueueEvent(events::gui::TakeScreenshot());
         }
@@ -1133,7 +1146,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                    uint32 controlPadStartHoldFrames, uint32 controlPadStartRepeatFrame,
                    uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
                    uint32 controlPadCFrame, uint32 controlPadCHoldFrames, bool captureScreenshot,
-                   bool quitWhenComplete) {
+                   bool quitWhenComplete, uint32 saveStateSlot) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1274,7 +1287,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadStartHoldFrames, controlPadStartRepeatFrame,
                                                        controlPadStartRepeatHoldFrames, controlPadAFrame,
                                                        controlPadAHoldFrames, controlPadCFrame,
-                                                       controlPadCHoldFrames, captureScreenshot, quitWhenComplete));
+                                                       controlPadCHoldFrames, captureScreenshot, quitWhenComplete,
+                                                       saveStateSlot));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

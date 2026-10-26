@@ -49,6 +49,13 @@ struct ISH2Tracer {
     /// @param[in] value the written value
     virtual void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {}
 
+    /// Invoked immediately before a CPU data-memory read is performed.
+    /// Instruction fetches and debugger peeks are not reported.
+    /// @param[in] pc the instruction program counter
+    /// @param[in] address the physical Saturn bus address
+    /// @param[in] width the read width in bytes
+    virtual void MemoryRead(uint32 pc, uint32 address, uint8 width) {}
+
     /// @brief Invoked when the CPU finishes a delayed branch, that is, executes an instruction in a delay slot.
     /// @param[in] pc the current program counter
     /// @param[in] target the target address

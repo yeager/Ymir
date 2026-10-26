@@ -1221,6 +1221,14 @@ void App::RunEmulator() {
         m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);
         m_context.tracers.VDP2Memory.Clear();
     }
+    if (m_options.captureSH2MemoryReads) {
+        for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {
+            tracer->traceMemoryReads = true;
+            tracer->memoryReadAddressBegin = m_options.captureSH2MemoryReadBegin;
+            tracer->memoryReadAddressEnd = m_options.captureSH2MemoryReadEnd;
+            tracer->ResetMemoryReadTrace();
+        }
+    }
     if (m_options.dumpMemoryAtStartup) {
         if (m_options.captureLoadStateSlot != 0) {
             m_context.EnqueueEvent(

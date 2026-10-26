@@ -498,6 +498,41 @@ void DumpAllMemory(SharedContext &ctx) {
                           << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                           << "bundle_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n';
     }
+    const bool sh2MemoryReadTraceEnabled = ctx.tracers.masterSH2.traceMemoryReads
+                                           || ctx.tracers.slaveSH2.traceMemoryReads;
+    if (sh2MemoryReadTraceEnabled) {
+        std::ofstream out{dumpPath / "sh2-memory-read-trace.csv"};
+        bool written = false;
+        size_t rows = 0;
+        if (!out) {
+            devlog::warn<grp::base>("Could not write SH-2 memory read trace in {}", dumpPath);
+        } else {
+            out << "sh2,pc,caller_return_address,caller_target,address,width\n";
+            const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
+                for (size_t i = 0; i < tracer.memoryReads.Count(); i++) {
+                    const auto entry = tracer.memoryReads.Read(i);
+                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
+                        << entry.callerTarget << ",0x" << entry.address << std::dec << ','
+                        << static_cast<unsigned>(entry.width) << '\n';
+                    rows++;
+                }
+            };
+            writeTracer("master", ctx.tracers.masterSH2);
+            writeTracer("slave", ctx.tracers.slaveSH2);
+            out.close();
+            written = static_cast<bool>(out);
+        }
+        std::ofstream manifest{dumpPath / "sh2-memory-read-trace-bundle.txt"};
+        manifest << "format=ymir-sh2-memory-read-trace-bundle-v1\n"
+                 << "trace_file=sh2-memory-read-trace.csv\n"
+                 << "trace_file_complete=" << (written ? 1 : 0) << '\n'
+                 << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryReadAddressBegin << '\n'
+                 << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryReadAddressEnd << std::dec << '\n'
+                 << "trace_rows=" << rows << '\n'
+                 << "master_dropped=" << ctx.tracers.masterSH2.memoryReadsDropped << '\n'
+                 << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n'
+                 << "bundle_complete=" << (written ? 1 : 0) << '\n';
+    }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
         out << "format=ymir-vdp-register-snapshot-v1\n"

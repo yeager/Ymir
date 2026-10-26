@@ -38,6 +38,9 @@ struct CommandLineOptions {
     unsigned captureSaveStateSlot = 0;
     bool captureNoPresent = false;
     bool captureVDP2MemoryWrites = false;
+    bool captureSH2MemoryReads = false;
+    unsigned captureSH2MemoryReadBegin = 0;
+    unsigned captureSH2MemoryReadEnd = 0;
 };
 
 } // namespace app

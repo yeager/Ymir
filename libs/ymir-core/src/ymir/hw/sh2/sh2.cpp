@@ -660,6 +660,12 @@ T SH2::MemRead(uint32 address) {
         address &= kAddressMask;
     }
 
+    if constexpr (!instrFetch && !peek) {
+        if (m_tracer != nullptr) {
+            m_tracer->MemoryRead(PC, address & 0x7FFFFFFu, sizeof(T));
+        }
+    }
+
     switch (partition) {
     case 0b000: // cache
         if constexpr (emulateCache) {

@@ -116,6 +116,17 @@ address. This trace is bounded to 250,000 entries per SH-2 and reports dropped
 entries. It records CPU writes only; DMA-originated VDP2 writes remain
 represented by the DMA traces.
 
+`--trace-sh2-reads-begin ADDRESS --trace-sh2-reads-end ADDRESS` records
+master and slave SH-2 data reads within a start-inclusive, end-exclusive
+physical bus-address range during the same deterministic `--debug` frame
+capture. It writes `sh2-memory-read-trace.csv` and
+`sh2-memory-read-trace-bundle.txt` beside the memory dump. Each retained row
+includes the SH-2 PC, current call-site, address, and read width. Instruction
+fetches, debugger peeks, and accesses outside the selected interval are not
+recorded. The trace retains the newest 250,000 matching reads per SH-2 and
+reports discarded rows; it is diagnostic evidence, not a claim of ownership
+or rendering semantics.
+
 `--capture-start-frame N --capture-start-hold N`,
 `--capture-start-repeat-frame N --capture-start-repeat-hold N`,
 `--capture-a-frame N --capture-a-hold N`,

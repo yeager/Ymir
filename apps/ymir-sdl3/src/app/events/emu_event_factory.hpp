@@ -146,7 +146,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity);
 // emulator thread before that dump, preventing reset-state captures and
 // unscheduled frames from being mistaken for a requested capture.
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false, uint32 framesAfterLoad = 0,
-                   uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0);
+                   uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0,
+                   uint32 controlPadAFrame = 0, uint32 controlPadAHoldFrames = 0);
 EmuEvent SaveState(uint32 slotIndex);
 EmuEvent UndoSaveState();
 EmuEvent UndoLoadState();

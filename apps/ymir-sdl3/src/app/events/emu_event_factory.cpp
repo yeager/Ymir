@@ -1107,7 +1107,7 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 }
 
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
-                   uint32 controlPadStartHoldFrames) {
+                   uint32 controlPadStartHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1244,7 +1244,9 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
             ctx.EnqueueEvent(events::gui::StateLoaded(slotIndex));
             if (dumpAfterLoad) {
                 if (framesAfterLoad != 0) {
-                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad, controlPadStartFrame, controlPadStartHoldFrames));
+                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad, controlPadStartFrame,
+                                                       controlPadStartHoldFrames, controlPadAFrame,
+                                                       controlPadAHoldFrames));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

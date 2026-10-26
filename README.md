@@ -98,6 +98,13 @@ route and is written as `vdp2-memory-write-trace.csv` with
 but complete trace is valid evidence that the selected capture interval made no
 observed VDP2 writes; it is not a missing-output fallback.
 
+The same CLI route also writes `sh2-dma-trace.csv` and
+`sh2-dma-trace-bundle.txt`. These report the retained SH-2 DMA transfer source
+and destination ranges during the frame capture, so a VDP2 destination can be
+compared with the DMA source memory. The trace does not identify a CPU program
+counter, prove that every VDP2 write was DMA-originated, or replace byte-level
+source provenance.
+
 `--capture-start-frame N --capture-start-hold N` can add a deterministic
 Control Pad 1 Start press to that same capture route. The frame is zero-based
 after the state load and the hold length is measured in emulated frames. Both

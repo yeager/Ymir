@@ -16,6 +16,14 @@ void SH2Tracer::ResetDMACounter(uint32 channel) {
     m_dmaCounter[channel] = 0;
 }
 
+void SH2Tracer::ResetDMATraces() {
+    for (uint32 channel = 0; channel < dmaTransfers.size(); channel++) {
+        dmaTransfers[channel].Clear();
+        ResetDMACounter(channel);
+        dmaStats[channel].Clear();
+    }
+}
+
 void SH2Tracer::Attached() {
     execAnalyst.Clear();
 }

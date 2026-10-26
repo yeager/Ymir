@@ -12,6 +12,7 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     void ResetInterruptCounter();
     void ResetDivisionCounter();
     void ResetDMACounter(uint32 channel);
+    void ResetDMATraces();
 
     bool traceInstructions = false;
     bool traceInterrupts = false;

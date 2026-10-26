@@ -394,6 +394,51 @@ void DumpAllMemory(SharedContext &ctx) {
                  << "trace_rows=" << vdp2MemoryTraceSnapshot.size() << '\n'
                  << "trace_dropped_total=" << vdp2MemoryTraceDropped << '\n'
                  << "bundle_complete=" << (traceWritten ? 1 : 0) << '\n';
+
+        std::ofstream dmaOut{dumpPath / "sh2-dma-trace.csv"};
+        bool dmaWritten = false;
+        size_t dmaRows = 0;
+        if (!dmaOut) {
+            devlog::warn<grp::base>("Could not write SH-2 DMA trace in {}", dumpPath);
+        } else {
+            dmaOut << "sh2,channel,transfer,source_address,destination_address,count,unit_size,source_increment,"
+                      "destination_increment,finished,irq_raised\n";
+            const auto writeDMATracer = [&](std::string_view name, const SH2Tracer &tracer) {
+                for (uint32 channel = 0; channel < tracer.dmaTransfers.size(); channel++) {
+                    const auto &transfers = tracer.dmaTransfers[channel];
+                    for (size_t i = 0; i < transfers.Count(); i++) {
+                        const auto entry = transfers.Read(i);
+                        dmaOut << name << ',' << channel << ',' << entry.counter << ",0x" << std::hex
+                               << entry.srcAddress << ",0x" << entry.dstAddress << std::dec << ',' << entry.count
+                               << ',' << entry.unitSize << ',' << entry.srcInc << ',' << entry.dstInc << ','
+                               << (entry.finished ? 1 : 0) << ',' << (entry.irqRaised ? 1 : 0) << '\n';
+                        dmaRows++;
+                    }
+                }
+            };
+            writeDMATracer("master", ctx.tracers.masterSH2);
+            writeDMATracer("slave", ctx.tracers.slaveSH2);
+            dmaOut.close();
+            dmaWritten = static_cast<bool>(dmaOut);
+        }
+        std::ofstream dmaManifest{dumpPath / "sh2-dma-trace-bundle.txt"};
+        dmaManifest << "format=ymir-sh2-dma-trace-bundle-v1\n"
+                    << "trace_file=sh2-dma-trace.csv\n"
+                    << "trace_file_complete=" << (dmaWritten ? 1 : 0) << '\n'
+                    << "trace_rows=" << dmaRows << '\n'
+                    << "bundle_complete=" << (dmaWritten ? 1 : 0) << '\n';
+        const auto writeDMAStats = [&](std::string_view name, const SH2Tracer &tracer) {
+            for (uint32 channel = 0; channel < tracer.dmaTransfers.size(); channel++) {
+                const auto &stats = tracer.dmaStats[channel];
+                dmaManifest << name << "_channel_" << channel << "_retained="
+                            << tracer.dmaTransfers[channel].Count() << '\n'
+                            << name << "_channel_" << channel << "_total=" << stats.numTransfers << '\n'
+                            << name << "_channel_" << channel << "_bytes=" << stats.bytesTransferred << '\n'
+                            << name << "_channel_" << channel << "_interrupts=" << stats.interrupts << '\n';
+            }
+        };
+        writeDMAStats("master", ctx.tracers.masterSH2);
+        writeDMAStats("slave", ctx.tracers.slaveSH2);
     }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
@@ -532,6 +577,10 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
             if (ctx.tracers.VDP2Memory.enabled.load(std::memory_order_relaxed)) {
                 ctx.saturn.instance->VDP.UseVDP2MemoryTracer(&ctx.tracers.VDP2Memory);
+                ctx.tracers.masterSH2.traceDMA = true;
+                ctx.tracers.slaveSH2.traceDMA = true;
+                ctx.tracers.masterSH2.ResetDMATraces();
+                ctx.tracers.slaveSH2.ResetDMATraces();
             }
         }
 

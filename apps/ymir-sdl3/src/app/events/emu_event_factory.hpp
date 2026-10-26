@@ -117,7 +117,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, ui
                           uint32 controlPadCHoldFrames = 0, uint32 controlPadARepeatFrame = 0,
                           uint32 controlPadARepeatHoldFrames = 0, uint32 controlPadDownFrame = 0,
                           uint32 controlPadDownHoldFrames = 0, bool captureScreenshot = false,
-                          bool quitWhenComplete = false, uint32 saveStateSlot = 0);
+                          bool quitWhenComplete = false, uint32 saveStateSlot = 0, bool captureNoRender = false);
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
 
 EmuEvent InsertPeripheral(uint32 port, ymir::peripheral::PeripheralType type);
@@ -157,7 +157,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false, uint32 framesAf
                    uint32 controlPadCHoldFrames = 0, uint32 controlPadARepeatFrame = 0,
                    uint32 controlPadARepeatHoldFrames = 0, uint32 controlPadDownFrame = 0,
                    uint32 controlPadDownHoldFrames = 0, bool captureScreenshot = false,
-                   bool quitWhenComplete = false, uint32 saveStateSlot = 0);
+                   bool quitWhenComplete = false, uint32 saveStateSlot = 0, bool captureNoRender = false);
 EmuEvent SaveState(uint32 slotIndex);
 EmuEvent UndoSaveState();
 EmuEvent UndoLoadState();

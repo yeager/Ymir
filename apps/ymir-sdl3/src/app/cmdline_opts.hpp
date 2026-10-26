@@ -37,6 +37,7 @@ struct CommandLineOptions {
     bool captureScreenshotAtEnd = false;
     unsigned captureSaveStateSlot = 0;
     bool captureNoPresent = false;
+    bool captureNoRender = false;
     bool captureVDP2MemoryWrites = false;
     bool captureSH2MemoryReads = false;
     unsigned captureSH2MemoryReadBegin = 0;

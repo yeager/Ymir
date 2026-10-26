@@ -703,7 +703,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                           uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                           uint32 controlPadDownHoldFrames,
                           bool captureScreenshot, bool quitWhenComplete,
-                          uint32 saveStateSlot) {
+                          uint32 saveStateSlot, bool captureNoRender) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
@@ -753,6 +753,22 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         util::ScopeGuard restoreAudio{[&] {
             audio.SetSilent(audioSilent);
             audio.SetSync(audioSync);
+        }};
+        auto &vdp = ctx.saturn.instance->VDP;
+        const auto rendererType = vdp.GetRenderer().GetType();
+        if (captureNoRender) {
+            auto result = vdp.UseNullRenderer();
+            if (!result) {
+                ctx.DisplayMessage(fmt::format("Could not enable null VDP renderer: {}", result.Error().message));
+                return;
+            }
+        }
+        util::ScopeGuard restoreRenderer{[&] {
+            if (captureNoRender && rendererType == ymir::vdp::VDPRendererType::Software) {
+                if (auto result = vdp.UseSoftwareRenderer(); !result) {
+                    devlog::error<grp::base>("Could not restore software VDP renderer: {}", result.Error().message);
+                }
+            }
         }};
         using Button = ymir::peripheral::Button;
         auto &controlPad = ctx.controlPadInputs[0];
@@ -1253,7 +1269,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                    uint32 controlPadCFrame, uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
                    uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                    uint32 controlPadDownHoldFrames, bool captureScreenshot,
-                   bool quitWhenComplete, uint32 saveStateSlot) {
+                   bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1397,7 +1413,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadCHoldFrames, controlPadARepeatFrame,
                                                        controlPadARepeatHoldFrames, controlPadDownFrame,
                                                        controlPadDownHoldFrames, captureScreenshot, quitWhenComplete,
-                                                       saveStateSlot));
+                                                       saveStateSlot, captureNoRender));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

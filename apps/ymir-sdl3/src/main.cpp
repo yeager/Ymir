@@ -75,6 +75,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSaveStateSlot)->default_value("0"));
     options.add_options()("capture-no-present", "Run a deterministic frame capture without presenting GUI frames",
                           cxxopts::value(progOpts.captureNoPresent)->default_value("false"));
+    options.add_options()("capture-no-render", "Run a memory/trace-only capture with the VDP null renderer",
+                          cxxopts::value(progOpts.captureNoRender)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
     options.add_options()("trace-sh2-reads-begin", "First physical bus address for a bounded SH-2 data-read trace",
@@ -146,6 +148,13 @@ int main(int argc, char **argv) {
         }
         if (progOpts.captureNoPresent && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
             fmt::println("--capture-no-present requires a frame capture and --dump-memory");
+            return -1;
+        }
+        if (progOpts.captureNoRender
+            && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup || !progOpts.captureNoPresent
+                || progOpts.captureScreenshotAtEnd || progOpts.captureSaveStateSlot != 0)) {
+            fmt::println("--capture-no-render requires --capture-no-present, a frame capture, and --dump-memory; "
+                         "it cannot be combined with screenshots or save states");
             return -1;
         }
         if (progOpts.captureControlPadStart

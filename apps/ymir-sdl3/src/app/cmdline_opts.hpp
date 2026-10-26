@@ -13,6 +13,7 @@ struct CommandLineOptions {
     bool startFastForward;
     bool enableDebugTracing;
     unsigned captureLoadStateSlot = 0;
+    unsigned captureFramesAfterLoad = 0;
     bool dumpMemoryAtStartup = false;
 };
 

@@ -550,16 +550,20 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         auto &controlPad = ctx.controlPadInputs[0];
         const auto initialStartState = controlPad.buttons & Button::Start;
         for (uint32 frame = 0; frame < frameCount; frame++) {
-            const bool holdStart = controlPadStartHoldFrames != 0 && frame >= controlPadStartFrame
-                                   && frame - controlPadStartFrame < controlPadStartHoldFrames;
-            if (holdStart) {
-                controlPad.buttons &= ~Button::Start;
-            } else {
-                controlPad.buttons |= Button::Start;
+            if (controlPadStartHoldFrames != 0) {
+                const bool holdStart = frame >= controlPadStartFrame
+                                       && frame - controlPadStartFrame < controlPadStartHoldFrames;
+                if (holdStart) {
+                    controlPad.buttons &= ~Button::Start;
+                } else {
+                    controlPad.buttons |= Button::Start;
+                }
             }
             ctx.saturn.instance->RunFrame();
         }
-        controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
+        if (controlPadStartHoldFrames != 0) {
+            controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
+        }
         DumpAllMemory(ctx);
         settings.video.swRenderer.threadedVDP1 = threadedVDP1;
         settings.video.swRenderer.threadedVDP2 = threadedVDP2;

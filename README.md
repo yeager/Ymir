@@ -98,6 +98,14 @@ route and is written as `vdp2-memory-write-trace.csv` with
 but complete trace is valid evidence that the selected capture interval made no
 observed VDP2 writes; it is not a missing-output fallback.
 
+`--capture-start-frame N --capture-start-hold N` can add a deterministic
+Control Pad 1 Start press to that same capture route. The frame is zero-based
+after the state load and the hold length is measured in emulated frames. Both
+options require `--load-state`, `--capture-frames`, and `--dump-memory`; the
+hold must be nonzero and the start frame must be within the capture. This is
+useful for reproducible title-screen and menu investigation without relying on
+host window focus or timing.
+
 `-f` forces the emulator to start in fullscreen mode, ignoring the preference in Ymir.toml.
 
 `-D` starts the emulator with debug tracing enabled.

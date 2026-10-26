@@ -41,12 +41,9 @@ void ScreenshotService::Enqueue(screenshot::Screenshot &&ss) {
 void ScreenshotService::ProcessingThread(SharedContext &context) {
     util::SetCurrentThreadName("Screenshot processing thread");
 
-    while (m_running) {
+    while (true) {
         m_writeEvent.Wait();
         m_writeEvent.Reset();
-        if (!m_running) {
-            break;
-        }
 
         screenshot::Screenshot ss{};
         while (true) {
@@ -135,6 +132,10 @@ void ScreenshotService::ProcessingThread(SharedContext &context) {
                            ssWidth * sizeof(uint32));
 
             context.DisplayMessage(fmt::format("Screenshot saved to {}", screenshotPath));
+        }
+
+        if (!m_running) {
+            break;
         }
     }
 }

@@ -136,8 +136,8 @@ writes to the selected profile's `screenshots/` directory.
 window compositor cannot present frames reliably. It keeps normal renderer
 initialization so emulation uses the configured video path, but deliberately
 does not present GUI frames and exits after its capture-owned dump is complete.
-It requires a frame capture and `--dump-memory`; it cannot be combined with
-`--capture-screenshot`, because no presentation-backed framebuffer is produced.
+It requires a frame capture and `--dump-memory`. It can be combined with
+`--capture-screenshot`: the screenshot queue is drained before Ymir exits.
 Interactive runs are unaffected.
 
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal

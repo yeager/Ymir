@@ -110,9 +110,8 @@ int main(int argc, char **argv) {
             fmt::println("--capture-screenshot requires a frame capture and --dump-memory");
             return -1;
         }
-        if (progOpts.captureNoPresent
-            && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup || progOpts.captureScreenshotAtEnd)) {
-            fmt::println("--capture-no-present requires a frame capture and --dump-memory and cannot capture a screenshot");
+        if (progOpts.captureNoPresent && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
+            fmt::println("--capture-no-present requires a frame capture and --dump-memory");
             return -1;
         }
         if (progOpts.captureControlPadStart

@@ -626,7 +626,8 @@ EmuEvent DumpMemory() {
     return RunFunction(DumpAllMemory);
 }
 
-EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames) {
+EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
+                          uint32 controlPadAFrame, uint32 controlPadAHoldFrames) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
@@ -664,6 +665,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         using Button = ymir::peripheral::Button;
         auto &controlPad = ctx.controlPadInputs[0];
         const auto initialStartState = controlPad.buttons & Button::Start;
+        const auto initialAState = controlPad.buttons & Button::A;
         for (uint32 frame = 0; frame < frameCount; frame++) {
             if (controlPadStartHoldFrames != 0) {
                 const bool holdStart = frame >= controlPadStartFrame
@@ -674,10 +676,21 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                     controlPad.buttons |= Button::Start;
                 }
             }
+            if (controlPadAHoldFrames != 0) {
+                const bool holdA = frame >= controlPadAFrame && frame - controlPadAFrame < controlPadAHoldFrames;
+                if (holdA) {
+                    controlPad.buttons &= ~Button::A;
+                } else {
+                    controlPad.buttons |= Button::A;
+                }
+            }
             ctx.saturn.instance->RunFrame();
         }
         if (controlPadStartHoldFrames != 0) {
             controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
+        }
+        if (controlPadAHoldFrames != 0) {
+            controlPad.buttons = (controlPad.buttons & ~Button::A) | initialAState;
         }
         DumpAllMemory(ctx);
         settings.video.swRenderer.threadedVDP1 = threadedVDP1;

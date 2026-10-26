@@ -47,6 +47,10 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureControlPadStartFrame));
     options.add_options()("capture-start-hold", "Number of capture frames to hold Control Pad 1 Start",
                           cxxopts::value(progOpts.captureControlPadStartHoldFrames));
+    options.add_options()("capture-a-frame", "Zero-based capture frame at which to assert Control Pad 1 A",
+                          cxxopts::value(progOpts.captureControlPadAFrame));
+    options.add_options()("capture-a-hold", "Number of capture frames to hold Control Pad 1 A",
+                          cxxopts::value(progOpts.captureControlPadAHoldFrames));
     options.add_options()("dump-memory", "Dump memory after optional state load",
                           cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
@@ -63,6 +67,7 @@ int main(int argc, char **argv) {
         auto result = options.parse(argc, argv);
         progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
                                            || result.count("capture-start-hold") != 0;
+        progOpts.captureControlPadA = result.count("capture-a-frame") != 0 || result.count("capture-a-hold") != 0;
         if (progOpts.captureLoadStateSlot > 10) {
             fmt::println("--load-state must be between 1 and 10");
             return -1;
@@ -91,6 +96,13 @@ int main(int argc, char **argv) {
                 || progOpts.captureControlPadStartHoldFrames == 0
                 || progOpts.captureControlPadStartFrame >= captureFrameCount)) {
             fmt::println("--capture-start-frame and --capture-start-hold require a frame capture and --dump-memory; "
+                         "hold must be nonzero and start must be within the capture");
+            return -1;
+        }
+        if (progOpts.captureControlPadA
+            && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup || progOpts.captureControlPadAHoldFrames == 0
+                || progOpts.captureControlPadAFrame >= captureFrameCount)) {
+            fmt::println("--capture-a-frame and --capture-a-hold require a frame capture and --dump-memory; "
                          "hold must be nonzero and start must be within the capture");
             return -1;
         }

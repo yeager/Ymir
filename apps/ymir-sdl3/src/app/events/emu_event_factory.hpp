@@ -111,7 +111,8 @@ EmuEvent SetVDPTrace(bool enable);
 EmuEvent SetVDP2MemoryTrace(bool enable);
 EmuEvent ExportVDP2MemoryTrace();
 EmuEvent DumpMemory();
-EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0);
+EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0,
+                          uint32 controlPadAFrame = 0, uint32 controlPadAHoldFrames = 0);
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
 
 EmuEvent InsertPeripheral(uint32 port, ymir::peripheral::PeripheralType type);

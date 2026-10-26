@@ -519,6 +519,12 @@ int App::Run(const CommandLineOptions &options) {
     }
 
     m_saveStateService.LoadSaveStates();
+    if (options.captureLoadStateSlot != 0) {
+        m_context.EnqueueEvent(events::emu::LoadState(options.captureLoadStateSlot - 1));
+    }
+    if (options.dumpMemoryAtStartup) {
+        m_context.EnqueueEvent(events::emu::DumpMemory());
+    }
 
     m_context.debuggers.dirty = false;
     m_context.debuggers.dirtyTimestamp = clk::now();

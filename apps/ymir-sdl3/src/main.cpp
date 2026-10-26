@@ -60,6 +60,10 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.vdp2PixelFetchFirstX)->default_value("0"));
     options.add_options()("vdp2-pixel-fetch-end-x", "Output pixel column end to trace (exclusive)",
                           cxxopts::value(progOpts.vdp2PixelFetchEndX)->default_value("320"));
+    options.add_options()("load-state", "Load save-state slot after media initialization",
+                          cxxopts::value(progOpts.captureLoadStateSlot)->default_value("0"));
+    options.add_options()("dump-memory", "Dump memory after optional state load",
+                          cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});

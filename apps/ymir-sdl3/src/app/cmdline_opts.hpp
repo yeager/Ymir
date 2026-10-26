@@ -24,6 +24,8 @@ struct CommandLineOptions {
     uint32_t vdp2PixelFetchEndRow = 224;
     uint32_t vdp2PixelFetchFirstX = 0;
     uint32_t vdp2PixelFetchEndX = 320;
+    unsigned captureLoadStateSlot = 0;
+    bool dumpMemoryAtStartup = false;
 };
 
 } // namespace app

@@ -118,9 +118,10 @@ represented by the DMA traces.
 
 `--capture-start-frame N --capture-start-hold N`,
 `--capture-start-repeat-frame N --capture-start-repeat-hold N`,
-`--capture-a-frame N --capture-a-hold N`, and
+`--capture-a-frame N --capture-a-hold N`,
+`--capture-down-frame N --capture-down-hold N`, and
 `--capture-c-frame N --capture-c-hold N` can add deterministic Control Pad 1
-Start, A, and C presses to that same capture route. The repeat pair schedules
+Start, A, Down, and C presses to that same capture route. The repeat pair schedules
 a second Start interval. The frames are zero-based after the
 state load and the hold lengths are measured in emulated frames. Each pair
 requires a frame capture and `--dump-memory`; the hold must be nonzero and the

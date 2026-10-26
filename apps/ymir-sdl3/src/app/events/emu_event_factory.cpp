@@ -629,7 +629,8 @@ EmuEvent DumpMemory() {
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
                           uint32 controlPadStartRepeatFrame, uint32 controlPadStartRepeatHoldFrames,
                           uint32 controlPadAFrame, uint32 controlPadAHoldFrames, uint32 controlPadCFrame,
-                          uint32 controlPadCHoldFrames, bool captureScreenshot, bool quitWhenComplete,
+                          uint32 controlPadCHoldFrames, uint32 controlPadDownFrame, uint32 controlPadDownHoldFrames,
+                          bool captureScreenshot, bool quitWhenComplete,
                           uint32 saveStateSlot) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
@@ -670,6 +671,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         const auto initialStartState = controlPad.buttons & Button::Start;
         const auto initialAState = controlPad.buttons & Button::A;
         const auto initialCState = controlPad.buttons & Button::C;
+        const auto initialDownState = controlPad.buttons & Button::Down;
         for (uint32 frame = 0; frame < frameCount; frame++) {
             if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
                 const bool holdStart = controlPadStartHoldFrames != 0 && frame >= controlPadStartFrame
@@ -699,6 +701,15 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                     controlPad.buttons |= Button::C;
                 }
             }
+            if (controlPadDownHoldFrames != 0) {
+                const bool holdDown = frame >= controlPadDownFrame
+                                      && frame - controlPadDownFrame < controlPadDownHoldFrames;
+                if (holdDown) {
+                    controlPad.buttons &= ~Button::Down;
+                } else {
+                    controlPad.buttons |= Button::Down;
+                }
+            }
             ctx.saturn.instance->RunFrame();
         }
         if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
@@ -709,6 +720,9 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         }
         if (controlPadCHoldFrames != 0) {
             controlPad.buttons = (controlPad.buttons & ~Button::C) | initialCState;
+        }
+        if (controlPadDownHoldFrames != 0) {
+            controlPad.buttons = (controlPad.buttons & ~Button::Down) | initialDownState;
         }
         DumpAllMemory(ctx);
         if (saveStateSlot != 0) {
@@ -1145,7 +1159,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
                    uint32 controlPadStartHoldFrames, uint32 controlPadStartRepeatFrame,
                    uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
-                   uint32 controlPadCFrame, uint32 controlPadCHoldFrames, bool captureScreenshot,
+                   uint32 controlPadCFrame, uint32 controlPadCHoldFrames, uint32 controlPadDownFrame,
+                   uint32 controlPadDownHoldFrames, bool captureScreenshot,
                    bool quitWhenComplete, uint32 saveStateSlot) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
@@ -1287,7 +1302,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadStartHoldFrames, controlPadStartRepeatFrame,
                                                        controlPadStartRepeatHoldFrames, controlPadAFrame,
                                                        controlPadAHoldFrames, controlPadCFrame,
-                                                       controlPadCHoldFrames, captureScreenshot, quitWhenComplete,
+                                                       controlPadCHoldFrames, controlPadDownFrame,
+                                                       controlPadDownHoldFrames, captureScreenshot, quitWhenComplete,
                                                        saveStateSlot));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());

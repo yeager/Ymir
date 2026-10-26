@@ -372,6 +372,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
         if (ctx.saturn.instance->IsDebugTracingEnabled()) {
+            ctx.tracers.VDP.enabled.store(true, std::memory_order_relaxed);
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
         }
 

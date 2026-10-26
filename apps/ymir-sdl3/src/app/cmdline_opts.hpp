@@ -12,6 +12,8 @@ struct CommandLineOptions {
     bool startPaused;
     bool startFastForward;
     bool enableDebugTracing;
+    unsigned captureLoadStateSlot = 0;
+    bool dumpMemoryAtStartup = false;
 };
 
 } // namespace app

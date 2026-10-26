@@ -1223,7 +1223,9 @@ void App::RunEmulator() {
     if (m_options.dumpMemoryAtStartup) {
         if (m_options.captureLoadStateSlot != 0) {
             m_context.EnqueueEvent(
-                events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad));
+                events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad,
+                                       m_options.captureControlPadStartFrame,
+                                       m_options.captureControlPadStartHoldFrames));
         } else {
             m_context.EnqueueEvent(events::emu::DumpMemory());
         }

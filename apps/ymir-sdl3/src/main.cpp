@@ -41,6 +41,10 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureLoadStateSlot)->default_value("0"));
     options.add_options()("capture-frames", "Run this many frames after loading a state, then dump memory",
                           cxxopts::value(progOpts.captureFramesAfterLoad)->default_value("0"));
+    options.add_options()("capture-start-frame", "Zero-based capture frame at which to assert Control Pad 1 Start",
+                          cxxopts::value(progOpts.captureControlPadStartFrame));
+    options.add_options()("capture-start-hold", "Number of capture frames to hold Control Pad 1 Start",
+                          cxxopts::value(progOpts.captureControlPadStartHoldFrames));
     options.add_options()("dump-memory", "Dump memory after optional state load",
                           cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
@@ -55,6 +59,8 @@ int main(int argc, char **argv) {
     try {
 #endif
         auto result = options.parse(argc, argv);
+        progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
+                                           || result.count("capture-start-hold") != 0;
         if (progOpts.captureLoadStateSlot > 10) {
             fmt::println("--load-state must be between 1 and 10");
             return -1;
@@ -66,6 +72,14 @@ int main(int argc, char **argv) {
         }
         if (progOpts.captureFramesAfterLoad > kMaxCaptureFrames) {
             fmt::println("--capture-frames must not exceed {}", kMaxCaptureFrames);
+            return -1;
+        }
+        if (progOpts.captureControlPadStart
+            && (progOpts.captureLoadStateSlot == 0 || progOpts.captureFramesAfterLoad == 0
+                || !progOpts.dumpMemoryAtStartup || progOpts.captureControlPadStartHoldFrames == 0
+                || progOpts.captureControlPadStartFrame >= progOpts.captureFramesAfterLoad)) {
+            fmt::println("--capture-start-frame and --capture-start-hold require --load-state, --capture-frames, and "
+                         "--dump-memory; hold must be nonzero and start must be within the capture");
             return -1;
         }
         if (progOpts.captureVDP2MemoryWrites

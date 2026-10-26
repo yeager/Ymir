@@ -292,6 +292,16 @@ void DumpAllMemory(SharedContext &ctx) {
         traceSnapshot.assign(tracer.entries.begin(), tracer.entries.end());
         traceDropped = tracer.dropped;
     }
+    const auto &vdp2MemoryTracer = ctx.tracers.VDP2Memory;
+    std::vector<VDP2MemoryTracer::Entry> vdp2MemoryTraceSnapshot;
+    uint64 vdp2MemoryTraceDropped = 0;
+    const bool vdp2MemoryTraceEnabled = vdp2MemoryTracer.enabled.load(std::memory_order_relaxed);
+    const uint64 vdp2MemoryTraceFrame = vdp.GetVDP2MemoryTraceFrameIndex();
+    if (vdp2MemoryTraceEnabled) {
+        std::lock_guard lock(vdp2MemoryTracer.mutex);
+        vdp2MemoryTraceSnapshot.assign(vdp2MemoryTracer.entries.begin(), vdp2MemoryTracer.entries.end());
+        vdp2MemoryTraceDropped = vdp2MemoryTracer.dropped;
+    }
 
     auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
     std::error_code error{};
@@ -349,6 +359,41 @@ void DumpAllMemory(SharedContext &ctx) {
     {
         std::ofstream out{dumpPath / "vdp2-registers.bin", std::ios::binary};
         ctx.saturn.instance->VDP.DumpVDP2Registers(out);
+    }
+    if (vdp2MemoryTraceEnabled) {
+        std::ofstream traceOut{dumpPath / "vdp2-memory-write-trace.csv"};
+        bool traceWritten = false;
+        if (!traceOut) {
+            devlog::warn<grp::base>("Could not write VDP2 memory trace in {}", dumpPath);
+        } else {
+            traceOut << "vdp1_frame,memory,address,width,value\n";
+            for (const auto &entry : vdp2MemoryTraceSnapshot) {
+                if (entry.vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
+                    traceOut << "unknown";
+                } else {
+                    traceOut << entry.vdp1Frame;
+                }
+                traceOut << ',' << (entry.type == ymir::debug::VDP2MemoryType::VRAM ? "VRAM" : "CRAM")
+                         << ",0x" << std::hex << entry.address << std::dec << ','
+                         << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
+                         << '\n';
+            }
+            traceOut.close();
+            traceWritten = static_cast<bool>(traceOut);
+        }
+        std::ofstream manifest{dumpPath / "vdp2-memory-write-bundle.txt"};
+        manifest << "format=ymir-vdp2-memory-write-bundle-v1\n"
+                 << "current_vdp1_frame_index=" << vdp2MemoryTraceFrame << '\n'
+                 << "address_begin=0x" << std::hex
+                 << vdp2MemoryTracer.addressBegin.load(std::memory_order_relaxed) << '\n'
+                 << "address_end_exclusive=0x" << vdp2MemoryTracer.addressEnd.load(std::memory_order_relaxed) << '\n'
+                 << std::dec << "trace_vram="
+                 << (vdp2MemoryTracer.traceVRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
+                 << "trace_cram=" << (vdp2MemoryTracer.traceCRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
+                 << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
+                 << "trace_rows=" << vdp2MemoryTraceSnapshot.size() << '\n'
+                 << "trace_dropped_total=" << vdp2MemoryTraceDropped << '\n'
+                 << "bundle_complete=" << (traceWritten ? 1 : 0) << '\n';
     }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
@@ -485,6 +530,9 @@ EmuEvent RunFramesAndDump(uint32 frameCount) {
         if (ctx.saturn.instance->IsDebugTracingEnabled()) {
             ctx.tracers.VDP.enabled.store(true, std::memory_order_relaxed);
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
+            if (ctx.tracers.VDP2Memory.enabled.load(std::memory_order_relaxed)) {
+                ctx.saturn.instance->VDP.UseVDP2MemoryTracer(&ctx.tracers.VDP2Memory);
+            }
         }
 
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();

@@ -43,6 +43,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureFramesAfterLoad)->default_value("0"));
     options.add_options()("dump-memory", "Dump memory after optional state load",
                           cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
+    options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
+                          cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});
@@ -64,6 +66,12 @@ int main(int argc, char **argv) {
         }
         if (progOpts.captureFramesAfterLoad > kMaxCaptureFrames) {
             fmt::println("--capture-frames must not exceed {}", kMaxCaptureFrames);
+            return -1;
+        }
+        if (progOpts.captureVDP2MemoryWrites
+            && (!progOpts.enableDebugTracing || progOpts.captureLoadStateSlot == 0
+                || progOpts.captureFramesAfterLoad == 0 || !progOpts.dumpMemoryAtStartup)) {
+            fmt::println("--trace-vdp2-writes requires --debug, --load-state, --capture-frames, and --dump-memory");
             return -1;
         }
         if (showHelp) {

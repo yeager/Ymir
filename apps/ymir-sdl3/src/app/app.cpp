@@ -1216,6 +1216,10 @@ void App::RunEmulator() {
     if (m_options.enableDebugTracing) {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
     }
+    if (m_options.captureVDP2MemoryWrites) {
+        m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);
+        m_context.tracers.VDP2Memory.Clear();
+    }
     if (m_options.dumpMemoryAtStartup) {
         if (m_options.captureLoadStateSlot != 0) {
             m_context.EnqueueEvent(

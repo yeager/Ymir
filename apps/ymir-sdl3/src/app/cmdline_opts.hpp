@@ -15,6 +15,7 @@ struct CommandLineOptions {
     unsigned captureLoadStateSlot = 0;
     unsigned captureFramesAfterLoad = 0;
     bool dumpMemoryAtStartup = false;
+    bool captureVDP2MemoryWrites = false;
 };
 
 } // namespace app

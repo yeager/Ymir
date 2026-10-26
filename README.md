@@ -105,6 +105,11 @@ compared with the DMA source memory. The trace does not identify a CPU program
 counter, prove that every VDP2 write was DMA-originated, or replace byte-level
 source provenance.
 
+It also writes `scu-dma-trace.csv` and `scu-dma-trace-bundle.txt` for SCU DMA
+transfer starts. The SCU trace retains at most 1,024 entries and reports its
+overflow status as unknown, so it is evidence for recorded transfers rather
+than a claim that no other SCU transfer occurred.
+
 `--capture-start-frame N --capture-start-hold N` can add a deterministic
 Control Pad 1 Start press to that same capture route. The frame is zero-based
 after the state load and the hold length is measured in emulated frames. Both

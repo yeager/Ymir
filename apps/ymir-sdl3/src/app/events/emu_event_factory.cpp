@@ -439,6 +439,33 @@ void DumpAllMemory(SharedContext &ctx) {
         };
         writeDMAStats("master", ctx.tracers.masterSH2);
         writeDMAStats("slave", ctx.tracers.slaveSH2);
+
+        std::ofstream scuDMAOut{dumpPath / "scu-dma-trace.csv"};
+        bool scuDMAWritten = false;
+        if (!scuDMAOut) {
+            devlog::warn<grp::base>("Could not write SCU DMA trace in {}", dumpPath);
+        } else {
+            scuDMAOut << "transfer,channel,source_address,destination_address,count,source_increment,"
+                         "destination_increment,indirect,indirect_address\n";
+            const auto &transfers = ctx.tracers.SCU.dmaTransfers;
+            for (size_t i = 0; i < transfers.Count(); i++) {
+                const auto entry = transfers.Read(i);
+                scuDMAOut << entry.counter << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
+                          << entry.srcAddr << ",0x" << entry.dstAddr << std::dec << ',' << entry.xferCount << ','
+                          << entry.srcAddrInc << ',' << entry.dstAddrInc << ',' << (entry.indirect ? 1 : 0) << ",0x"
+                          << std::hex << entry.indirectAddr << std::dec << '\n';
+            }
+            scuDMAOut.close();
+            scuDMAWritten = static_cast<bool>(scuDMAOut);
+        }
+        std::ofstream scuDMAManifest{dumpPath / "scu-dma-trace-bundle.txt"};
+        scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v1\n"
+                       << "trace_file=scu-dma-trace.csv\n"
+                       << "trace_file_complete=" << (scuDMAWritten ? 1 : 0) << '\n'
+                       << "retained_rows=" << ctx.tracers.SCU.dmaTransfers.Count() << '\n'
+                       << "retention_capacity=" << ctx.tracers.SCU.dmaTransfers.Capacity() << '\n'
+                       << "overflow=unknown\n"
+                       << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
     }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
@@ -581,6 +608,8 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.tracers.slaveSH2.traceDMA = true;
                 ctx.tracers.masterSH2.ResetDMATraces();
                 ctx.tracers.slaveSH2.ResetDMATraces();
+                ctx.tracers.SCU.traceDMA = true;
+                ctx.tracers.SCU.ClearDMATransfers();
             }
         }
 

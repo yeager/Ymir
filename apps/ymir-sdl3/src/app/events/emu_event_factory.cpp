@@ -629,7 +629,9 @@ EmuEvent DumpMemory() {
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
                           uint32 controlPadStartRepeatFrame, uint32 controlPadStartRepeatHoldFrames,
                           uint32 controlPadAFrame, uint32 controlPadAHoldFrames, uint32 controlPadCFrame,
-                          uint32 controlPadCHoldFrames, uint32 controlPadDownFrame, uint32 controlPadDownHoldFrames,
+                          uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
+                          uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
+                          uint32 controlPadDownHoldFrames,
                           bool captureScreenshot, bool quitWhenComplete,
                           uint32 saveStateSlot) {
     return RunFunction([=](SharedContext &ctx) {
@@ -685,9 +687,12 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                     controlPad.buttons |= Button::Start;
                 }
             }
-            if (controlPadAHoldFrames != 0) {
-                const bool holdA = frame >= controlPadAFrame && frame - controlPadAFrame < controlPadAHoldFrames;
-                if (holdA) {
+            if (controlPadAHoldFrames != 0 || controlPadARepeatHoldFrames != 0) {
+                const bool holdA = controlPadAHoldFrames != 0 && frame >= controlPadAFrame
+                                   && frame - controlPadAFrame < controlPadAHoldFrames;
+                const bool holdARepeat = controlPadARepeatHoldFrames != 0 && frame >= controlPadARepeatFrame
+                                         && frame - controlPadARepeatFrame < controlPadARepeatHoldFrames;
+                if (holdA || holdARepeat) {
                     controlPad.buttons &= ~Button::A;
                 } else {
                     controlPad.buttons |= Button::A;
@@ -715,7 +720,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
             controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
         }
-        if (controlPadAHoldFrames != 0) {
+        if (controlPadAHoldFrames != 0 || controlPadARepeatHoldFrames != 0) {
             controlPad.buttons = (controlPad.buttons & ~Button::A) | initialAState;
         }
         if (controlPadCHoldFrames != 0) {
@@ -1159,7 +1164,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
                    uint32 controlPadStartHoldFrames, uint32 controlPadStartRepeatFrame,
                    uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
-                   uint32 controlPadCFrame, uint32 controlPadCHoldFrames, uint32 controlPadDownFrame,
+                   uint32 controlPadCFrame, uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
+                   uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                    uint32 controlPadDownHoldFrames, bool captureScreenshot,
                    bool quitWhenComplete, uint32 saveStateSlot) {
     return RunFunction([=](SharedContext &ctx) {
@@ -1302,7 +1308,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadStartHoldFrames, controlPadStartRepeatFrame,
                                                        controlPadStartRepeatHoldFrames, controlPadAFrame,
                                                        controlPadAHoldFrames, controlPadCFrame,
-                                                       controlPadCHoldFrames, controlPadDownFrame,
+                                                       controlPadCHoldFrames, controlPadARepeatFrame,
+                                                       controlPadARepeatHoldFrames, controlPadDownFrame,
                                                        controlPadDownHoldFrames, captureScreenshot, quitWhenComplete,
                                                        saveStateSlot));
                 } else {

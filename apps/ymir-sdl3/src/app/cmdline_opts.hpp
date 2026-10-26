@@ -24,6 +24,9 @@ struct CommandLineOptions {
     bool captureControlPadA = false;
     unsigned captureControlPadAFrame = 0;
     unsigned captureControlPadAHoldFrames = 0;
+    bool captureControlPadARepeat = false;
+    unsigned captureControlPadARepeatFrame = 0;
+    unsigned captureControlPadARepeatHoldFrames = 0;
     bool captureControlPadDown = false;
     unsigned captureControlPadDownFrame = 0;
     unsigned captureControlPadDownHoldFrames = 0;

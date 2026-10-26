@@ -500,6 +500,41 @@ void DumpAllMemory(SharedContext &ctx) {
     }
     const bool sh2MemoryReadTraceEnabled = ctx.tracers.masterSH2.traceMemoryReads
                                            || ctx.tracers.slaveSH2.traceMemoryReads;
+    const bool sh2MemoryWriteTraceEnabled = ctx.tracers.masterSH2.traceMemoryWrites
+                                            || ctx.tracers.slaveSH2.traceMemoryWrites;
+    if (sh2MemoryWriteTraceEnabled) {
+        std::ofstream out{dumpPath / "sh2-memory-write-trace.csv"};
+        bool written = false;
+        size_t rows = 0;
+        if (!out) {
+            devlog::warn<grp::base>("Could not write SH-2 memory write trace in {}", dumpPath);
+        } else {
+            out << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
+                for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
+                    const auto entry = tracer.memoryWrites.Read(i);
+                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
+                        << entry.callerTarget << ",0x" << entry.address << std::dec << ','
+                        << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << '\n';
+                    rows++;
+                }
+            };
+            writeTracer("master", ctx.tracers.masterSH2);
+            writeTracer("slave", ctx.tracers.slaveSH2);
+            out.close();
+            written = static_cast<bool>(out);
+        }
+        std::ofstream manifest{dumpPath / "sh2-memory-write-trace-bundle.txt"};
+        manifest << "format=ymir-sh2-memory-write-trace-bundle-v1\n"
+                 << "trace_file=sh2-memory-write-trace.csv\n"
+                 << "trace_file_complete=" << (written ? 1 : 0) << '\n'
+                 << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
+                 << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
+                 << "trace_rows=" << rows << '\n'
+                 << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
+                 << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
+                 << "bundle_complete=" << (written ? 1 : 0) << '\n';
+    }
     if (sh2MemoryReadTraceEnabled) {
         std::ofstream out{dumpPath / "sh2-memory-read-trace.csv"};
         bool written = false;

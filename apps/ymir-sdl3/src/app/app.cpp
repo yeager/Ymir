@@ -1229,6 +1229,14 @@ void App::RunEmulator() {
             tracer->ResetMemoryReadTrace();
         }
     }
+    if (m_options.captureSH2MemoryWrites) {
+        for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {
+            tracer->traceMemoryWrites = true;
+            tracer->memoryWriteAddressBegin = m_options.captureSH2MemoryWriteBegin;
+            tracer->memoryWriteAddressEnd = m_options.captureSH2MemoryWriteEnd;
+            tracer->ResetMemoryWriteTrace();
+        }
+    }
     if (m_options.dumpMemoryAtStartup) {
         if (m_options.captureLoadStateSlot != 0) {
             m_context.EnqueueEvent(

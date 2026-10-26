@@ -629,7 +629,7 @@ EmuEvent DumpMemory() {
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
                           uint32 controlPadStartRepeatFrame, uint32 controlPadStartRepeatHoldFrames,
                           uint32 controlPadAFrame, uint32 controlPadAHoldFrames, uint32 controlPadCFrame,
-                          uint32 controlPadCHoldFrames, bool captureScreenshot) {
+                          uint32 controlPadCHoldFrames, bool captureScreenshot, bool quitWhenComplete) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
@@ -712,6 +712,9 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         DumpAllMemory(ctx);
         if (captureScreenshot) {
             ctx.EnqueueEvent(events::gui::TakeScreenshot());
+        }
+        if (quitWhenComplete) {
+            ctx.EnqueueEvent(events::gui::Quit());
         }
         settings.video.swRenderer.threadedVDP1 = threadedVDP1;
         settings.video.swRenderer.threadedVDP2 = threadedVDP2;
@@ -1129,7 +1132,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
                    uint32 controlPadStartHoldFrames, uint32 controlPadStartRepeatFrame,
                    uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
-                   uint32 controlPadCFrame, uint32 controlPadCHoldFrames, bool captureScreenshot) {
+                   uint32 controlPadCFrame, uint32 controlPadCHoldFrames, bool captureScreenshot,
+                   bool quitWhenComplete) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1270,7 +1274,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadStartHoldFrames, controlPadStartRepeatFrame,
                                                        controlPadStartRepeatHoldFrames, controlPadAFrame,
                                                        controlPadAHoldFrames, controlPadCFrame,
-                                                       controlPadCHoldFrames, captureScreenshot));
+                                                       controlPadCHoldFrames, captureScreenshot, quitWhenComplete));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

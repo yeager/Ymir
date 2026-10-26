@@ -63,6 +63,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("capture-screenshot", "Save a screenshot after a deterministic frame capture",
                           cxxopts::value(progOpts.captureScreenshotAtEnd)->default_value("false"));
+    options.add_options()("capture-no-present", "Run a deterministic frame capture without presenting GUI frames",
+                          cxxopts::value(progOpts.captureNoPresent)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
@@ -106,6 +108,11 @@ int main(int argc, char **argv) {
             progOpts.captureFramesAfterLoad != 0 ? progOpts.captureFramesAfterLoad : progOpts.captureFramesFromBoot;
         if (progOpts.captureScreenshotAtEnd && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
             fmt::println("--capture-screenshot requires a frame capture and --dump-memory");
+            return -1;
+        }
+        if (progOpts.captureNoPresent
+            && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup || progOpts.captureScreenshotAtEnd)) {
+            fmt::println("--capture-no-present requires a frame capture and --dump-memory and cannot capture a screenshot");
             return -1;
         }
         if (progOpts.captureControlPadStart

@@ -1230,7 +1230,8 @@ void App::RunEmulator() {
                                        m_options.captureControlPadStartRepeatFrame,
                                        m_options.captureControlPadStartRepeatHoldFrames, m_options.captureControlPadAFrame,
                                        m_options.captureControlPadAHoldFrames, m_options.captureControlPadCFrame,
-                                       m_options.captureControlPadCHoldFrames, m_options.captureScreenshotAtEnd));
+                                       m_options.captureControlPadCHoldFrames, m_options.captureScreenshotAtEnd,
+                                       m_options.captureNoPresent));
         } else if (m_options.captureFramesFromBoot != 0) {
             m_context.EnqueueEvent(events::emu::RunFramesAndDump(m_options.captureFramesFromBoot,
                                                                   m_options.captureControlPadStartFrame,
@@ -1241,7 +1242,8 @@ void App::RunEmulator() {
                                                                   m_options.captureControlPadAHoldFrames,
                                                                   m_options.captureControlPadCFrame,
                                                                   m_options.captureControlPadCHoldFrames,
-                                                                  m_options.captureScreenshotAtEnd));
+                                                                  m_options.captureScreenshotAtEnd,
+                                                                  m_options.captureNoPresent));
         } else {
             m_context.EnqueueEvent(events::emu::DumpMemory());
         }
@@ -1797,6 +1799,7 @@ void App::RunEmulator() {
             const GUIEvent &evt = evts[i];
             using EvtType = GUIEvent::Type;
             switch (evt.type) {
+            case EvtType::Quit: goto end_loop;
             case EvtType::LoadDisc: m_discService.OpenLoadDiscDialog(); break;
             case EvtType::LoadRecommendedGameCartridge: m_romService.LoadRecommendedCartridge(); break;
             case EvtType::OpenBackupMemoryCartFileDialog: m_romService.OpenBackupMemoryCartFileDialog(); break;
@@ -3420,20 +3423,22 @@ void App::RunEmulator() {
 
         screen.resolutionChanged = false;
 
-        // Render ImGui widgets
-        m_graphicsService.ImGuiRenderFrame();
+        if (!m_options.captureNoPresent) {
+            // Render ImGui widgets
+            m_graphicsService.ImGuiRenderFrame();
 
-        {
-            auto presentResult = m_graphicsService.Present();
-            if (!presentResult) {
-                // Revert to sane settings right now, just to be safe
-                settings.video.graphicsBackend = gfx::Backend::SDLRenderer;
-                settings.video.graphicsAdapter = std::nullopt;
-                settings.video.useHardwareAcceleration = false;
-                settings.Save();
-                util::ShowFatalErrorDialog("The graphics context crashed. Cannot continue execution.\n"
-                                           "Your graphics settings were reset.");
-                goto end_loop;
+            {
+                auto presentResult = m_graphicsService.Present();
+                if (!presentResult) {
+                    // Revert to sane settings right now, just to be safe
+                    settings.video.graphicsBackend = gfx::Backend::SDLRenderer;
+                    settings.video.graphicsAdapter = std::nullopt;
+                    settings.video.useHardwareAcceleration = false;
+                    settings.Save();
+                    util::ShowFatalErrorDialog("The graphics context crashed. Cannot continue execution.\n"
+                                               "Your graphics settings were reset.");
+                    goto end_loop;
+                }
             }
         }
 

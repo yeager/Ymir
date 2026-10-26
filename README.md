@@ -132,6 +132,14 @@ timing.
 loop and memory dump. It requires a frame capture and `--dump-memory`, and
 writes to the selected profile's `screenshots/` directory.
 
+`--capture-no-present` is for automated deterministic captures on a host whose
+window compositor cannot present frames reliably. It keeps normal renderer
+initialization so emulation uses the configured video path, but deliberately
+does not present GUI frames and exits after its capture-owned dump is complete.
+It requires a frame capture and `--dump-memory`; it cannot be combined with
+`--capture-screenshot`, because no presentation-backed framebuffer is produced.
+Interactive runs are unaffected.
+
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with
 `--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either

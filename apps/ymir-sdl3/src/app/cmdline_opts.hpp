@@ -29,6 +29,7 @@ struct CommandLineOptions {
     unsigned captureControlPadCHoldFrames = 0;
     bool dumpMemoryAtStartup = false;
     bool captureScreenshotAtEnd = false;
+    bool captureNoPresent = false;
     bool captureVDP2MemoryWrites = false;
 };
 

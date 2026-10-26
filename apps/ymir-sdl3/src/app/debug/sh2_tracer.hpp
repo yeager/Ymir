@@ -155,6 +155,7 @@ private:
     void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) final;
     void MemoryRead(uint32 pc, uint32 address, uint8 width) final;
     bool IsMemoryReadTracingEnabled() const final { return traceMemoryReads; }
+    bool IsMemoryWriteTracingEnabled() const final { return traceMemoryWrites; }
     void DelaySlot(uint32 pc, uint32 target) final;
     void Branch(uint32 pc, uint32 target) final;
     void BranchDelay(uint32 target) final;

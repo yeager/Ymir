@@ -722,6 +722,11 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                     tracer->memoryWriteAddressEnd = 0x05F01000;
                     tracer->ResetMemoryWriteTrace();
                 }
+                // This legacy VDP2 route configures its range after debug
+                // tracing attached the tracers, so re-sample only their
+                // optional categories without resetting execution analysis.
+                ctx.saturn.instance->masterSH2.RefreshTracerConfiguration();
+                ctx.saturn.instance->slaveSH2.RefreshTracerConfiguration();
                 ctx.tracers.SCU.traceDMA = true;
                 ctx.tracers.SCU.ClearDMATransfers();
             }

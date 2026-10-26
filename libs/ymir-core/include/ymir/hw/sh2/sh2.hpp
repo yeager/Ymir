@@ -126,10 +126,18 @@ public:
             m_tracer->Detached();
         }
         m_tracer = tracer;
-        m_traceMemoryReads = tracer != nullptr && tracer->IsMemoryReadTracingEnabled();
+        RefreshTracerConfiguration();
         if (tracer != nullptr) {
             tracer->Attached();
         }
+    }
+
+    /// Re-sample optional trace categories after a debugger configures a
+    /// tracer already attached to this CPU. Does not change tracer lifetime
+    /// or reset tracer-owned analysis state.
+    void RefreshTracerConfiguration() {
+        m_traceMemoryReads = m_tracer != nullptr && m_tracer->IsMemoryReadTracingEnabled();
+        m_traceMemoryWrites = m_tracer != nullptr && m_tracer->IsMemoryWriteTracingEnabled();
     }
 
     // --- Breakpoints
@@ -994,6 +1002,7 @@ private:
     Probe m_probe{*this};
     debug::ISH2Tracer *m_tracer = nullptr;
     bool m_traceMemoryReads = false;
+    bool m_traceMemoryWrites = false;
 
     std::array<bool, 2> m_dmacTraced; // whether each DMA channel has had a transfer traced
 

@@ -61,6 +61,11 @@ struct ISH2Tracer {
     /// adds no per-read virtual dispatch to debug sessions.
     virtual bool IsMemoryReadTracingEnabled() const { return false; }
 
+    /// Whether the tracer currently wants CPU data-memory writes.
+    /// This is sampled when the tracer is attached so disabled write tracing
+    /// adds no per-write virtual dispatch to debug sessions.
+    virtual bool IsMemoryWriteTracingEnabled() const { return false; }
+
     /// @brief Invoked when the CPU finishes a delayed branch, that is, executes an instruction in a delay slot.
     /// @param[in] pc the current program counter
     /// @param[in] target the target address

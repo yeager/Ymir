@@ -790,7 +790,7 @@ void SH2::MemWrite(uint32 address, T value) {
     }
 
     if constexpr (debug && !poke) {
-        if (m_tracer != nullptr) {
+        if (m_traceMemoryWrites) {
             m_tracer->MemoryWrite(PC, address & 0x7FFFFFFu, sizeof(T), static_cast<uint32>(value));
         }
     }

@@ -1,8 +1,16 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
+#include <vector>
 
 namespace app {
+
+struct ScheduledControlPadInput {
+    unsigned frame = 0;
+    std::uint16_t buttonMask = 0;
+    unsigned holdFrames = 0;
+};
 
 struct CommandLineOptions {
     std::filesystem::path gameDiscPath;
@@ -30,6 +38,7 @@ struct CommandLineOptions {
     bool captureControlPadDown = false;
     unsigned captureControlPadDownFrame = 0;
     unsigned captureControlPadDownHoldFrames = 0;
+    std::vector<ScheduledControlPadInput> captureControlPadInputs;
     bool captureControlPadC = false;
     unsigned captureControlPadCFrame = 0;
     unsigned captureControlPadCHoldFrames = 0;

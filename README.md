@@ -169,6 +169,19 @@ It requires a frame capture and `--dump-memory`. It can be combined with
 `--capture-screenshot`: the screenshot queue is drained before Ymir exits.
 Interactive runs are unaffected.
 
+For arbitrary button sequences, repeat `--capture-pad-input FRAME:BUTTON:HOLD`:
+
+```sh
+ymir-sdl3 --debug --capture-boot-frames 1200 --dump-memory \
+  --capture-pad-input 700:right:2 --capture-pad-input 730:a:2
+```
+
+Frames are zero-based within the capture. Supported buttons are `up`, `down`,
+`left`, `right`, `start`, `a`, `b`, and `c`. Holds must fit inside the capture;
+button state is restored after the final captured frame. This supports repeatable
+navigation through BIOS and game menus while keeping captures independent of
+host window focus and input timing.
+
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with
 `--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either

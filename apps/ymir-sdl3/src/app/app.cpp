@@ -1248,7 +1248,8 @@ void App::RunEmulator() {
                                        m_options.captureControlPadAHoldFrames, m_options.captureControlPadCFrame,
                                        m_options.captureControlPadCHoldFrames, m_options.captureControlPadARepeatFrame,
                                        m_options.captureControlPadARepeatHoldFrames, m_options.captureControlPadDownFrame,
-                                       m_options.captureControlPadDownHoldFrames, m_options.captureScreenshotAtEnd,
+                                       m_options.captureControlPadDownHoldFrames, m_options.captureControlPadInputs,
+                                       m_options.captureScreenshotAtEnd,
                                        m_options.captureNoPresent, m_options.captureSaveStateSlot,
                                        m_options.captureNoRender));
         } else if (m_options.captureFramesFromBoot != 0) {
@@ -1265,6 +1266,7 @@ void App::RunEmulator() {
                                                                   m_options.captureControlPadARepeatHoldFrames,
                                                                   m_options.captureControlPadDownFrame,
                                                                   m_options.captureControlPadDownHoldFrames,
+                                                                  m_options.captureControlPadInputs,
                                                                   m_options.captureScreenshotAtEnd,
                                                                   m_options.captureNoPresent,
                                                                   m_options.captureSaveStateSlot,

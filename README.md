@@ -116,12 +116,13 @@ address. This trace is bounded to 250,000 entries per SH-2 and reports dropped
 entries. It records CPU writes only; DMA-originated VDP2 writes remain
 represented by the DMA traces.
 
-`--capture-start-frame N --capture-start-hold N` and
-`--capture-a-frame N --capture-a-hold N` can add deterministic Control Pad 1
-Start and A presses to that same capture route. The frames are zero-based after
-the state load and the hold lengths are measured in emulated frames. Each pair
-requires a frame capture and `--dump-memory`; the hold must be nonzero and the
-start frame must be within the capture. This is useful for reproducible
+`--capture-start-frame N --capture-start-hold N`,
+`--capture-a-frame N --capture-a-hold N`, and
+`--capture-c-frame N --capture-c-hold N` can add deterministic Control Pad 1
+Start, A, and C presses to that same capture route. The frames are zero-based
+after the state load and the hold lengths are measured in emulated frames. Each
+pair requires a frame capture and `--dump-memory`; the hold must be nonzero and
+the start frame must be within the capture. This is useful for reproducible
 title-screen and menu investigation without relying on host window focus or
 timing.
 

@@ -1230,7 +1230,7 @@ void App::RunEmulator() {
                                        m_options.captureControlPadStartRepeatFrame,
                                        m_options.captureControlPadStartRepeatHoldFrames, m_options.captureControlPadAFrame,
                                        m_options.captureControlPadAHoldFrames, m_options.captureControlPadCFrame,
-                                       m_options.captureControlPadCHoldFrames));
+                                       m_options.captureControlPadCHoldFrames, m_options.captureScreenshotAtEnd));
         } else if (m_options.captureFramesFromBoot != 0) {
             m_context.EnqueueEvent(events::emu::RunFramesAndDump(m_options.captureFramesFromBoot,
                                                                   m_options.captureControlPadStartFrame,
@@ -1240,7 +1240,8 @@ void App::RunEmulator() {
                                                                   m_options.captureControlPadAFrame,
                                                                   m_options.captureControlPadAHoldFrames,
                                                                   m_options.captureControlPadCFrame,
-                                                                  m_options.captureControlPadCHoldFrames));
+                                                                  m_options.captureControlPadCHoldFrames,
+                                                                  m_options.captureScreenshotAtEnd));
         } else {
             m_context.EnqueueEvent(events::emu::DumpMemory());
         }

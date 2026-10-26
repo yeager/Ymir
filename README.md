@@ -128,6 +128,10 @@ start frame must be within the capture. This is useful for reproducible
 title-screen and menu investigation without relying on host window focus or
 timing.
 
+`--capture-screenshot` saves Ymir's framebuffer after the capture-owned frame
+loop and memory dump. It requires a frame capture and `--dump-memory`, and
+writes to the selected profile's `screenshots/` directory.
+
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with
 `--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either

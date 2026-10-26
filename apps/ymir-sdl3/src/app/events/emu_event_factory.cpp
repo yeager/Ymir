@@ -627,6 +627,7 @@ EmuEvent DumpMemory() {
 }
 
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
+                          uint32 controlPadStartRepeatFrame, uint32 controlPadStartRepeatHoldFrames,
                           uint32 controlPadAFrame, uint32 controlPadAHoldFrames, uint32 controlPadCFrame,
                           uint32 controlPadCHoldFrames) {
     return RunFunction([=](SharedContext &ctx) {
@@ -669,10 +670,13 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         const auto initialAState = controlPad.buttons & Button::A;
         const auto initialCState = controlPad.buttons & Button::C;
         for (uint32 frame = 0; frame < frameCount; frame++) {
-            if (controlPadStartHoldFrames != 0) {
-                const bool holdStart = frame >= controlPadStartFrame
+            if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
+                const bool holdStart = controlPadStartHoldFrames != 0 && frame >= controlPadStartFrame
                                        && frame - controlPadStartFrame < controlPadStartHoldFrames;
-                if (holdStart) {
+                const bool holdStartRepeat = controlPadStartRepeatHoldFrames != 0
+                                             && frame >= controlPadStartRepeatFrame
+                                             && frame - controlPadStartRepeatFrame < controlPadStartRepeatHoldFrames;
+                if (holdStart || holdStartRepeat) {
                     controlPad.buttons &= ~Button::Start;
                 } else {
                     controlPad.buttons |= Button::Start;
@@ -696,7 +700,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             }
             ctx.saturn.instance->RunFrame();
         }
-        if (controlPadStartHoldFrames != 0) {
+        if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
             controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
         }
         if (controlPadAHoldFrames != 0) {
@@ -1120,7 +1124,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 }
 
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
-                   uint32 controlPadStartHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
+                   uint32 controlPadStartHoldFrames, uint32 controlPadStartRepeatFrame,
+                   uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
                    uint32 controlPadCFrame, uint32 controlPadCHoldFrames) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
@@ -1259,7 +1264,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
             if (dumpAfterLoad) {
                 if (framesAfterLoad != 0) {
                     ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad, controlPadStartFrame,
-                                                       controlPadStartHoldFrames, controlPadAFrame,
+                                                       controlPadStartHoldFrames, controlPadStartRepeatFrame,
+                                                       controlPadStartRepeatHoldFrames, controlPadAFrame,
                                                        controlPadAHoldFrames, controlPadCFrame,
                                                        controlPadCHoldFrames));
                 } else {

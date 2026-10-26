@@ -112,6 +112,7 @@ EmuEvent SetVDP2MemoryTrace(bool enable);
 EmuEvent ExportVDP2MemoryTrace();
 EmuEvent DumpMemory();
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0,
+                          uint32 controlPadStartRepeatFrame = 0, uint32 controlPadStartRepeatHoldFrames = 0,
                           uint32 controlPadAFrame = 0, uint32 controlPadAHoldFrames = 0, uint32 controlPadCFrame = 0,
                           uint32 controlPadCHoldFrames = 0);
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
@@ -148,6 +149,7 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity);
 // unscheduled frames from being mistaken for a requested capture.
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false, uint32 framesAfterLoad = 0,
                    uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0,
+                   uint32 controlPadStartRepeatFrame = 0, uint32 controlPadStartRepeatHoldFrames = 0,
                    uint32 controlPadAFrame = 0, uint32 controlPadAHoldFrames = 0, uint32 controlPadCFrame = 0,
                    uint32 controlPadCHoldFrames = 0);
 EmuEvent SaveState(uint32 slotIndex);

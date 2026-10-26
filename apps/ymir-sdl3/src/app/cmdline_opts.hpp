@@ -18,6 +18,9 @@ struct CommandLineOptions {
     bool captureControlPadStart = false;
     unsigned captureControlPadStartFrame = 0;
     unsigned captureControlPadStartHoldFrames = 0;
+    bool captureControlPadStartRepeat = false;
+    unsigned captureControlPadStartRepeatFrame = 0;
+    unsigned captureControlPadStartRepeatHoldFrames = 0;
     bool captureControlPadA = false;
     unsigned captureControlPadAFrame = 0;
     unsigned captureControlPadAHoldFrames = 0;

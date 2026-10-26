@@ -1226,13 +1226,17 @@ void App::RunEmulator() {
             m_context.EnqueueEvent(
                 events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad,
                                        m_options.captureControlPadStartFrame,
-                                       m_options.captureControlPadStartHoldFrames, m_options.captureControlPadAFrame,
+                                       m_options.captureControlPadStartHoldFrames,
+                                       m_options.captureControlPadStartRepeatFrame,
+                                       m_options.captureControlPadStartRepeatHoldFrames, m_options.captureControlPadAFrame,
                                        m_options.captureControlPadAHoldFrames, m_options.captureControlPadCFrame,
                                        m_options.captureControlPadCHoldFrames));
         } else if (m_options.captureFramesFromBoot != 0) {
             m_context.EnqueueEvent(events::emu::RunFramesAndDump(m_options.captureFramesFromBoot,
                                                                   m_options.captureControlPadStartFrame,
                                                                   m_options.captureControlPadStartHoldFrames,
+                                                                  m_options.captureControlPadStartRepeatFrame,
+                                                                  m_options.captureControlPadStartRepeatHoldFrames,
                                                                   m_options.captureControlPadAFrame,
                                                                   m_options.captureControlPadAHoldFrames,
                                                                   m_options.captureControlPadCFrame,

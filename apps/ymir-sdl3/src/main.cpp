@@ -47,6 +47,10 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureControlPadStartFrame));
     options.add_options()("capture-start-hold", "Number of capture frames to hold Control Pad 1 Start",
                           cxxopts::value(progOpts.captureControlPadStartHoldFrames));
+    options.add_options()("capture-start-repeat-frame", "Zero-based capture frame for a second Control Pad 1 Start press",
+                          cxxopts::value(progOpts.captureControlPadStartRepeatFrame));
+    options.add_options()("capture-start-repeat-hold", "Number of capture frames to hold the second Control Pad 1 Start press",
+                          cxxopts::value(progOpts.captureControlPadStartRepeatHoldFrames));
     options.add_options()("capture-a-frame", "Zero-based capture frame at which to assert Control Pad 1 A",
                           cxxopts::value(progOpts.captureControlPadAFrame));
     options.add_options()("capture-a-hold", "Number of capture frames to hold Control Pad 1 A",
@@ -71,6 +75,8 @@ int main(int argc, char **argv) {
         auto result = options.parse(argc, argv);
         progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
                                            || result.count("capture-start-hold") != 0;
+        progOpts.captureControlPadStartRepeat = result.count("capture-start-repeat-frame") != 0
+                                                 || result.count("capture-start-repeat-hold") != 0;
         progOpts.captureControlPadA = result.count("capture-a-frame") != 0 || result.count("capture-a-hold") != 0;
         progOpts.captureControlPadC = result.count("capture-c-frame") != 0 || result.count("capture-c-hold") != 0;
         if (progOpts.captureLoadStateSlot > 10) {
@@ -102,6 +108,14 @@ int main(int argc, char **argv) {
                 || progOpts.captureControlPadStartFrame >= captureFrameCount)) {
             fmt::println("--capture-start-frame and --capture-start-hold require a frame capture and --dump-memory; "
                          "hold must be nonzero and start must be within the capture");
+            return -1;
+        }
+        if (progOpts.captureControlPadStartRepeat
+            && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
+                || progOpts.captureControlPadStartRepeatHoldFrames == 0
+                || progOpts.captureControlPadStartRepeatFrame >= captureFrameCount)) {
+            fmt::println("--capture-start-repeat-frame and --capture-start-repeat-hold require a frame capture and "
+                         "--dump-memory; hold must be nonzero and start must be within the capture");
             return -1;
         }
         if (progOpts.captureControlPadA

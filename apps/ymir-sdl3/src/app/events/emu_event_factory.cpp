@@ -369,6 +369,12 @@ EmuEvent DumpMemory() {
 
 EmuEvent RunFramesAndDump(uint32 frameCount) {
     return RunFunction([=](SharedContext &ctx) {
+        // Loading a state rebuilds VDP and clears its optional tracer pointer.
+        // Reattach it immediately before the CLI-owned capture frames.
+        if (ctx.saturn.instance->IsDebugTracingEnabled()) {
+            ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
+        }
+
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();
         const bool threadedVDP1 = settings.video.swRenderer.threadedVDP1.Get();
         const bool threadedVDP2 = settings.video.swRenderer.threadedVDP2.Get();

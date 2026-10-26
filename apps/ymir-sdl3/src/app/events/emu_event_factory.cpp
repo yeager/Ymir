@@ -748,7 +748,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                           uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
                           uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                           uint32 controlPadDownHoldFrames,
-                          bool captureScreenshot, bool quitWhenComplete,
+                          std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot, bool quitWhenComplete,
                           uint32 saveStateSlot, bool captureNoRender) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
@@ -822,65 +822,34 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         }};
         using Button = ymir::peripheral::Button;
         auto &controlPad = ctx.controlPadInputs[0];
-        const auto initialStartState = controlPad.buttons & Button::Start;
-        const auto initialAState = controlPad.buttons & Button::A;
-        const auto initialCState = controlPad.buttons & Button::C;
-        const auto initialDownState = controlPad.buttons & Button::Down;
+        auto scheduledInputs = controlPadInputs;
+        auto addScheduledInput = [&](uint32 frame, uint32 holdFrames, Button button) {
+            if (holdFrames != 0) {
+                scheduledInputs.push_back({frame, static_cast<std::uint16_t>(button), holdFrames});
+            }
+        };
+        addScheduledInput(controlPadStartFrame, controlPadStartHoldFrames, Button::Start);
+        addScheduledInput(controlPadStartRepeatFrame, controlPadStartRepeatHoldFrames, Button::Start);
+        addScheduledInput(controlPadAFrame, controlPadAHoldFrames, Button::A);
+        addScheduledInput(controlPadARepeatFrame, controlPadARepeatHoldFrames, Button::A);
+        addScheduledInput(controlPadCFrame, controlPadCHoldFrames, Button::C);
+        addScheduledInput(controlPadDownFrame, controlPadDownHoldFrames, Button::Down);
+        std::uint16_t managedButtons = 0;
+        for (const auto &input : scheduledInputs) managedButtons |= input.buttonMask;
+        const std::uint16_t initialManagedButtons = static_cast<std::uint16_t>(controlPad.buttons) & managedButtons;
         for (uint32 frame = 0; frame < frameCount; frame++) {
-            if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
-                const bool holdStart = controlPadStartHoldFrames != 0 && frame >= controlPadStartFrame
-                                       && frame - controlPadStartFrame < controlPadStartHoldFrames;
-                const bool holdStartRepeat = controlPadStartRepeatHoldFrames != 0
-                                             && frame >= controlPadStartRepeatFrame
-                                             && frame - controlPadStartRepeatFrame < controlPadStartRepeatHoldFrames;
-                if (holdStart || holdStartRepeat) {
-                    controlPad.buttons &= ~Button::Start;
-                } else {
-                    controlPad.buttons |= Button::Start;
+            std::uint16_t pressedButtons = 0;
+            for (const auto &input : scheduledInputs) {
+                if (frame >= input.frame && frame - input.frame < input.holdFrames) {
+                    pressedButtons |= input.buttonMask;
                 }
             }
-            if (controlPadAHoldFrames != 0 || controlPadARepeatHoldFrames != 0) {
-                const bool holdA = controlPadAHoldFrames != 0 && frame >= controlPadAFrame
-                                   && frame - controlPadAFrame < controlPadAHoldFrames;
-                const bool holdARepeat = controlPadARepeatHoldFrames != 0 && frame >= controlPadARepeatFrame
-                                         && frame - controlPadARepeatFrame < controlPadARepeatHoldFrames;
-                if (holdA || holdARepeat) {
-                    controlPad.buttons &= ~Button::A;
-                } else {
-                    controlPad.buttons |= Button::A;
-                }
-            }
-            if (controlPadCHoldFrames != 0) {
-                const bool holdC = frame >= controlPadCFrame && frame - controlPadCFrame < controlPadCHoldFrames;
-                if (holdC) {
-                    controlPad.buttons &= ~Button::C;
-                } else {
-                    controlPad.buttons |= Button::C;
-                }
-            }
-            if (controlPadDownHoldFrames != 0) {
-                const bool holdDown = frame >= controlPadDownFrame
-                                      && frame - controlPadDownFrame < controlPadDownHoldFrames;
-                if (holdDown) {
-                    controlPad.buttons &= ~Button::Down;
-                } else {
-                    controlPad.buttons |= Button::Down;
-                }
-            }
+            const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
+            controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | (managedButtons & ~pressedButtons));
             ctx.saturn.instance->RunFrame();
         }
-        if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
-        }
-        if (controlPadAHoldFrames != 0 || controlPadARepeatHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::A) | initialAState;
-        }
-        if (controlPadCHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::C) | initialCState;
-        }
-        if (controlPadDownHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::Down) | initialDownState;
-        }
+        const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
+        controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
         DumpAllMemory(ctx);
         if (saveStateSlot != 0) {
             const uint32 slotIndex = saveStateSlot - 1;
@@ -1318,7 +1287,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                    uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
                    uint32 controlPadCFrame, uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
                    uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
-                   uint32 controlPadDownHoldFrames, bool captureScreenshot,
+                   uint32 controlPadDownHoldFrames,
+                   std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot,
                    bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
@@ -1462,7 +1432,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadAHoldFrames, controlPadCFrame,
                                                        controlPadCHoldFrames, controlPadARepeatFrame,
                                                        controlPadARepeatHoldFrames, controlPadDownFrame,
-                                                       controlPadDownHoldFrames, captureScreenshot, quitWhenComplete,
+                                                       controlPadDownHoldFrames, controlPadInputs, captureScreenshot, quitWhenComplete,
                                                        saveStateSlot, captureNoRender));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());

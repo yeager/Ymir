@@ -2,6 +2,7 @@
 
 #include <util/os_exception_handler.hpp>
 #include <ymir/util/thread_name.hpp>
+#include <ymir/hw/smpc/peripheral/peripheral_state_common.hpp>
 
 #include <cxxopts.hpp>
 #include <fmt/format.h>
@@ -10,7 +11,16 @@
     #include <objc/message.h>
 #endif
 
+#include <charconv>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
 
 int main(int argc, char **argv) {
     constexpr unsigned kMaxCaptureFrames = 60000;
@@ -64,6 +74,9 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureControlPadDownFrame));
     options.add_options()("capture-down-hold", "Number of capture frames to hold Control Pad 1 Down",
                           cxxopts::value(progOpts.captureControlPadDownHoldFrames));
+    options.add_options()("capture-pad-input",
+                          "Schedule Control Pad 1 input as FRAME:BUTTON:HOLD (repeatable; up/down/left/right/start/a/b/c)",
+                          cxxopts::value<std::vector<std::string>>());
     options.add_options()("capture-c-frame", "Zero-based capture frame at which to assert Control Pad 1 C",
                           cxxopts::value(progOpts.captureControlPadCFrame));
     options.add_options()("capture-c-hold", "Number of capture frames to hold Control Pad 1 C",
@@ -114,6 +127,43 @@ int main(int argc, char **argv) {
         progOpts.captureControlPadDown = result.count("capture-down-frame") != 0
                                          || result.count("capture-down-hold") != 0;
         progOpts.captureControlPadC = result.count("capture-c-frame") != 0 || result.count("capture-c-hold") != 0;
+        if (result.count("capture-pad-input") != 0) {
+            using Button = ymir::peripheral::Button;
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            const auto buttonMask = [](std::string_view name) -> std::uint16_t {
+                if (name == "up") return static_cast<std::uint16_t>(Button::Up);
+                if (name == "down") return static_cast<std::uint16_t>(Button::Down);
+                if (name == "left") return static_cast<std::uint16_t>(Button::Left);
+                if (name == "right") return static_cast<std::uint16_t>(Button::Right);
+                if (name == "start") return static_cast<std::uint16_t>(Button::Start);
+                if (name == "a") return static_cast<std::uint16_t>(Button::A);
+                if (name == "b") return static_cast<std::uint16_t>(Button::B);
+                if (name == "c") return static_cast<std::uint16_t>(Button::C);
+                return 0;
+            };
+            for (const std::string &spec : result["capture-pad-input"].as<std::vector<std::string>>()) {
+                const size_t first = spec.find(':');
+                const size_t second = first == std::string::npos ? first : spec.find(':', first + 1);
+                app::ScheduledControlPadInput input{};
+                const std::uint16_t mask = second == std::string::npos
+                                               ? 0
+                                               : buttonMask(std::string_view(spec).substr(first + 1, second - first - 1));
+                if (first == std::string::npos || second == std::string::npos
+                    || !parseFrame(std::string_view(spec).substr(0, first), input.frame)
+                    || !parseFrame(std::string_view(spec).substr(second + 1), input.holdFrames) || mask == 0
+                    || input.holdFrames == 0) {
+                    fmt::println("invalid --capture-pad-input '{}'; expected FRAME:BUTTON:HOLD with a supported "
+                                 "button and nonzero hold",
+                                 spec);
+                    return -1;
+                }
+                input.buttonMask = mask;
+                progOpts.captureControlPadInputs.push_back(input);
+            }
+        }
         progOpts.captureSH2MemoryReads = result.count("trace-sh2-reads-begin") != 0
                                          || result.count("trace-sh2-reads-end") != 0;
         progOpts.captureSH2MemoryWrites = result.count("trace-sh2-writes-begin") != 0
@@ -220,6 +270,18 @@ int main(int argc, char **argv) {
             fmt::println("--capture-c-frame and --capture-c-hold require a frame capture and --dump-memory; "
                          "hold must be nonzero and start must be within the capture");
             return -1;
+        }
+        if (!progOpts.captureControlPadInputs.empty()) {
+            if (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup) {
+                fmt::println("--capture-pad-input requires --capture-frames or --capture-boot-frames and --dump-memory");
+                return -1;
+            }
+            for (const auto &input : progOpts.captureControlPadInputs) {
+                if (input.frame >= captureFrameCount || input.holdFrames > captureFrameCount - input.frame) {
+                    fmt::println("--capture-pad-input frame and hold must fit within the capture");
+                    return -1;
+                }
+            }
         }
         if (progOpts.captureVDP2MemoryWrites
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {

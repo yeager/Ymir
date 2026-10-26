@@ -14,6 +14,7 @@ struct CommandLineOptions {
     bool enableDebugTracing;
     unsigned captureLoadStateSlot = 0;
     unsigned captureFramesAfterLoad = 0;
+    unsigned captureFramesFromBoot = 0;
     bool captureControlPadStart = false;
     unsigned captureControlPadStartFrame = 0;
     unsigned captureControlPadStartHoldFrames = 0;

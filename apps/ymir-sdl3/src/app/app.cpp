@@ -1210,7 +1210,8 @@ void App::RunEmulator() {
 
     // A frame-counted capture owns all emulation steps itself. Keep the regular
     // loop paused so no unscheduled frame can slip between state load and dump.
-    m_context.paused = m_options.startPaused || settings.general.startPaused || m_options.captureFramesAfterLoad != 0;
+    m_context.paused = m_options.startPaused || settings.general.startPaused || m_options.captureFramesAfterLoad != 0
+                       || m_options.captureFramesFromBoot != 0;
     bool pausedByLostFocus = false;
 
     if (m_options.enableDebugTracing) {
@@ -1226,6 +1227,10 @@ void App::RunEmulator() {
                 events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad,
                                        m_options.captureControlPadStartFrame,
                                        m_options.captureControlPadStartHoldFrames));
+        } else if (m_options.captureFramesFromBoot != 0) {
+            m_context.EnqueueEvent(events::emu::RunFramesAndDump(m_options.captureFramesFromBoot,
+                                                                  m_options.captureControlPadStartFrame,
+                                                                  m_options.captureControlPadStartHoldFrames));
         } else {
             m_context.EnqueueEvent(events::emu::DumpMemory());
         }

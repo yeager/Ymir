@@ -41,6 +41,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureLoadStateSlot)->default_value("0"));
     options.add_options()("capture-frames", "Run this many frames after loading a state, then dump memory",
                           cxxopts::value(progOpts.captureFramesAfterLoad)->default_value("0"));
+    options.add_options()("capture-boot-frames", "Run this many frames after normal disc boot, then dump memory",
+                          cxxopts::value(progOpts.captureFramesFromBoot)->default_value("0"));
     options.add_options()("capture-start-frame", "Zero-based capture frame at which to assert Control Pad 1 Start",
                           cxxopts::value(progOpts.captureControlPadStartFrame));
     options.add_options()("capture-start-hold", "Number of capture frames to hold Control Pad 1 Start",
@@ -70,22 +72,31 @@ int main(int argc, char **argv) {
             fmt::println("--capture-frames requires --load-state and --dump-memory");
             return -1;
         }
-        if (progOpts.captureFramesAfterLoad > kMaxCaptureFrames) {
-            fmt::println("--capture-frames must not exceed {}", kMaxCaptureFrames);
+        if (progOpts.captureFramesAfterLoad != 0 && progOpts.captureFramesFromBoot != 0) {
+            fmt::println("--capture-frames and --capture-boot-frames cannot be combined");
             return -1;
         }
+        if (progOpts.captureFramesFromBoot != 0 && !progOpts.dumpMemoryAtStartup) {
+            fmt::println("--capture-boot-frames requires --dump-memory");
+            return -1;
+        }
+        if (progOpts.captureFramesAfterLoad > kMaxCaptureFrames || progOpts.captureFramesFromBoot > kMaxCaptureFrames) {
+            fmt::println("frame capture must not exceed {} frames", kMaxCaptureFrames);
+            return -1;
+        }
+        const unsigned captureFrameCount =
+            progOpts.captureFramesAfterLoad != 0 ? progOpts.captureFramesAfterLoad : progOpts.captureFramesFromBoot;
         if (progOpts.captureControlPadStart
-            && (progOpts.captureLoadStateSlot == 0 || progOpts.captureFramesAfterLoad == 0
-                || !progOpts.dumpMemoryAtStartup || progOpts.captureControlPadStartHoldFrames == 0
-                || progOpts.captureControlPadStartFrame >= progOpts.captureFramesAfterLoad)) {
-            fmt::println("--capture-start-frame and --capture-start-hold require --load-state, --capture-frames, and "
-                         "--dump-memory; hold must be nonzero and start must be within the capture");
+            && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
+                || progOpts.captureControlPadStartHoldFrames == 0
+                || progOpts.captureControlPadStartFrame >= captureFrameCount)) {
+            fmt::println("--capture-start-frame and --capture-start-hold require a frame capture and --dump-memory; "
+                         "hold must be nonzero and start must be within the capture");
             return -1;
         }
         if (progOpts.captureVDP2MemoryWrites
-            && (!progOpts.enableDebugTracing || progOpts.captureLoadStateSlot == 0
-                || progOpts.captureFramesAfterLoad == 0 || !progOpts.dumpMemoryAtStartup)) {
-            fmt::println("--trace-vdp2-writes requires --debug, --load-state, --capture-frames, and --dump-memory");
+            && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
+            fmt::println("--trace-vdp2-writes requires --debug, a frame capture, and --dump-memory");
             return -1;
         }
         if (showHelp) {

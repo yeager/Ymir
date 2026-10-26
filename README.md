@@ -108,10 +108,15 @@ source provenance.
 `--capture-start-frame N --capture-start-hold N` can add a deterministic
 Control Pad 1 Start press to that same capture route. The frame is zero-based
 after the state load and the hold length is measured in emulated frames. Both
-options require `--load-state`, `--capture-frames`, and `--dump-memory`; the
-hold must be nonzero and the start frame must be within the capture. This is
-useful for reproducible title-screen and menu investigation without relying on
-host window focus or timing.
+options require a frame capture and `--dump-memory`; the hold must be nonzero
+and the start frame must be within the capture. This is useful for reproducible
+title-screen and menu investigation without relying on host window focus or
+timing.
+
+Use `--capture-boot-frames N --dump-memory` to capture directly from normal
+disc boot rather than from a save-state. It is mutually exclusive with
+`--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either
+frame-capture route.
 
 `-f` forces the emulator to start in fullscreen mode, ignoring the preference in Ymir.toml.
 

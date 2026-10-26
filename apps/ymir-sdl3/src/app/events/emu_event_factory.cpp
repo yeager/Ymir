@@ -274,10 +274,24 @@ EmuEvent DumpMemory() {
 
 EmuEvent RunFramesAndDump(uint32 frameCount) {
     return RunFunction([=](SharedContext &ctx) {
+        auto &settings = ctx.serviceLocator.GetRequired<Settings>();
+        const bool threadedVDP1 = settings.video.swRenderer.threadedVDP1.Get();
+        const bool threadedVDP2 = settings.video.swRenderer.threadedVDP2.Get();
+        const bool threadedDeinterlacer = settings.video.swRenderer.threadedDeinterlacer.Get();
+
+        // Each capture step must observe the renderer's completed state. The
+        // software renderer provides that guarantee only while it is local to
+        // this emulator thread.
+        settings.video.swRenderer.threadedVDP1 = false;
+        settings.video.swRenderer.threadedVDP2 = false;
+        settings.video.swRenderer.threadedDeinterlacer = false;
         for (uint32 frame = 0; frame < frameCount; frame++) {
             ctx.saturn.instance->RunFrame();
         }
         DumpAllMemory(ctx);
+        settings.video.swRenderer.threadedVDP1 = threadedVDP1;
+        settings.video.swRenderer.threadedVDP2 = threadedVDP2;
+        settings.video.swRenderer.threadedDeinterlacer = threadedDeinterlacer;
     });
 }
 

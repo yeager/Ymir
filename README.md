@@ -105,10 +105,13 @@ compared with the DMA source memory. The trace does not identify a CPU program
 counter, prove that every VDP2 write was DMA-originated, or replace byte-level
 source provenance.
 
-It also writes `scu-dma-trace.csv` and `scu-dma-trace-bundle.txt` for SCU DMA
-transfer starts. The SCU trace retains at most 1,024 entries and reports its
-overflow status as unknown, so it is evidence for recorded transfers rather
-than a claim that no other SCU transfer occurred.
+For a standalone SCU DMA capture, add `--trace-scu-dma` to
+`--debug --capture-boot-frames N --dump-memory` or
+`--debug --load-state N --capture-frames N --dump-memory`. It writes
+`scu-dma-trace.csv` and `scu-dma-trace-bundle.txt` for SCU DMA transfer
+starts. The trace retains up to 16,384 entries and reports the number of
+overwritten rows. `trace_data_complete=1` means the file was written and no
+trace rows were dropped during the capture.
 
 `sh2-vdp2-write-trace.csv` and its bundle record the master or slave SH-2
 instruction PC and current call-site that directly wrote a VDP2 VRAM/CRAM bus
@@ -184,8 +187,8 @@ host window focus and input timing.
 
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with
-`--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either
-frame-capture route.
+`--capture-frames`; Start scheduling, `--trace-vdp2-writes`, and `--trace-scu-dma` work with
+either frame-capture route.
 
 `-f` forces the emulator to start in fullscreen mode, ignoring the preference in Ymir.toml.
 

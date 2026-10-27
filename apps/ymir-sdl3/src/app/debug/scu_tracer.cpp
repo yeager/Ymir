@@ -14,6 +14,7 @@ void SCUTracer::ClearInterrupts() {
 
 void SCUTracer::ClearDMATransfers() {
     dmaTransfers.Clear();
+    dmaTransfersDropped = 0;
     m_dmaCounter = 0;
 }
 
@@ -56,6 +57,9 @@ void SCUTracer::DMA(uint8 channel, uint32 srcAddr, uint32 dstAddr, uint32 xferCo
         return;
     }
 
+    if (dmaTransfers.Count() == dmaTransfers.Capacity()) {
+        ++dmaTransfersDropped;
+    }
     dmaTransfers.Write(
         {m_dmaCounter++, srcAddr, dstAddr, xferCount, srcAddrInc, dstAddrInc, indirectAddr, indirect, channel});
 }

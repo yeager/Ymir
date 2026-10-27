@@ -476,11 +476,16 @@ void DumpAllMemory(SharedContext &ctx) {
     if (!scuDMAOut) {
         devlog::warn<grp::base>("Could not write SCU DMA trace in {}", dumpPath);
     } else {
-        scuDMAOut << "transfer,channel,source_address,destination_address,count,source_increment,"
+        scuDMAOut << "capture_frame,transfer,channel,source_address,destination_address,count,source_increment,"
                      "destination_increment,indirect,indirect_address\n";
         const auto &transfers = ctx.tracers.SCU.dmaTransfers;
         for (size_t i = 0; i < transfers.Count(); i++) {
             const auto entry = transfers.Read(i);
+            if (entry.captureFrame == SCUTracer::kUnknownCaptureFrame) {
+                scuDMAOut << "unknown,";
+            } else {
+                scuDMAOut << entry.captureFrame << ',';
+            }
             scuDMAOut << entry.counter << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
                       << entry.srcAddr << ",0x" << entry.dstAddr << std::dec << ',' << entry.xferCount << ','
                       << entry.srcAddrInc << ',' << entry.dstAddrInc << ',' << (entry.indirect ? 1 : 0) << ",0x"
@@ -490,8 +495,9 @@ void DumpAllMemory(SharedContext &ctx) {
         scuDMAWritten = static_cast<bool>(scuDMAOut);
     }
     std::ofstream scuDMAManifest{dumpPath / "scu-dma-trace-bundle.txt"};
-    scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v2\n"
+    scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v3\n"
                    << "trace_file=scu-dma-trace.csv\n"
+                   << "capture_frame_index=zero_based_capture_loop_or_unknown\n"
                    << "trace_file_complete=" << (scuDMAWritten ? 1 : 0) << '\n'
                    << "trace_enabled=" << (ctx.tracers.SCU.traceDMA ? 1 : 0) << '\n'
                    << "retained_rows=" << ctx.tracers.SCU.dmaTransfers.Count() << '\n'
@@ -795,6 +801,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         std::uint16_t managedButtons = 0;
         for (const auto &input : scheduledInputs) managedButtons |= input.buttonMask;
         const std::uint16_t initialManagedButtons = static_cast<std::uint16_t>(controlPad.buttons) & managedButtons;
+        ctx.tracers.SCU.ClearCaptureFrame();
         for (uint32 frame = 0; frame < frameCount; frame++) {
             std::uint16_t pressedButtons = 0;
             for (const auto &input : scheduledInputs) {
@@ -804,8 +811,10 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             }
             const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
             controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | (managedButtons & ~pressedButtons));
+            ctx.tracers.SCU.SetCaptureFrame(frame);
             ctx.saturn.instance->RunFrame();
         }
+        ctx.tracers.SCU.ClearCaptureFrame();
         const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
         controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
         DumpAllMemory(ctx);

@@ -723,7 +723,8 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                           uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                           uint32 controlPadDownHoldFrames,
                           std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot, bool quitWhenComplete,
-                          uint32 saveStateSlot, bool captureNoRender) {
+                          uint32 saveStateSlot, bool captureNoRender,
+                          std::vector<ScheduledShuttleMouseInput> shuttleMouseInputs) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
@@ -807,6 +808,17 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         std::uint16_t managedButtons = 0;
         for (const auto &input : scheduledInputs) managedButtons |= input.buttonMask;
         const std::uint16_t initialManagedButtons = static_cast<std::uint16_t>(controlPad.buttons) & managedButtons;
+        auto &shuttleMouse = ctx.shuttleMouseInputs[0];
+        const bool initialMouseStart = shuttleMouse.start;
+        const bool initialMouseLeft = shuttleMouse.left;
+        const bool initialMouseMiddle = shuttleMouse.middle;
+        const bool initialMouseRight = shuttleMouse.right;
+        const float initialMouseX = shuttleMouse.inputX;
+        const float initialMouseY = shuttleMouse.inputY;
+        constexpr std::uint8_t kMouseStart = 1U << 0;
+        constexpr std::uint8_t kMouseLeft = 1U << 1;
+        constexpr std::uint8_t kMouseMiddle = 1U << 2;
+        constexpr std::uint8_t kMouseRight = 1U << 3;
         for (uint32 frame = 0; frame < frameCount; frame++) {
             std::uint16_t pressedButtons = 0;
             for (const auto &input : scheduledInputs) {
@@ -816,6 +828,24 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             }
             const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
             controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | (managedButtons & ~pressedButtons));
+            if (!shuttleMouseInputs.empty()) {
+                shuttleMouse.inputX = 0.0f;
+                shuttleMouse.inputY = 0.0f;
+                std::uint8_t pressedMouseButtons = 0;
+                for (const auto &input : shuttleMouseInputs) {
+                    if (frame == input.frame) {
+                        shuttleMouse.inputX += static_cast<float>(input.deltaX);
+                        shuttleMouse.inputY += static_cast<float>(input.deltaY);
+                    }
+                    if (frame >= input.frame && frame - input.frame < input.holdFrames) {
+                        pressedMouseButtons |= input.buttonMask;
+                    }
+                }
+                shuttleMouse.start = (pressedMouseButtons & kMouseStart) != 0;
+                shuttleMouse.left = (pressedMouseButtons & kMouseLeft) != 0;
+                shuttleMouse.middle = (pressedMouseButtons & kMouseMiddle) != 0;
+                shuttleMouse.right = (pressedMouseButtons & kMouseRight) != 0;
+            }
             ctx.tracers.masterSH2.SetCaptureFrameIndex(frame);
             ctx.tracers.slaveSH2.SetCaptureFrameIndex(frame);
             ctx.saturn.instance->RunFrame();
@@ -824,6 +854,12 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         ctx.tracers.slaveSH2.ClearCaptureFrameIndex();
         const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
         controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
+        shuttleMouse.start = initialMouseStart;
+        shuttleMouse.left = initialMouseLeft;
+        shuttleMouse.middle = initialMouseMiddle;
+        shuttleMouse.right = initialMouseRight;
+        shuttleMouse.inputX = initialMouseX;
+        shuttleMouse.inputY = initialMouseY;
         DumpAllMemory(ctx);
         if (saveStateSlot != 0) {
             const uint32 slotIndex = saveStateSlot - 1;
@@ -1263,7 +1299,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                    uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                    uint32 controlPadDownHoldFrames,
                    std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot,
-                   bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender) {
+                   bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender,
+                   std::vector<ScheduledShuttleMouseInput> shuttleMouseInputs) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1407,7 +1444,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadCHoldFrames, controlPadARepeatFrame,
                                                        controlPadARepeatHoldFrames, controlPadDownFrame,
                                                        controlPadDownHoldFrames, controlPadInputs, captureScreenshot, quitWhenComplete,
-                                                       saveStateSlot, captureNoRender));
+                                                       saveStateSlot, captureNoRender, shuttleMouseInputs));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

@@ -121,7 +121,8 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, ui
                           uint32 controlPadARepeatHoldFrames = 0, uint32 controlPadDownFrame = 0,
                           uint32 controlPadDownHoldFrames = 0,
                           std::vector<ScheduledControlPadInput> controlPadInputs = {}, bool captureScreenshot = false,
-                          bool quitWhenComplete = false, uint32 saveStateSlot = 0, bool captureNoRender = false);
+                          bool quitWhenComplete = false, uint32 saveStateSlot = 0, bool captureNoRender = false,
+                          std::vector<ScheduledShuttleMouseInput> shuttleMouseInputs = {});
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
 
 EmuEvent InsertPeripheral(uint32 port, ymir::peripheral::PeripheralType type);
@@ -162,7 +163,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false, uint32 framesAf
                    uint32 controlPadARepeatHoldFrames = 0, uint32 controlPadDownFrame = 0,
                    uint32 controlPadDownHoldFrames = 0,
                    std::vector<ScheduledControlPadInput> controlPadInputs = {}, bool captureScreenshot = false,
-                   bool quitWhenComplete = false, uint32 saveStateSlot = 0, bool captureNoRender = false);
+                   bool quitWhenComplete = false, uint32 saveStateSlot = 0, bool captureNoRender = false,
+                   std::vector<ScheduledShuttleMouseInput> shuttleMouseInputs = {});
 EmuEvent SaveState(uint32 slotIndex);
 EmuEvent UndoSaveState();
 EmuEvent UndoLoadState();

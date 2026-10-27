@@ -58,6 +58,11 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
     if (!traceMemoryWrites || address < memoryWriteAddressBegin || address >= memoryWriteAddressEnd) {
         return;
     }
+    if (traceMemoryWriteFrameRange &&
+        (!captureFrameActive || currentCaptureFrame < memoryWriteFrameBegin ||
+         currentCaptureFrame >= memoryWriteFrameEnd)) {
+        return;
+    }
     if (memoryWrites.Count() == memoryWrites.Capacity()) {
         memoryWritesDropped++;
     }
@@ -68,7 +73,8 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
         callerReturnAddress = callStack.back().address;
         callerTarget = callStack.back().target;
     }
-    memoryWrites.Write({pc, callerReturnAddress, callerTarget, address, value, width});
+    memoryWrites.Write(
+        {currentCaptureFrame, captureFrameActive, pc, callerReturnAddress, callerTarget, address, value, width});
 }
 
 void SH2Tracer::MemoryRead(uint32 pc, uint32 address, uint8 width) {

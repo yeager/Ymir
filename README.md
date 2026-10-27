@@ -132,10 +132,16 @@ master and slave SH-2 data writes in an independently selected, start-inclusive
 and end-exclusive physical bus-address range during that same deterministic
 `--debug` frame capture. It writes `sh2-memory-write-trace.csv` and
 `sh2-memory-write-trace-bundle.txt` beside the dump. A row contains the SH-2
-PC, current call-site, physical destination address, width, and value. The
-trace retains the newest 250,000 matching writes per SH-2 and reports discarded
-rows. It records direct CPU stores only, not DMA traffic or a source-resource
-ownership claim.
+PC, current call-site, physical destination address, width, and value, along
+with its zero-based deterministic capture-loop frame. Optional
+`--trace-sh2-writes-frame-begin FRAME --trace-sh2-writes-frame-end FRAME`
+limits retained writes to a start-inclusive, end-exclusive frame interval;
+both options are required together and the end must not exceed the capture
+length. The CSV frame field is empty for writes outside a deterministic capture
+loop. The trace retains the newest 250,000 matching writes per SH-2 and reports
+discarded rows. It records direct CPU stores only, not DMA traffic or a
+source-resource ownership claim. This trace cannot be combined with
+`--trace-vdp2-writes`, which uses the same SH-2 address filter.
 
 `--capture-start-frame N --capture-start-hold N`,
 `--capture-start-repeat-frame N --capture-start-repeat-hold N`,

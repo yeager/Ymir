@@ -25,6 +25,11 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     bool traceMemoryReads = false;
     uint32 memoryWriteAddressBegin = 0;
     uint32 memoryWriteAddressEnd = 0;
+    bool traceMemoryWriteFrameRange = false;
+    uint32 memoryWriteFrameBegin = 0;
+    uint32 memoryWriteFrameEnd = 0;
+    uint32 currentCaptureFrame = 0;
+    bool captureFrameActive = false;
     uint32 memoryReadAddressBegin = 0;
     uint32 memoryReadAddressEnd = 0;
 
@@ -82,6 +87,8 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     };
 
     struct MemoryWriteInfo {
+        uint32 captureFrame;
+        bool captureFrameValid;
         uint32 pc;
         uint32 callerReturnAddress;
         uint32 callerTarget;
@@ -137,6 +144,15 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     std::array<DMAStatistics, 2> dmaStats;
 
     SH2ExecAnalyst execAnalyst;
+
+    void SetCaptureFrameIndex(uint32 frameIndex) {
+        currentCaptureFrame = frameIndex;
+        captureFrameActive = true;
+    }
+
+    void ClearCaptureFrameIndex() {
+        captureFrameActive = false;
+    }
 
 private:
     uint32 m_interruptCounter = 0;

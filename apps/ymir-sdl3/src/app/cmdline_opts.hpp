@@ -48,6 +48,10 @@ struct CommandLineOptions {
     bool captureNoPresent = false;
     bool captureNoRender = false;
     bool captureVDP2MemoryWrites = false;
+    unsigned captureVDP2MemoryMaxRows = 250000;
+    bool captureVDP2FrameRange = false;
+    unsigned captureVDP2FrameBegin = 0;
+    unsigned captureVDP2FrameEnd = 0;
     bool captureSH2MemoryReads = false;
     unsigned captureSH2MemoryReadBegin = 0;
     unsigned captureSH2MemoryReadEnd = 0;

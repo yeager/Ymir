@@ -25,6 +25,7 @@
 int main(int argc, char **argv) {
     constexpr unsigned kMaxCaptureFrames = 60000;
     constexpr unsigned kMaxSCUDMADataRows = 10'000'000;
+    constexpr unsigned kMaxVDP2MemoryTraceRows = 10'000'000;
 #if defined(_WIN32)
     // NOTE: Setting the main thread name on Linux and macOS replaces the process name displayed on tools like `top`.
     util::SetCurrentThreadName("Main thread");
@@ -93,6 +94,11 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureNoRender)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
+    options.add_options()("trace-vdp2-writes-max-rows", "Maximum VDP2 VRAM/CRAM writes to retain",
+                          cxxopts::value(progOpts.captureVDP2MemoryMaxRows)->default_value("250000"));
+    options.add_options()("trace-vdp2-writes-frame-range",
+                          "Restrict VDP2 write tracing to VDP1 frames in the half-open BEGIN:END interval",
+                          cxxopts::value<std::string>());
     options.add_options()("trace-sh2-reads-begin", "First physical bus address for a bounded SH-2 data-read trace",
                           cxxopts::value(progOpts.captureSH2MemoryReadBegin));
     options.add_options()("trace-sh2-reads-end", "Exclusive physical bus address for a bounded SH-2 data-read trace",
@@ -117,6 +123,22 @@ int main(int argc, char **argv) {
     try {
 #endif
         auto result = options.parse(argc, argv);
+        if (result.count("trace-vdp2-writes-frame-range") != 0) {
+            const std::string spec = result["trace-vdp2-writes-frame-range"].as<std::string>();
+            const size_t separator = spec.find(':');
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            if (separator == std::string::npos || spec.find(':', separator + 1) != std::string::npos ||
+                !parseFrame(std::string_view(spec).substr(0, separator), progOpts.captureVDP2FrameBegin) ||
+                !parseFrame(std::string_view(spec).substr(separator + 1), progOpts.captureVDP2FrameEnd) ||
+                progOpts.captureVDP2FrameBegin >= progOpts.captureVDP2FrameEnd) {
+                fmt::println("invalid --trace-vdp2-writes-frame-range '{}'; expected nonempty BEGIN:END", spec);
+                return -1;
+            }
+            progOpts.captureVDP2FrameRange = true;
+        }
         progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
                                            || result.count("capture-start-hold") != 0;
         progOpts.captureControlPadStartRepeat = result.count("capture-start-repeat-frame") != 0
@@ -282,6 +304,18 @@ int main(int argc, char **argv) {
                     return -1;
                 }
             }
+        }
+        if ((progOpts.captureVDP2FrameRange || result.count("trace-vdp2-writes-max-rows") != 0) &&
+            !progOpts.captureVDP2MemoryWrites) {
+            fmt::println("--trace-vdp2-writes-frame-range and --trace-vdp2-writes-max-rows require "
+                         "--trace-vdp2-writes");
+            return -1;
+        }
+        if (progOpts.captureVDP2MemoryWrites &&
+            (progOpts.captureVDP2MemoryMaxRows == 0 ||
+             progOpts.captureVDP2MemoryMaxRows > kMaxVDP2MemoryTraceRows)) {
+            fmt::println("--trace-vdp2-writes-max-rows must be between 1 and {}", kMaxVDP2MemoryTraceRows);
+            return -1;
         }
         if (progOpts.captureVDP2MemoryWrites
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {

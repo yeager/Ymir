@@ -1218,8 +1218,15 @@ void App::RunEmulator() {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
     }
     if (m_options.captureVDP2MemoryWrites) {
-        m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);
-        m_context.tracers.VDP2Memory.Clear();
+        auto &tracer = m_context.tracers.VDP2Memory;
+        tracer.capacity.store(m_options.captureVDP2MemoryMaxRows, std::memory_order_relaxed);
+        tracer.enabled.store(true, std::memory_order_relaxed);
+        tracer.Clear();
+        if (m_options.captureVDP2FrameRange) {
+            tracer.vdp1FrameBegin.store(m_options.captureVDP2FrameBegin, std::memory_order_relaxed);
+            tracer.vdp1FrameEnd.store(m_options.captureVDP2FrameEnd, std::memory_order_relaxed);
+            tracer.traceVdp1FrameRange.store(true, std::memory_order_relaxed);
+        }
     }
     if (m_options.captureSH2MemoryReads) {
         for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {

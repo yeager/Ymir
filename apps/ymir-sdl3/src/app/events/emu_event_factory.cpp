@@ -188,6 +188,10 @@ EmuEvent ExportVDP2MemoryTrace() {
             traceSnapshot.assign(tracer.entries.begin(), tracer.entries.end());
             dropped = tracer.dropped;
         }
+        const bool frameRangeEnabled = tracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
+        const uint64 frameRangeBegin = tracer.vdp1FrameBegin.load(std::memory_order_relaxed);
+        const uint64 frameRangeEnd = tracer.vdp1FrameEnd.load(std::memory_order_relaxed);
+        const uint64 outOfFrameRange = tracer.outOfFrameRange.load(std::memory_order_relaxed);
         const auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
         std::error_code error{};
         std::filesystem::create_directories(dumpPath, error);
@@ -246,7 +250,22 @@ EmuEvent ExportVDP2MemoryTrace() {
                  << "vdp2_cram_file_complete=" << (cramWritten ? 1 : 0) << '\n'
                  << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
                  << "trace_rows=" << traceSnapshot.size() << '\n'
-                 << "trace_dropped_total=" << dropped << '\n';
+                 << "trace_capacity_rows=" << tracer.capacity.load(std::memory_order_relaxed) << '\n'
+                 << "trace_dropped_total=" << dropped << '\n'
+                 << "trace_vdp1_frame_range_enabled=" << (frameRangeEnabled ? 1 : 0) << '\n'
+                 << "trace_vdp1_frame_begin=";
+        if (frameRangeEnabled) {
+            manifest << frameRangeBegin;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_vdp1_frame_end_exclusive=";
+        if (frameRangeEnabled) {
+            manifest << frameRangeEnd;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_rows_outside_vdp1_frame_range=" << outOfFrameRange << '\n';
         if (!traceSnapshot.empty()) {
             const auto writeFrame = [&](std::string_view key, uint64 frame) {
                 manifest << key << '=';
@@ -296,6 +315,10 @@ void DumpAllMemory(SharedContext &ctx) {
     std::vector<VDP2MemoryTracer::Entry> vdp2MemoryTraceSnapshot;
     uint64 vdp2MemoryTraceDropped = 0;
     const bool vdp2MemoryTraceEnabled = vdp2MemoryTracer.enabled.load(std::memory_order_relaxed);
+    const bool vdp2FrameRangeEnabled = vdp2MemoryTracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
+    const uint64 vdp2FrameRangeBegin = vdp2MemoryTracer.vdp1FrameBegin.load(std::memory_order_relaxed);
+    const uint64 vdp2FrameRangeEnd = vdp2MemoryTracer.vdp1FrameEnd.load(std::memory_order_relaxed);
+    const uint64 vdp2RowsOutsideFrameRange = vdp2MemoryTracer.outOfFrameRange.load(std::memory_order_relaxed);
     const uint64 vdp2MemoryTraceFrame = vdp.GetVDP2MemoryTraceFrameIndex();
     if (vdp2MemoryTraceEnabled) {
         std::lock_guard lock(vdp2MemoryTracer.mutex);
@@ -348,17 +371,32 @@ void DumpAllMemory(SharedContext &ctx) {
         std::ofstream out{dumpPath / "vdp1-fbs.bin", std::ios::binary};
         ctx.saturn.instance->VDP.DumpVDP1Framebuffers(out);
     }
+    bool vdp2VRAMWritten = false;
     {
         std::ofstream out{dumpPath / "vdp2-vram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2VRAM(out);
+        if (out) {
+            ctx.saturn.instance->VDP.DumpVDP2VRAM(out);
+            out.close();
+            vdp2VRAMWritten = static_cast<bool>(out);
+        }
     }
+    bool vdp2CRAMWritten = false;
     {
         std::ofstream out{dumpPath / "vdp2-cram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
+        if (out) {
+            ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
+            out.close();
+            vdp2CRAMWritten = static_cast<bool>(out);
+        }
     }
+    bool vdp2RegistersWritten = false;
     {
         std::ofstream out{dumpPath / "vdp2-registers.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2Registers(out);
+        if (out) {
+            ctx.saturn.instance->VDP.DumpVDP2Registers(out);
+            out.close();
+            vdp2RegistersWritten = static_cast<bool>(out);
+        }
     }
     if (vdp2MemoryTraceEnabled || ctx.tracers.SCU.traceDMA) {
         std::ofstream traceOut{dumpPath / "vdp2-memory-write-trace.csv"};
@@ -391,9 +429,40 @@ void DumpAllMemory(SharedContext &ctx) {
                  << (vdp2MemoryTracer.traceVRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
                  << "trace_cram=" << (vdp2MemoryTracer.traceCRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
                  << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
+                 << "vdp2_vram_file_complete=" << (vdp2VRAMWritten ? 1 : 0) << '\n'
+                 << "vdp2_cram_file_complete=" << (vdp2CRAMWritten ? 1 : 0) << '\n'
+                 << "vdp2_register_file_complete=" << (vdp2RegistersWritten ? 1 : 0) << '\n'
                  << "trace_rows=" << vdp2MemoryTraceSnapshot.size() << '\n'
+                 << "trace_capacity_rows=" << vdp2MemoryTracer.capacity.load(std::memory_order_relaxed) << '\n'
                  << "trace_dropped_total=" << vdp2MemoryTraceDropped << '\n'
-                 << "bundle_complete=" << (traceWritten ? 1 : 0) << '\n';
+                 << "trace_vdp1_frame_range_enabled=" << (vdp2FrameRangeEnabled ? 1 : 0) << '\n'
+                 << "trace_vdp1_frame_begin=";
+        if (vdp2FrameRangeEnabled) {
+            manifest << vdp2FrameRangeBegin;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_vdp1_frame_end_exclusive=";
+        if (vdp2FrameRangeEnabled) {
+            manifest << vdp2FrameRangeEnd;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_rows_outside_vdp1_frame_range=" << vdp2RowsOutsideFrameRange << '\n';
+        if (!vdp2MemoryTraceSnapshot.empty()) {
+            const auto writeFrame = [&](std::string_view key, uint64 frameIndex) {
+                manifest << key << '=';
+                if (frameIndex == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
+                    manifest << "unknown\n";
+                } else {
+                    manifest << frameIndex << '\n';
+                }
+            };
+            writeFrame("first_vdp1_frame_index", vdp2MemoryTraceSnapshot.front().vdp1Frame);
+            writeFrame("last_vdp1_frame_index", vdp2MemoryTraceSnapshot.back().vdp1Frame);
+        }
+        manifest << "bundle_complete="
+                 << (traceWritten && vdp2VRAMWritten && vdp2CRAMWritten && vdp2RegistersWritten ? 1 : 0) << '\n';
 
         std::ofstream dmaOut{dumpPath / "sh2-dma-trace.csv"};
         bool dmaWritten = false;

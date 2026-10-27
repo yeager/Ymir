@@ -17,13 +17,18 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         uint32 value;
     };
 
-    static constexpr size_t kCapacity = 250'000;
+    static constexpr size_t kDefaultCapacity = 250'000;
 
     std::atomic_bool enabled{false};
     std::atomic_bool traceVRAM{true};
     std::atomic_bool traceCRAM{true};
     std::atomic_uint32_t addressBegin{0};
     std::atomic_uint32_t addressEnd{0x80000};
+    std::atomic_size_t capacity{kDefaultCapacity};
+    std::atomic_bool traceVdp1FrameRange{false};
+    std::atomic_uint64_t vdp1FrameBegin{0};
+    std::atomic_uint64_t vdp1FrameEnd{0};
+    std::atomic_uint64_t outOfFrameRange = 0;
     mutable std::mutex mutex;
     std::deque<Entry> entries;
     uint64 dropped = 0;
@@ -47,8 +52,17 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         if (begin >= end || address >= end || writeEnd <= begin) {
             return;
         }
+        if (traceVdp1FrameRange.load(std::memory_order_relaxed)) {
+            const uint64 frameBegin = vdp1FrameBegin.load(std::memory_order_relaxed);
+            const uint64 frameEnd = vdp1FrameEnd.load(std::memory_order_relaxed);
+            if (vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex || vdp1Frame < frameBegin ||
+                vdp1Frame >= frameEnd) {
+                outOfFrameRange.fetch_add(1, std::memory_order_relaxed);
+                return;
+            }
+        }
         std::lock_guard lock(mutex);
-        if (entries.size() == kCapacity) {
+        if (entries.size() >= capacity.load(std::memory_order_relaxed)) {
             entries.pop_front();
             ++dropped;
         }
@@ -59,6 +73,7 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         std::lock_guard lock(mutex);
         entries.clear();
         dropped = 0;
+        outOfFrameRange.store(0, std::memory_order_relaxed);
     }
 };
 

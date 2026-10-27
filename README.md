@@ -88,7 +88,29 @@ Use `-p <profile-path>` to point to a separate set of configuration and state fi
 
 The `-u` option forces usage of the OS's user profile folder (e.g. `C:\Users\<username>\AppData\Roaming\StrikerX3\Ymir` on Windows or `/home/<username>/.local/share/Ymir` on Linux).
 
-For VDP2 graphics reverse engineering, start with `--debug`, open **Debug > VDP > Memory write trace**, select VRAM and/or CRAM, and enable capture. The address interval is start-inclusive and end-exclusive. **Export synchronized bundle** writes the bounded trace, VDP2 VRAM, CRAM, registers, and a receipt into the profile's `dumps` directory from one emulator-thread callback. Each row records the VDP1 frame index, mapped VDP2 destination address, write width, and value. A 32-bit bus store that is split into two 16-bit accesses appears as two rows. Writes before the first VDP1 frame have an `unknown` frame index. Resetting the VDP clears the buffered trace so frame indices from before and after reset are not mixed. The address filter includes writes that overlap the selected interval. The capture retains the newest 250,000 matching writes and reports how many older entries were discarded. The trace does not identify the SH-2 or DMA source of a write.
+For VDP2 graphics reverse engineering, start with `--debug`, open **Debug > VDP > Memory write trace**, select VRAM and/or CRAM, and enable capture. The address interval is start-inclusive and end-exclusive. **Export synchronized bundle** writes the bounded trace, VDP2 VRAM, CRAM, registers, and a receipt into the profile's `dumps` directory from one emulator-thread callback. Each row records the VDP1 frame index, mapped VDP2 destination address, write width, and value. A 32-bit bus store that is split into two 16-bit accesses appears as two rows. Writes before the first VDP1 frame have an `unknown` frame index. Resetting the VDP clears the buffered trace so frame indices from before and after reset are not mixed. The address filter includes writes that overlap the selected interval. The capture retains the newest 250,000 matching writes and reports how many older entries were discarded. The deterministic memory-dump receipt records completion for the trace, VRAM, CRAM, and register files; it marks the bundle complete only when all four writes succeed. The trace does not identify the SH-2 or DMA source of a write.
+
+Long cold boots can produce more than the trace buffer's 250,000-row capacity.
+Add `--trace-vdp2-writes-frame-range BEGIN:END` with
+`--trace-vdp2-writes` to retain writes only when their VDP1 frame index is in
+that half-open interval. Both bounds are required, and the end frame is
+exclusive. These are VDP1 frame indices from the CSV, not the capture-relative
+frame numbers used by scheduled input. The bundle records the requested range,
+write rows excluded by that range, the retention capacity, and any writes
+dropped inside it. `--trace-vdp2-writes-max-rows` raises the default retention
+limit of 250,000 rows to a caller-selected value from 1 through 10,000,000.
+Narrowing the trace to a source-relevant interval or explicitly raising the
+capacity can therefore preserve complete write provenance without changing
+emulation or the final memory snapshot.
+
+For example, this captures the VDP2 writes for VDP1 frames 7,728 and 7,729
+while retaining the complete final memory snapshot:
+
+```sh
+ymir-sdl3 --debug --capture-boot-frames 9140 --dump-memory \
+  --trace-vdp2-writes --trace-vdp2-writes-max-rows 2000000 \
+  --trace-vdp2-writes-frame-range 7728:7730
+```
 
 For a reproducible state capture without UI interaction, add
 `--trace-vdp2-writes` to `--debug --load-state N --capture-frames N

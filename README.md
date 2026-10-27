@@ -109,9 +109,11 @@ For a standalone SCU DMA capture, add `--trace-scu-dma` to
 `--debug --capture-boot-frames N --dump-memory` or
 `--debug --load-state N --capture-frames N --dump-memory`. It writes
 `scu-dma-trace.csv` and `scu-dma-trace-bundle.txt` for SCU DMA transfer
-starts. The trace retains up to 16,384 entries and reports the number of
-overwritten rows. `trace_data_complete=1` means the file was written and no
-trace rows were dropped during the capture.
+starts. Each CSV row includes the zero-based deterministic capture-loop frame;
+rows recorded outside that loop use unknown. This is a capture-frame index,
+not a VDP1-frame timestamp. The trace retains up to 16,384 entries and
+reports the number of overwritten rows. `trace_data_complete=1` means the
+file was written and no trace rows were dropped during the capture.
 
 `sh2-vdp2-write-trace.csv` and its bundle record the master or slave SH-2
 instruction PC and current call-site that directly wrote a VDP2 VRAM/CRAM bus

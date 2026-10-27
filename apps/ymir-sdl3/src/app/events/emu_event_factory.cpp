@@ -440,33 +440,6 @@ void DumpAllMemory(SharedContext &ctx) {
         writeDMAStats("master", ctx.tracers.masterSH2);
         writeDMAStats("slave", ctx.tracers.slaveSH2);
 
-        std::ofstream scuDMAOut{dumpPath / "scu-dma-trace.csv"};
-        bool scuDMAWritten = false;
-        if (!scuDMAOut) {
-            devlog::warn<grp::base>("Could not write SCU DMA trace in {}", dumpPath);
-        } else {
-            scuDMAOut << "transfer,channel,source_address,destination_address,count,source_increment,"
-                         "destination_increment,indirect,indirect_address\n";
-            const auto &transfers = ctx.tracers.SCU.dmaTransfers;
-            for (size_t i = 0; i < transfers.Count(); i++) {
-                const auto entry = transfers.Read(i);
-                scuDMAOut << entry.counter << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
-                          << entry.srcAddr << ",0x" << entry.dstAddr << std::dec << ',' << entry.xferCount << ','
-                          << entry.srcAddrInc << ',' << entry.dstAddrInc << ',' << (entry.indirect ? 1 : 0) << ",0x"
-                          << std::hex << entry.indirectAddr << std::dec << '\n';
-            }
-            scuDMAOut.close();
-            scuDMAWritten = static_cast<bool>(scuDMAOut);
-        }
-        std::ofstream scuDMAManifest{dumpPath / "scu-dma-trace-bundle.txt"};
-        scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v1\n"
-                       << "trace_file=scu-dma-trace.csv\n"
-                       << "trace_file_complete=" << (scuDMAWritten ? 1 : 0) << '\n'
-                       << "retained_rows=" << ctx.tracers.SCU.dmaTransfers.Count() << '\n'
-                       << "retention_capacity=" << ctx.tracers.SCU.dmaTransfers.Capacity() << '\n'
-                       << "overflow=unknown\n"
-                       << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
-
         std::ofstream sh2MemoryOut{dumpPath / "sh2-vdp2-write-trace.csv"};
         bool sh2MemoryWritten = false;
         size_t sh2MemoryRows = 0;
@@ -498,6 +471,37 @@ void DumpAllMemory(SharedContext &ctx) {
                           << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                           << "bundle_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n';
     }
+    std::ofstream scuDMAOut{dumpPath / "scu-dma-trace.csv"};
+    bool scuDMAWritten = false;
+    if (!scuDMAOut) {
+        devlog::warn<grp::base>("Could not write SCU DMA trace in {}", dumpPath);
+    } else {
+        scuDMAOut << "transfer,channel,source_address,destination_address,count,source_increment,"
+                     "destination_increment,indirect,indirect_address\n";
+        const auto &transfers = ctx.tracers.SCU.dmaTransfers;
+        for (size_t i = 0; i < transfers.Count(); i++) {
+            const auto entry = transfers.Read(i);
+            scuDMAOut << entry.counter << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
+                      << entry.srcAddr << ",0x" << entry.dstAddr << std::dec << ',' << entry.xferCount << ','
+                      << entry.srcAddrInc << ',' << entry.dstAddrInc << ',' << (entry.indirect ? 1 : 0) << ",0x"
+                      << std::hex << entry.indirectAddr << std::dec << '\n';
+        }
+        scuDMAOut.close();
+        scuDMAWritten = static_cast<bool>(scuDMAOut);
+    }
+    std::ofstream scuDMAManifest{dumpPath / "scu-dma-trace-bundle.txt"};
+    scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v2\n"
+                   << "trace_file=scu-dma-trace.csv\n"
+                   << "trace_file_complete=" << (scuDMAWritten ? 1 : 0) << '\n'
+                   << "trace_enabled=" << (ctx.tracers.SCU.traceDMA ? 1 : 0) << '\n'
+                   << "retained_rows=" << ctx.tracers.SCU.dmaTransfers.Count() << '\n'
+                   << "retention_capacity=" << ctx.tracers.SCU.dmaTransfers.Capacity() << '\n'
+                   << "dropped_rows=" << ctx.tracers.SCU.dmaTransfersDropped << '\n'
+                   << "overflow=" << (ctx.tracers.SCU.dmaTransfersDropped == 0 ? "no" : "yes") << '\n'
+                   << "trace_data_complete=" << (scuDMAWritten && ctx.tracers.SCU.traceDMA
+                                                       && ctx.tracers.SCU.dmaTransfersDropped == 0 ? 1 : 0) << '\n'
+                   << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
+
     const bool sh2MemoryReadTraceEnabled = ctx.tracers.masterSH2.traceMemoryReads
                                            || ctx.tracers.slaveSH2.traceMemoryReads;
     const bool sh2MemoryWriteTraceEnabled = ctx.tracers.masterSH2.traceMemoryWrites
@@ -703,7 +707,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                           uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                           uint32 controlPadDownHoldFrames,
                           std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot, bool quitWhenComplete,
-                          uint32 saveStateSlot, bool captureNoRender) {
+                          uint32 saveStateSlot, bool captureNoRender, bool captureSCUDMATrace) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
@@ -730,6 +734,10 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.tracers.SCU.traceDMA = true;
                 ctx.tracers.SCU.ClearDMATransfers();
             }
+        }
+        if (captureSCUDMATrace) {
+            ctx.tracers.SCU.traceDMA = true;
+            ctx.tracers.SCU.ClearDMATransfers();
         }
 
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();
@@ -801,6 +809,9 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
         controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
         DumpAllMemory(ctx);
+        if (captureSCUDMATrace) {
+            ctx.tracers.SCU.traceDMA = false;
+        }
         if (saveStateSlot != 0) {
             const uint32 slotIndex = saveStateSlot - 1;
             auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1239,7 +1250,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                    uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                    uint32 controlPadDownHoldFrames,
                    std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot,
-                   bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender) {
+                   bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender, bool captureSCUDMATrace) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1383,7 +1394,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadCHoldFrames, controlPadARepeatFrame,
                                                        controlPadARepeatHoldFrames, controlPadDownFrame,
                                                        controlPadDownHoldFrames, controlPadInputs, captureScreenshot, quitWhenComplete,
-                                                       saveStateSlot, captureNoRender));
+                                                       saveStateSlot, captureNoRender, captureSCUDMATrace));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

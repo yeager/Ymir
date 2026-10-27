@@ -360,7 +360,7 @@ void DumpAllMemory(SharedContext &ctx) {
         std::ofstream out{dumpPath / "vdp2-registers.bin", std::ios::binary};
         ctx.saturn.instance->VDP.DumpVDP2Registers(out);
     }
-    if (vdp2MemoryTraceEnabled) {
+    if (vdp2MemoryTraceEnabled || ctx.tracers.SCU.traceDMA) {
         std::ofstream traceOut{dumpPath / "vdp2-memory-write-trace.csv"};
         bool traceWritten = false;
         if (!traceOut) {

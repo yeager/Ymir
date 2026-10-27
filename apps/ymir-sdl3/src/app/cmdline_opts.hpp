@@ -58,6 +58,7 @@ struct CommandLineOptions {
     bool captureSH2MemoryWrites = false;
     unsigned captureSH2MemoryWriteBegin = 0;
     unsigned captureSH2MemoryWriteEnd = 0;
+    unsigned captureSH2MemoryWriteMaxRows = 250000;
     bool captureSCUDMAData = false;
     unsigned captureSCUDMADataBegin = 0;
     unsigned captureSCUDMADataEnd = 0;

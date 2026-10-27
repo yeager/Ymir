@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
     constexpr unsigned kMaxCaptureFrames = 60000;
     constexpr unsigned kMaxSCUDMADataRows = 10'000'000;
     constexpr unsigned kMaxVDP2MemoryTraceRows = 10'000'000;
+    constexpr unsigned kMaxSH2MemoryTraceRows = 10'000'000;
 #if defined(_WIN32)
     // NOTE: Setting the main thread name on Linux and macOS replaces the process name displayed on tools like `top`.
     util::SetCurrentThreadName("Main thread");
@@ -107,6 +108,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSH2MemoryWriteBegin));
     options.add_options()("trace-sh2-writes-end", "Exclusive physical bus address for a bounded SH-2 data-write trace",
                           cxxopts::value(progOpts.captureSH2MemoryWriteEnd));
+    options.add_options()("trace-sh2-writes-max-rows", "Maximum SH-2 data-write rows to retain",
+                          cxxopts::value(progOpts.captureSH2MemoryWriteMaxRows)->default_value("250000"));
     options.add_options()("trace-scu-dma-payload-begin", "First bus address for a bounded SCU DMA payload trace",
                           cxxopts::value(progOpts.captureSCUDMADataBegin));
     options.add_options()("trace-scu-dma-payload-end", "Exclusive bus address for a bounded SCU DMA payload trace",
@@ -328,10 +331,20 @@ int main(int argc, char **argv) {
             fmt::println("--trace-sh2-reads-begin/end require --debug, a frame capture, --dump-memory, and a nonempty range");
             return -1;
         }
+        if (result.count("trace-sh2-writes-max-rows") != 0 && !progOpts.captureSH2MemoryWrites) {
+            fmt::println("--trace-sh2-writes-max-rows requires --trace-sh2-writes-begin/end");
+            return -1;
+        }
         if (progOpts.captureSH2MemoryWrites
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
                 || progOpts.captureSH2MemoryWriteBegin >= progOpts.captureSH2MemoryWriteEnd)) {
             fmt::println("--trace-sh2-writes-begin/end require --debug, a frame capture, --dump-memory, and a nonempty range");
+            return -1;
+        }
+        if (progOpts.captureSH2MemoryWrites
+            && (progOpts.captureSH2MemoryWriteMaxRows == 0
+                || progOpts.captureSH2MemoryWriteMaxRows > kMaxSH2MemoryTraceRows)) {
+            fmt::println("--trace-sh2-writes-max-rows must be between 1 and {}", kMaxSH2MemoryTraceRows);
             return -1;
         }
         if (progOpts.captureSCUDMAData

@@ -101,7 +101,10 @@ dropped inside it. `--trace-vdp2-writes-max-rows` raises the default retention
 limit of 250,000 rows to a caller-selected value from 1 through 10,000,000.
 Narrowing the trace to a source-relevant interval or explicitly raising the
 capacity can therefore preserve complete write provenance without changing
-emulation or the final memory snapshot.
+emulation or the final memory snapshot. The separate SH-2 data-write trace also
+supports `--trace-sh2-writes-max-rows` (1 through 10,000,000) when an SH-2
+address interval is selected; its receipt records the retained capacity,
+address interval, and dropped-row count.
 
 For example, this captures the VDP2 writes for VDP1 frames 7,728 and 7,729
 while retaining the complete final memory snapshot:

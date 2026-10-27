@@ -1241,6 +1241,7 @@ void App::RunEmulator() {
             tracer->traceMemoryWrites = true;
             tracer->memoryWriteAddressBegin = m_options.captureSH2MemoryWriteBegin;
             tracer->memoryWriteAddressEnd = m_options.captureSH2MemoryWriteEnd;
+            tracer->memoryWriteMaxRows = m_options.captureSH2MemoryWriteMaxRows;
             tracer->ResetMemoryWriteTrace();
         }
     }

@@ -25,7 +25,7 @@ void SH2Tracer::ResetDMATraces() {
 }
 
 void SH2Tracer::ResetMemoryWriteTrace() {
-    memoryWrites.Clear();
+    memoryWrites.clear();
     memoryWritesDropped = 0;
 }
 
@@ -58,7 +58,11 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
     if (!traceMemoryWrites || address < memoryWriteAddressBegin || address >= memoryWriteAddressEnd) {
         return;
     }
-    if (memoryWrites.Count() == memoryWrites.Capacity()) {
+    if (memoryWriteMaxRows == 0) {
+        return;
+    }
+    if (memoryWrites.size() >= memoryWriteMaxRows) {
+        memoryWrites.pop_front();
         memoryWritesDropped++;
     }
     uint32 callerReturnAddress = 0;
@@ -68,7 +72,7 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
         callerReturnAddress = callStack.back().address;
         callerTarget = callStack.back().target;
     }
-    memoryWrites.Write({pc, callerReturnAddress, callerTarget, address, value, width});
+    memoryWrites.push_back({pc, callerReturnAddress, callerTarget, address, value, width});
 }
 
 void SH2Tracer::MemoryRead(uint32 pc, uint32 address, uint8 width) {

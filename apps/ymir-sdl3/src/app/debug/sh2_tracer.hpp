@@ -4,6 +4,8 @@
 
 #include <app/debug/sh2_exec_analyst.hpp>
 
+#include <deque>
+
 #include <util/ring_buffer.hpp>
 
 namespace app {
@@ -103,7 +105,8 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     util::RingBuffer<ExceptionInfo, 1024> exceptions;
     util::RingBuffer<DivisionInfo, 1024> divisions;
     std::array<util::RingBuffer<DMAInfo, 1024>, 2> dmaTransfers;
-    util::RingBuffer<MemoryWriteInfo, 250000> memoryWrites;
+    std::deque<MemoryWriteInfo> memoryWrites;
+    size_t memoryWriteMaxRows = 250'000;
     uint64 memoryWritesDropped = 0;
     util::RingBuffer<MemoryReadInfo, 250000> memoryReads;
     uint64 memoryReadsDropped = 0;

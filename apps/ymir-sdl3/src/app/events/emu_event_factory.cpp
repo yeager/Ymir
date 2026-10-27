@@ -590,8 +590,7 @@ void DumpAllMemory(SharedContext &ctx) {
         } else {
             sh2MemoryOut << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
             const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
-                for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
-                    const auto entry = tracer.memoryWrites.Read(i);
+                for (const auto &entry : tracer.memoryWrites) {
                     sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
                                  << ",0x" << entry.callerTarget << ",0x" << entry.address << std::dec << ','
                                  << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
@@ -609,6 +608,9 @@ void DumpAllMemory(SharedContext &ctx) {
                           << "trace_file=sh2-vdp2-write-trace.csv\n"
                           << "trace_file_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n'
                           << "trace_rows=" << sh2MemoryRows << '\n'
+                          << "capacity_rows=" << ctx.tracers.masterSH2.memoryWriteMaxRows << '\n'
+                          << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
+                          << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
                           << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                           << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                           << "bundle_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n';
@@ -626,8 +628,7 @@ void DumpAllMemory(SharedContext &ctx) {
         } else {
             out << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
-                for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
-                    const auto entry = tracer.memoryWrites.Read(i);
+                for (const auto &entry : tracer.memoryWrites) {
                     out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
                         << entry.callerTarget << ",0x" << entry.address << std::dec << ','
                         << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << '\n';
@@ -646,6 +647,7 @@ void DumpAllMemory(SharedContext &ctx) {
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
                  << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
                  << "trace_rows=" << rows << '\n'
+                 << "capacity_rows=" << ctx.tracers.masterSH2.memoryWriteMaxRows << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                  << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                  << "bundle_complete=" << (written ? 1 : 0) << '\n';
@@ -832,14 +834,18 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.tracers.masterSH2.ResetDMATraces();
                 ctx.tracers.slaveSH2.ResetDMATraces();
                 for (auto *tracer : {&ctx.tracers.masterSH2, &ctx.tracers.slaveSH2}) {
-                    tracer->traceMemoryWrites = true;
-                    tracer->memoryWriteAddressBegin = 0x05E00000;
-                    tracer->memoryWriteAddressEnd = 0x05F01000;
+                    // VDP2 tracing supplies a useful default SH-2 range, but
+                    // retain any explicit range configured by the CLI.
+                    if (!tracer->traceMemoryWrites) {
+                        tracer->traceMemoryWrites = true;
+                        tracer->memoryWriteAddressBegin = 0x05E00000;
+                        tracer->memoryWriteAddressEnd = 0x05F01000;
+                    }
                     tracer->ResetMemoryWriteTrace();
                 }
-                // This legacy VDP2 route configures its range after debug
-                // tracing attached the tracers, so re-sample only their
-                // optional categories without resetting execution analysis.
+                // This legacy VDP2 route configures its tracer after debug
+                // tracing attached them, so refresh optional categories
+                // without resetting execution analysis.
                 ctx.saturn.instance->masterSH2.RefreshTracerConfiguration();
                 ctx.saturn.instance->slaveSH2.RefreshTracerConfiguration();
                 ctx.tracers.SCU.traceDMA = true;

@@ -18,9 +18,11 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <fstream>
 #include <memory>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace ymir;
@@ -290,6 +292,42 @@ EmuEvent ExportVDP2MemoryTrace() {
 }
 
 namespace {
+
+std::pair<uint64, uint64> SH2WriteFrameBounds(const SH2Tracer &master, const SH2Tracer &slave) {
+    uint64 minimum = ~uint64{0};
+    uint64 maximum = 0;
+    for (const SH2Tracer *tracer : {&master, &slave}) {
+        for (const auto &entry : tracer->memoryWrites) {
+            if (entry.vdp1Frame != ~uint64{0}) {
+                minimum = std::min(minimum, entry.vdp1Frame);
+                maximum = std::max(maximum, entry.vdp1Frame);
+            }
+        }
+    }
+    if (minimum == ~uint64{0}) {
+        maximum = ~uint64{0};
+    }
+    return {minimum, maximum};
+}
+
+void WriteSH2FrameReceipt(std::ostream &out, const SH2Tracer &master, const SH2Tracer &slave) {
+    const auto [minimum, maximum] = SH2WriteFrameBounds(master, slave);
+    const auto writeFrame = [&](std::string_view key, uint64 frame) {
+        out << key << '=';
+        if (frame == ~uint64{0}) {
+            out << "unknown\n";
+        } else {
+            out << frame << '\n';
+        }
+    };
+    writeFrame("sh2_ram_write_frame_min", minimum);
+    writeFrame("sh2_ram_write_frame_max", maximum);
+    out << "sh2_ram_write_frame_range_enabled=" << (master.memoryWriteFrameRangeEnabled ? 1 : 0) << '\n';
+    if (master.memoryWriteFrameRangeEnabled) {
+        out << "sh2_ram_write_frame_begin=" << master.memoryWriteFrameBegin << '\n'
+            << "sh2_ram_write_frame_end_exclusive=" << master.memoryWriteFrameEnd << '\n';
+    }
+}
 
 void DumpAllMemory(SharedContext &ctx) {
     // Sample the VDP cursor and trace on the emulation thread before dumping
@@ -588,13 +626,26 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!sh2MemoryOut) {
             devlog::warn<grp::base>("Could not write SH-2 VDP2 write trace in {}", dumpPath);
         } else {
-            sh2MemoryOut << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            sh2MemoryOut << "sh2,vdp1_frame,pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
             const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (const auto &entry : tracer.memoryWrites) {
-                    sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
+                    sh2MemoryOut << name << ',';
+                    if (entry.vdp1Frame == ~uint64{0}) {
+                        sh2MemoryOut << "unknown";
+                    } else {
+                        sh2MemoryOut << entry.vdp1Frame;
+                    }
+                    sh2MemoryOut << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
                                  << ",0x" << entry.callerTarget << ",0x" << entry.address << std::dec << ','
                                  << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
-                                 << '\n';
+                                 << ',';
+                    for (uint8 i = 0; i < entry.callerTargetCount; i++) {
+                        if (i != 0) {
+                            sh2MemoryOut << '|';
+                        }
+                        sh2MemoryOut << "0x" << std::hex << entry.callerTargets[i] << std::dec;
+                    }
+                    sh2MemoryOut << '\n';
                     sh2MemoryRows++;
                 }
             };
@@ -614,6 +665,7 @@ void DumpAllMemory(SharedContext &ctx) {
                           << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                           << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                           << "bundle_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n';
+        WriteSH2FrameReceipt(sh2MemoryManifest, ctx.tracers.masterSH2, ctx.tracers.slaveSH2);
     }
     const bool sh2MemoryReadTraceEnabled = ctx.tracers.masterSH2.traceMemoryReads
                                            || ctx.tracers.slaveSH2.traceMemoryReads;
@@ -626,12 +678,25 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory write trace in {}", dumpPath);
         } else {
-            out << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            out << "sh2,vdp1_frame,pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (const auto &entry : tracer.memoryWrites) {
-                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
+                    out << name << ',';
+                    if (entry.vdp1Frame == ~uint64{0}) {
+                        out << "unknown";
+                    } else {
+                        out << entry.vdp1Frame;
+                    }
+                    out << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
                         << entry.callerTarget << ",0x" << entry.address << std::dec << ','
-                        << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << '\n';
+                        << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << ',';
+                    for (uint8 i = 0; i < entry.callerTargetCount; i++) {
+                        if (i != 0) {
+                            out << '|';
+                        }
+                        out << "0x" << std::hex << entry.callerTargets[i] << std::dec;
+                    }
+                    out << '\n';
                     rows++;
                 }
             };
@@ -651,6 +716,7 @@ void DumpAllMemory(SharedContext &ctx) {
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                  << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                  << "bundle_complete=" << (written ? 1 : 0) << '\n';
+        WriteSH2FrameReceipt(manifest, ctx.tracers.masterSH2, ctx.tracers.slaveSH2);
     }
     if (sh2MemoryReadTraceEnabled) {
         std::ofstream out{dumpPath / "sh2-memory-read-trace.csv"};
@@ -827,6 +893,9 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         if (ctx.saturn.instance->IsDebugTracingEnabled()) {
             ctx.tracers.VDP.enabled.store(true, std::memory_order_relaxed);
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
+            for (auto *tracer : {&ctx.tracers.masterSH2, &ctx.tracers.slaveSH2}) {
+                tracer->currentVDP1FrameIndex = &ctx.tracers.VDP.currentFrame;
+            }
             if (ctx.tracers.VDP2Memory.enabled.load(std::memory_order_relaxed)) {
                 ctx.saturn.instance->VDP.UseVDP2MemoryTracer(&ctx.tracers.VDP2Memory);
                 ctx.tracers.masterSH2.traceDMA = true;

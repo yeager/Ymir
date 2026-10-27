@@ -110,6 +110,9 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSH2MemoryWriteEnd));
     options.add_options()("trace-sh2-writes-max-rows", "Maximum SH-2 data-write rows to retain",
                           cxxopts::value(progOpts.captureSH2MemoryWriteMaxRows)->default_value("250000"));
+    options.add_options()("trace-sh2-writes-frame-range",
+                          "Restrict SH-2 data-write tracing to VDP1 frames in the half-open BEGIN:END interval",
+                          cxxopts::value<std::string>());
     options.add_options()("trace-scu-dma-payload-begin", "First bus address for a bounded SCU DMA payload trace",
                           cxxopts::value(progOpts.captureSCUDMADataBegin));
     options.add_options()("trace-scu-dma-payload-end", "Exclusive bus address for a bounded SCU DMA payload trace",
@@ -141,6 +144,22 @@ int main(int argc, char **argv) {
                 return -1;
             }
             progOpts.captureVDP2FrameRange = true;
+        }
+        if (result.count("trace-sh2-writes-frame-range") != 0) {
+            const std::string spec = result["trace-sh2-writes-frame-range"].as<std::string>();
+            const size_t separator = spec.find(':');
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            if (separator == std::string::npos || spec.find(':', separator + 1) != std::string::npos ||
+                !parseFrame(std::string_view(spec).substr(0, separator), progOpts.captureSH2MemoryWriteFrameBegin) ||
+                !parseFrame(std::string_view(spec).substr(separator + 1), progOpts.captureSH2MemoryWriteFrameEnd) ||
+                progOpts.captureSH2MemoryWriteFrameBegin >= progOpts.captureSH2MemoryWriteFrameEnd) {
+                fmt::println("invalid --trace-sh2-writes-frame-range '{}'; expected nonempty BEGIN:END", spec);
+                return -1;
+            }
+            progOpts.captureSH2MemoryWriteFrameRange = true;
         }
         progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
                                            || result.count("capture-start-hold") != 0;
@@ -193,6 +212,10 @@ int main(int argc, char **argv) {
                                          || result.count("trace-sh2-reads-end") != 0;
         progOpts.captureSH2MemoryWrites = result.count("trace-sh2-writes-begin") != 0
                                           || result.count("trace-sh2-writes-end") != 0;
+        if (progOpts.captureSH2MemoryWriteFrameRange && !progOpts.captureSH2MemoryWrites) {
+            fmt::println("--trace-sh2-writes-frame-range requires --trace-sh2-writes-begin/end");
+            return -1;
+        }
         progOpts.captureSCUDMAData = result.count("trace-scu-dma-payload-begin") != 0
                                      || result.count("trace-scu-dma-payload-end") != 0;
         if (result.count("trace-scu-dma-payload-max-rows") != 0 && !progOpts.captureSCUDMAData) {

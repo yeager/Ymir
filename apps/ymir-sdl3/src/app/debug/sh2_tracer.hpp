@@ -4,6 +4,8 @@
 
 #include <app/debug/sh2_exec_analyst.hpp>
 
+#include <array>
+#include <atomic>
 #include <deque>
 
 #include <util/ring_buffer.hpp>
@@ -27,6 +29,10 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     bool traceMemoryReads = false;
     uint32 memoryWriteAddressBegin = 0;
     uint32 memoryWriteAddressEnd = 0;
+    const std::atomic_uint64_t *currentVDP1FrameIndex = nullptr;
+    bool memoryWriteFrameRangeEnabled = false;
+    uint64 memoryWriteFrameBegin = 0;
+    uint64 memoryWriteFrameEnd = 0;
     uint32 memoryReadAddressBegin = 0;
     uint32 memoryReadAddressEnd = 0;
 
@@ -84,12 +90,15 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     };
 
     struct MemoryWriteInfo {
+        uint64 vdp1Frame;
         uint32 pc;
         uint32 callerReturnAddress;
         uint32 callerTarget;
         uint32 address;
         uint32 value;
         uint8 width;
+        std::array<uint32, 4> callerTargets{};
+        uint8 callerTargetCount = 0;
     };
 
     struct MemoryReadInfo {

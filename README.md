@@ -104,7 +104,11 @@ capacity can therefore preserve complete write provenance without changing
 emulation or the final memory snapshot. The separate SH-2 data-write trace also
 supports `--trace-sh2-writes-max-rows` (1 through 10,000,000) when an SH-2
 address interval is selected; its receipt records the retained capacity,
-address interval, and dropped-row count.
+address interval, frame bounds, and dropped-row count. Each SH-2 write row is
+tagged with the active VDP1 frame and up to four nested caller targets.
+`--trace-sh2-writes-frame-range BEGIN:END` restricts the trace to a half-open
+VDP1 frame interval, which makes frame-local producer joins possible without
+assuming that an untagged write happened in the frame of a matching VDP2 row.
 
 For example, this captures the VDP2 writes for VDP1 frames 7,728 and 7,729
 while retaining the complete final memory snapshot:

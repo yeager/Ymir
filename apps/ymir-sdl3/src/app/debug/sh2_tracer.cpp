@@ -58,6 +58,12 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
     if (!traceMemoryWrites || address < memoryWriteAddressBegin || address >= memoryWriteAddressEnd) {
         return;
     }
+    const uint64 vdp1Frame = currentVDP1FrameIndex == nullptr
+                                 ? ~uint64{0}
+                                 : currentVDP1FrameIndex->load(std::memory_order_relaxed);
+    if (memoryWriteFrameRangeEnabled && (vdp1Frame < memoryWriteFrameBegin || vdp1Frame >= memoryWriteFrameEnd)) {
+        return;
+    }
     if (memoryWriteMaxRows == 0) {
         return;
     }
@@ -68,11 +74,18 @@ void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value
     uint32 callerReturnAddress = 0;
     uint32 callerTarget = 0;
     const auto callStack = execAnalyst.GetCurrentCallStack();
+    std::array<uint32, 4> callerTargets{};
+    uint8 callerTargetCount = 0;
     if (!callStack.empty()) {
         callerReturnAddress = callStack.back().address;
         callerTarget = callStack.back().target;
+        for (auto it = callStack.rbegin();
+             it != callStack.rend() && callerTargetCount < callerTargets.size(); ++it) {
+            callerTargets[callerTargetCount++] = it->target;
+        }
     }
-    memoryWrites.push_back({pc, callerReturnAddress, callerTarget, address, value, width});
+    memoryWrites.push_back(
+        {vdp1Frame, pc, callerReturnAddress, callerTarget, address, value, width, callerTargets, callerTargetCount});
 }
 
 void SH2Tracer::MemoryRead(uint32 pc, uint32 address, uint8 width) {

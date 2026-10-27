@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace app {
 
@@ -20,6 +21,9 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     void ClearDMATransfers();
     void ClearDSPDMATransfers();
     void SetCaptureFrame(uint32 frame) { m_captureFrame = frame; }
+    void RecordCaptureFrame(uint32 frame, uint64 vdp1FrameBefore, uint64 vdp1FrameAfter) {
+        captureFrameInfo.push_back({frame, vdp1FrameBefore, vdp1FrameAfter});
+    }
     void ClearCaptureFrame() { m_captureFrame = kUnknownCaptureFrame; }
 
     void DebugPortWrite(uint8 ch);
@@ -36,6 +40,12 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     };
 
     static constexpr uint32 kUnknownCaptureFrame = std::numeric_limits<uint32>::max();
+
+    struct CaptureFrameInfo {
+        uint32 captureFrame;
+        uint64 vdp1FrameBefore;
+        uint64 vdp1FrameAfter;
+    };
 
     struct DMAInfo {
         uint32 counter;
@@ -63,6 +73,7 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     util::RingBuffer<InterruptInfo, 1024> interrupts;
     static constexpr size_t kDMATraceCapacity = 16384;
     util::RingBuffer<DMAInfo, kDMATraceCapacity> dmaTransfers;
+    std::vector<CaptureFrameInfo> captureFrameInfo;
     uint64 dmaTransfersDropped = 0;
     util::RingBuffer<DSPDMAInfo, 1024> dspDmaTransfers;
     util::RingBuffer<std::string, 1024> debugMessages;

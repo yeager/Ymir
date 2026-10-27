@@ -1,5 +1,8 @@
 #include "scu_tracer.hpp"
 
+#include <algorithm>
+#include <iterator>
+
 namespace app {
 
 void SCUTracer::ClearDebugMessages() {
@@ -14,7 +17,10 @@ void SCUTracer::ClearInterrupts() {
 
 void SCUTracer::ClearDMATransfers() {
     dmaTransfers.Clear();
+    dmaDataWrites.clear();
+    dmaDataWritesDropped = 0;
     m_dmaCounter = 0;
+    std::fill(std::begin(m_activeDMATransfer), std::end(m_activeDMATransfer), 0);
 }
 
 void SCUTracer::ClearDSPDMATransfers() {
@@ -56,8 +62,27 @@ void SCUTracer::DMA(uint8 channel, uint32 srcAddr, uint32 dstAddr, uint32 xferCo
         return;
     }
 
+    if (channel < std::size(m_activeDMATransfer)) {
+        m_activeDMATransfer[channel] = m_dmaCounter;
+    }
     dmaTransfers.Write(
         {m_dmaCounter++, srcAddr, dstAddr, xferCount, srcAddrInc, dstAddrInc, indirectAddr, indirect, channel});
+}
+
+void SCUTracer::DMADataWrite(uint8 channel, uint32 address, uint32 value, uint8 width) {
+    if (!traceDMAData || width == 0 || channel >= std::size(m_activeDMATransfer)) {
+        return;
+    }
+    const uint64 writeBegin = address;
+    const uint64 writeEnd = writeBegin + width;
+    if (writeBegin >= dmaDataAddressEnd || writeEnd <= dmaDataAddressBegin) {
+        return;
+    }
+    if (dmaDataWrites.size() >= kMaxDMADataWrites) {
+        ++dmaDataWritesDropped;
+        return;
+    }
+    dmaDataWrites.push_back({m_activeDMATransfer[channel], address, value, width, channel});
 }
 
 void SCUTracer::DSPDMA(bool toD0, uint32 addrD0, uint8 addrDSP, uint8 count, uint8 addrInc, bool hold) {

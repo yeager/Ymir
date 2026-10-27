@@ -87,6 +87,10 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSH2MemoryWriteBegin));
     options.add_options()("trace-sh2-writes-end", "Exclusive physical bus address for a bounded SH-2 data-write trace",
                           cxxopts::value(progOpts.captureSH2MemoryWriteEnd));
+    options.add_options()("trace-scu-dma-payload-begin", "First bus address for a bounded SCU DMA payload trace",
+                          cxxopts::value(progOpts.captureSCUDMADataBegin));
+    options.add_options()("trace-scu-dma-payload-end", "Exclusive bus address for a bounded SCU DMA payload trace",
+                          cxxopts::value(progOpts.captureSCUDMADataEnd));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});
@@ -111,6 +115,8 @@ int main(int argc, char **argv) {
                                          || result.count("trace-sh2-reads-end") != 0;
         progOpts.captureSH2MemoryWrites = result.count("trace-sh2-writes-begin") != 0
                                           || result.count("trace-sh2-writes-end") != 0;
+        progOpts.captureSCUDMAData = result.count("trace-scu-dma-payload-begin") != 0
+                                     || result.count("trace-scu-dma-payload-end") != 0;
         if (progOpts.captureLoadStateSlot > 10) {
             fmt::println("--load-state must be between 1 and 10");
             return -1;
@@ -218,6 +224,15 @@ int main(int argc, char **argv) {
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
                 || progOpts.captureSH2MemoryWriteBegin >= progOpts.captureSH2MemoryWriteEnd)) {
             fmt::println("--trace-sh2-writes-begin/end require --debug, a frame capture, --dump-memory, and a nonempty range");
+            return -1;
+        }
+        if (progOpts.captureSCUDMAData
+            && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
+                || result.count("trace-scu-dma-payload-begin") == 0
+                || result.count("trace-scu-dma-payload-end") == 0
+                || progOpts.captureSCUDMADataBegin >= progOpts.captureSCUDMADataEnd)) {
+            fmt::println("--trace-scu-dma-payload-begin/end require --debug, a frame capture, --dump-memory, and a "
+                         "nonempty range");
             return -1;
         }
         if (showHelp) {

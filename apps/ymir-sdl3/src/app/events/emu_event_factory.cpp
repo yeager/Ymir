@@ -467,6 +467,34 @@ void DumpAllMemory(SharedContext &ctx) {
                        << "overflow=unknown\n"
                        << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
 
+        if (ctx.tracers.SCU.traceDMAData) {
+            std::ofstream payloadOut{dumpPath / "scu-dma-payload-trace.csv"};
+            bool payloadWritten = false;
+            if (!payloadOut) {
+                devlog::warn<grp::base>("Could not write SCU DMA payload trace in {}", dumpPath);
+            } else {
+                payloadOut << "transfer,channel,destination_address,width,value\n";
+                for (const auto &entry : ctx.tracers.SCU.dmaDataWrites) {
+                    payloadOut << entry.transfer << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
+                               << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width) << ",0x"
+                               << std::hex << entry.value << std::dec << '\n';
+                }
+                payloadOut.close();
+                payloadWritten = static_cast<bool>(payloadOut);
+            }
+            std::ofstream payloadManifest{dumpPath / "scu-dma-payload-trace-bundle.txt"};
+            payloadManifest << "format=ymir-scu-dma-payload-trace-bundle-v1\n"
+                            << "trace_file=scu-dma-payload-trace.csv\n"
+                            << "trace_file_complete=" << (payloadWritten ? 1 : 0) << '\n'
+                            << "address_begin=0x" << std::hex << ctx.tracers.SCU.dmaDataAddressBegin << '\n'
+                            << "address_end_exclusive=0x" << ctx.tracers.SCU.dmaDataAddressEnd << std::dec << '\n'
+                            << "retained_rows=" << ctx.tracers.SCU.dmaDataWrites.size() << '\n'
+                            << "retention_capacity=" << app::SCUTracer::kMaxDMADataWrites << '\n'
+                            << "dropped_rows=" << ctx.tracers.SCU.dmaDataWritesDropped << '\n'
+                            << "trace_complete=" << (ctx.tracers.SCU.dmaDataWritesDropped == 0 ? 1 : 0) << '\n'
+                            << "bundle_complete=" << (payloadWritten ? 1 : 0) << '\n';
+        }
+
         std::ofstream sh2MemoryOut{dumpPath / "sh2-vdp2-write-trace.csv"};
         bool sh2MemoryWritten = false;
         size_t sh2MemoryRows = 0;
@@ -730,6 +758,10 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.tracers.SCU.traceDMA = true;
                 ctx.tracers.SCU.ClearDMATransfers();
             }
+        }
+        if (ctx.tracers.SCU.traceDMAData) {
+            ctx.tracers.SCU.traceDMA = true;
+            ctx.tracers.SCU.ClearDMATransfers();
         }
 
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();

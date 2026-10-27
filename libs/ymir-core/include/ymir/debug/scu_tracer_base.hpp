@@ -39,6 +39,18 @@ struct ISCUTracer {
     virtual void DMA(uint8 channel, uint32 srcAddr, uint32 dstAddr, uint32 xferCount, uint32 srcAddrInc,
                      uint32 dstAddrInc, bool indirect, uint32 indirectAddr) {}
 
+    /// @brief Indicates whether per-write DMA data tracing is requested.
+    virtual bool WantsDMADataTrace() const {
+        return false;
+    }
+
+    /// @brief Invoked after an SCU DMA value is written to the destination bus.
+    /// @param[in] channel the channel index
+    /// @param[in] address the destination bus address
+    /// @param[in] value the value written, in host numeric representation
+    /// @param[in] width the number of bytes written (1, 2, or 4)
+    virtual void DMADataWrite(uint8 channel, uint32 address, uint32 value, uint8 width) {}
+
     // -----------------------------------------------------------------------------------------------------------------
     // DSP
 

@@ -1237,6 +1237,13 @@ void App::RunEmulator() {
             tracer->ResetMemoryWriteTrace();
         }
     }
+    if (m_options.captureSCUDMAData) {
+        m_context.tracers.SCU.traceDMA = true;
+        m_context.tracers.SCU.traceDMAData = true;
+        m_context.tracers.SCU.dmaDataAddressBegin = m_options.captureSCUDMADataBegin;
+        m_context.tracers.SCU.dmaDataAddressEnd = m_options.captureSCUDMADataEnd;
+        m_context.tracers.SCU.ClearDMATransfers();
+    }
     if (m_options.dumpMemoryAtStartup) {
         if (m_options.captureLoadStateSlot != 0) {
             m_context.EnqueueEvent(

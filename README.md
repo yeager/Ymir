@@ -110,6 +110,15 @@ tagged with the active VDP1 frame and up to four nested caller targets.
 VDP1 frame interval, which makes frame-local producer joins possible without
 assuming that an untagged write happened in the frame of a matching VDP2 row.
 
+The VDP2 receipt's `last_vdp1_frame_index` identifies the last recorded memory
+write, while `current_vdp1_frame_index` and `vdp-register-snapshot.txt` identify
+the final memory/register snapshot frame. They can differ when no VDP2 writes
+occur late in a capture. Treat a later snapshot as later-frame evidence; only
+claim byte stability from an earlier write frame when the complete zero-drop
+trace window reaches past the snapshot frame and contains no intervening VDP2
+writes. Consumers must validate those receipt bounds instead of assuming the
+last-write frame and snapshot frame are identical.
+
 For example, this captures the VDP2 writes for VDP1 frames 7,728 and 7,729
 while retaining the complete final memory snapshot:
 

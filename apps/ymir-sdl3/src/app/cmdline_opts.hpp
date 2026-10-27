@@ -12,6 +12,14 @@ struct ScheduledControlPadInput {
     unsigned holdFrames = 0;
 };
 
+struct ScheduledShuttleMouseInput {
+    unsigned frame = 0;
+    int deltaX = 0;
+    int deltaY = 0;
+    std::uint8_t buttonMask = 0;
+    unsigned holdFrames = 0;
+};
+
 struct CommandLineOptions {
     std::filesystem::path gameDiscPath;
     std::filesystem::path profilePath;
@@ -39,6 +47,7 @@ struct CommandLineOptions {
     unsigned captureControlPadDownFrame = 0;
     unsigned captureControlPadDownHoldFrames = 0;
     std::vector<ScheduledControlPadInput> captureControlPadInputs;
+    std::vector<ScheduledShuttleMouseInput> captureShuttleMouseInputs;
     bool captureControlPadC = false;
     unsigned captureControlPadCFrame = 0;
     unsigned captureControlPadCHoldFrames = 0;

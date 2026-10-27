@@ -188,6 +188,24 @@ button state is restored after the final captured frame. This supports repeatabl
 navigation through BIOS and game menus while keeping captures independent of
 host window focus and input timing.
 
+For deterministic Shuttle Mouse sequences, repeat
+`--capture-mouse-input FRAME:DX:DY:BUTTON:HOLD` with port 1 configured as a
+Shuttle Mouse:
+
+```sh
+ymir-sdl3 --debug --capture-frames 24 --load-state 1 --dump-memory \
+  --capture-mouse-input 4:0:16:none:1 \
+  --capture-mouse-input 8:0:0:left:1
+```
+
+Frames are zero-based within the capture. `DX` and `DY` are one-frame relative
+movement values in the Shuttle Mouse's `-256..255` range. Buttons are `none`,
+`start`, `left`, `middle`, or `right`; button holds must fit inside the
+capture. Scheduled inputs affect only their selected frames; Ymir restores the
+host-side input values after the capture, while the emulated game retains any
+movement it processed. Replays are independent of host cursor position and
+window focus.
+
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with
 `--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either

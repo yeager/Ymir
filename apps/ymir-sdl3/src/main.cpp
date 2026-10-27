@@ -76,6 +76,9 @@ int main(int argc, char **argv) {
     options.add_options()("capture-pad-input",
                           "Schedule Control Pad 1 input as FRAME:BUTTON:HOLD (repeatable; up/down/left/right/start/a/b/c)",
                           cxxopts::value<std::vector<std::string>>());
+    options.add_options()("capture-mouse-input",
+                          "Schedule Shuttle Mouse 1 input as FRAME:DX:DY:BUTTON:HOLD (repeatable; relative motion is one frame; button is none/start/left/middle/right)",
+                          cxxopts::value<std::vector<std::string>>());
     options.add_options()("capture-c-frame", "Zero-based capture frame at which to assert Control Pad 1 C",
                           cxxopts::value(progOpts.captureControlPadCFrame));
     options.add_options()("capture-c-hold", "Number of capture frames to hold Control Pad 1 C",
@@ -160,6 +163,53 @@ int main(int argc, char **argv) {
                 }
                 input.buttonMask = mask;
                 progOpts.captureControlPadInputs.push_back(input);
+            }
+        }
+        if (result.count("capture-mouse-input") != 0) {
+            const auto parseSigned = [](std::string_view text, int &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            const auto buttonMask = [](std::string_view name) -> std::uint8_t {
+                if (name == "none") return 0;
+                if (name == "start") return 1U << 0;
+                if (name == "left") return 1U << 1;
+                if (name == "middle") return 1U << 2;
+                if (name == "right") return 1U << 3;
+                return 0xFF;
+            };
+            for (const std::string &spec : result["capture-mouse-input"].as<std::vector<std::string>>()) {
+                std::string_view fields[5];
+                std::string_view remaining = spec;
+                bool validFields = true;
+                for (size_t index = 0; index < 4; ++index) {
+                    const size_t separator = remaining.find(':');
+                    if (separator == std::string_view::npos) {
+                        validFields = false;
+                        break;
+                    }
+                    fields[index] = remaining.substr(0, separator);
+                    remaining.remove_prefix(separator + 1);
+                }
+                fields[4] = remaining;
+                app::ScheduledShuttleMouseInput input{};
+                const std::uint8_t mask = buttonMask(fields[3]);
+                if (!validFields || fields[4].find(':') != std::string_view::npos || mask == 0xFF
+                    || !parseFrame(fields[0], input.frame) || !parseSigned(fields[1], input.deltaX)
+                    || !parseSigned(fields[2], input.deltaY) || !parseFrame(fields[4], input.holdFrames)
+                    || input.deltaX < -256 || input.deltaX > 255 || input.deltaY < -256 || input.deltaY > 255
+                    || input.holdFrames == 0) {
+                    fmt::println("invalid --capture-mouse-input '{}'; expected FRAME:DX:DY:BUTTON:HOLD, signed "
+                                 "movement in -256..255, button none/start/left/middle/right, and nonzero hold",
+                                 spec);
+                    return -1;
+                }
+                input.buttonMask = mask;
+                progOpts.captureShuttleMouseInputs.push_back(input);
             }
         }
         progOpts.captureSH2MemoryReads = result.count("trace-sh2-reads-begin") != 0
@@ -268,6 +318,18 @@ int main(int argc, char **argv) {
             for (const auto &input : progOpts.captureControlPadInputs) {
                 if (input.frame >= captureFrameCount || input.holdFrames > captureFrameCount - input.frame) {
                     fmt::println("--capture-pad-input frame and hold must fit within the capture");
+                    return -1;
+                }
+            }
+        }
+        if (!progOpts.captureShuttleMouseInputs.empty()) {
+            if (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup) {
+                fmt::println("--capture-mouse-input requires --capture-frames or --capture-boot-frames and --dump-memory");
+                return -1;
+            }
+            for (const auto &input : progOpts.captureShuttleMouseInputs) {
+                if (input.frame >= captureFrameCount || input.holdFrames > captureFrameCount - input.frame) {
+                    fmt::println("--capture-mouse-input frame and hold must fit within the capture");
                     return -1;
                 }
             }

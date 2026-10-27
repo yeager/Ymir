@@ -14,6 +14,7 @@ void SCUTracer::ClearInterrupts() {
 
 void SCUTracer::ClearDMATransfers() {
     dmaTransfers.Clear();
+    captureFrameInfo.clear();
     dmaTransfersDropped = 0;
     m_dmaCounter = 0;
     ClearCaptureFrame();

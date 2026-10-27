@@ -187,8 +187,8 @@ host window focus and input timing.
 
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with
-`--capture-frames`; Start scheduling, `--trace-vdp2-writes`, and `--trace-scu-dma` work with
-either frame-capture route.
+`--capture-frames`; Start scheduling, `--trace-vdp2-writes`, and
+`--trace-scu-dma` work with either frame-capture route.
 
 `-f` forces the emulator to start in fullscreen mode, ignoring the preference in Ymir.toml.
 

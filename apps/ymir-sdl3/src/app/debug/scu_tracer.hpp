@@ -4,6 +4,7 @@
 
 #include <util/ring_buffer.hpp>
 
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -18,6 +19,8 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     void ClearInterrupts();
     void ClearDMATransfers();
     void ClearDSPDMATransfers();
+    void SetCaptureFrame(uint32 frame) { m_captureFrame = frame; }
+    void ClearCaptureFrame() { m_captureFrame = kUnknownCaptureFrame; }
 
     void DebugPortWrite(uint8 ch);
 
@@ -32,8 +35,11 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
         bool acknowledged;
     };
 
+    static constexpr uint32 kUnknownCaptureFrame = std::numeric_limits<uint32>::max();
+
     struct DMAInfo {
         uint32 counter;
+        uint32 captureFrame;
         uint32 srcAddr;
         uint32 dstAddr;
         uint32 xferCount;
@@ -65,6 +71,7 @@ private:
     uint32 m_interruptCounter = 0;
     uint32 m_dmaCounter = 0;
     uint32 m_dspDmaCounter = 0;
+    uint32 m_captureFrame = kUnknownCaptureFrame;
     std::string m_debugMessageBuffer;
 
     // -------------------------------------------------------------------------

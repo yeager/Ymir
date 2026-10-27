@@ -16,6 +16,7 @@ void SCUTracer::ClearDMATransfers() {
     dmaTransfers.Clear();
     dmaTransfersDropped = 0;
     m_dmaCounter = 0;
+    ClearCaptureFrame();
 }
 
 void SCUTracer::ClearDSPDMATransfers() {
@@ -60,8 +61,8 @@ void SCUTracer::DMA(uint8 channel, uint32 srcAddr, uint32 dstAddr, uint32 xferCo
     if (dmaTransfers.Count() == dmaTransfers.Capacity()) {
         ++dmaTransfersDropped;
     }
-    dmaTransfers.Write(
-        {m_dmaCounter++, srcAddr, dstAddr, xferCount, srcAddrInc, dstAddrInc, indirectAddr, indirect, channel});
+    dmaTransfers.Write({m_dmaCounter++, m_captureFrame, srcAddr, dstAddr, xferCount, srcAddrInc, dstAddrInc,
+                        indirectAddr, indirect, channel});
 }
 
 void SCUTracer::DSPDMA(bool toD0, uint32 addrD0, uint8 addrDSP, uint8 count, uint8 addrInc, bool hold) {

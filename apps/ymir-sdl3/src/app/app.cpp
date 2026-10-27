@@ -1242,6 +1242,7 @@ void App::RunEmulator() {
         m_context.tracers.SCU.traceDMAData = true;
         m_context.tracers.SCU.dmaDataAddressBegin = m_options.captureSCUDMADataBegin;
         m_context.tracers.SCU.dmaDataAddressEnd = m_options.captureSCUDMADataEnd;
+        m_context.tracers.SCU.maxDMADataWrites = m_options.captureSCUDMADataMaxRows;
         m_context.tracers.SCU.ClearDMATransfers();
     }
     if (m_options.dumpMemoryAtStartup) {

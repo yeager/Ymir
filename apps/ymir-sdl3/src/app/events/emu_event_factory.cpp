@@ -448,8 +448,10 @@ void DumpAllMemory(SharedContext &ctx) {
             scuDMAOut << "transfer,channel,source_address,destination_address,count,source_increment,"
                          "destination_increment,indirect,indirect_address\n";
             const auto &transfers = ctx.tracers.SCU.dmaTransfers;
-            for (size_t i = 0; i < transfers.Count(); i++) {
-                const auto entry = transfers.Read(i);
+            const auto &transferHistory = ctx.tracers.SCU.dmaTransferHistory;
+            const size_t transferCount = ctx.tracers.SCU.traceDMAData ? transferHistory.size() : transfers.Count();
+            for (size_t i = 0; i < transferCount; i++) {
+                const auto entry = ctx.tracers.SCU.traceDMAData ? transferHistory[i] : transfers.Read(i);
                 scuDMAOut << entry.counter << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
                           << entry.srcAddr << ",0x" << entry.dstAddr << std::dec << ',' << entry.xferCount << ','
                           << entry.srcAddrInc << ',' << entry.dstAddrInc << ',' << (entry.indirect ? 1 : 0) << ",0x"
@@ -459,13 +461,27 @@ void DumpAllMemory(SharedContext &ctx) {
             scuDMAWritten = static_cast<bool>(scuDMAOut);
         }
         std::ofstream scuDMAManifest{dumpPath / "scu-dma-trace-bundle.txt"};
+        const bool scuDMAFullHistory = ctx.tracers.SCU.traceDMAData;
+        const size_t scuDMARetainedRows =
+            scuDMAFullHistory ? ctx.tracers.SCU.dmaTransferHistory.size() : ctx.tracers.SCU.dmaTransfers.Count();
+        const size_t scuDMADroppedRows = scuDMAFullHistory ? ctx.tracers.SCU.dmaTransferHistoryDropped : 0;
         scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v1\n"
                        << "trace_file=scu-dma-trace.csv\n"
                        << "trace_file_complete=" << (scuDMAWritten ? 1 : 0) << '\n'
-                       << "retained_rows=" << ctx.tracers.SCU.dmaTransfers.Count() << '\n'
-                       << "retention_capacity=" << ctx.tracers.SCU.dmaTransfers.Capacity() << '\n'
-                       << "overflow=unknown\n"
-                       << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
+                       << "capture_mode=" << (scuDMAFullHistory ? "full_history" : "ring_buffer") << '\n'
+                       << "retained_rows=" << scuDMARetainedRows << '\n'
+                       << "retention_capacity="
+                       << (scuDMAFullHistory ? app::SCUTracer::kMaxDMATransferHistory
+                                             : ctx.tracers.SCU.dmaTransfers.Capacity())
+                       << '\n';
+        if (scuDMAFullHistory) {
+            scuDMAManifest << "dropped_rows=" << scuDMADroppedRows << '\n'
+                           << "trace_complete=" << (scuDMADroppedRows == 0 ? 1 : 0) << '\n'
+                           << "overflow=" << (scuDMADroppedRows == 0 ? "none" : "known") << '\n';
+        } else {
+            scuDMAManifest << "dropped_rows=unknown\ntrace_complete=unknown\noverflow=unknown\n";
+        }
+        scuDMAManifest << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
 
         if (ctx.tracers.SCU.traceDMAData) {
             std::ofstream payloadOut{dumpPath / "scu-dma-payload-trace.csv"};
@@ -489,9 +505,11 @@ void DumpAllMemory(SharedContext &ctx) {
                             << "address_begin=0x" << std::hex << ctx.tracers.SCU.dmaDataAddressBegin << '\n'
                             << "address_end_exclusive=0x" << ctx.tracers.SCU.dmaDataAddressEnd << std::dec << '\n'
                             << "retained_rows=" << ctx.tracers.SCU.dmaDataWrites.size() << '\n'
-                            << "retention_capacity=" << app::SCUTracer::kMaxDMADataWrites << '\n'
+                            << "retention_capacity=" << ctx.tracers.SCU.maxDMADataWrites << '\n'
                             << "dropped_rows=" << ctx.tracers.SCU.dmaDataWritesDropped << '\n'
                             << "trace_complete=" << (ctx.tracers.SCU.dmaDataWritesDropped == 0 ? 1 : 0) << '\n'
+                            << "transfer_trace_complete=" << (scuDMAFullHistory && scuDMADroppedRows == 0 ? 1 : 0)
+                            << '\n'
                             << "bundle_complete=" << (payloadWritten ? 1 : 0) << '\n';
         }
 

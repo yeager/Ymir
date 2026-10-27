@@ -36,7 +36,8 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
         uint8 width;
         uint8 channel;
     };
-    static constexpr size_t kMaxDMADataWrites = 1'000'000;
+    static constexpr size_t kDefaultMaxDMADataWrites = 1'000'000;
+    size_t maxDMADataWrites = kDefaultMaxDMADataWrites;
     std::vector<DMADataWriteInfo> dmaDataWrites;
     size_t dmaDataWritesDropped = 0;
 
@@ -58,6 +59,10 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
         bool indirect;
         uint8 channel;
     };
+
+    static constexpr size_t kMaxDMATransferHistory = 1'000'000;
+    std::vector<DMAInfo> dmaTransferHistory;
+    size_t dmaTransferHistoryDropped = 0;
 
     struct DSPDMAInfo {
         uint32 counter;

@@ -19,6 +19,8 @@ void SCUTracer::ClearDMATransfers() {
     dmaTransfers.Clear();
     dmaDataWrites.clear();
     dmaDataWritesDropped = 0;
+    dmaTransferHistory.clear();
+    dmaTransferHistoryDropped = 0;
     m_dmaCounter = 0;
     std::fill(std::begin(m_activeDMATransfer), std::end(m_activeDMATransfer), 0);
 }
@@ -62,11 +64,20 @@ void SCUTracer::DMA(uint8 channel, uint32 srcAddr, uint32 dstAddr, uint32 xferCo
         return;
     }
 
+    const DMAInfo entry{m_dmaCounter, srcAddr, dstAddr, xferCount, srcAddrInc, dstAddrInc, indirectAddr, indirect,
+                        channel};
     if (channel < std::size(m_activeDMATransfer)) {
-        m_activeDMATransfer[channel] = m_dmaCounter;
+        m_activeDMATransfer[channel] = entry.counter;
     }
-    dmaTransfers.Write(
-        {m_dmaCounter++, srcAddr, dstAddr, xferCount, srcAddrInc, dstAddrInc, indirectAddr, indirect, channel});
+    dmaTransfers.Write(entry);
+    if (traceDMAData) {
+        if (dmaTransferHistory.size() < kMaxDMATransferHistory) {
+            dmaTransferHistory.push_back(entry);
+        } else {
+            ++dmaTransferHistoryDropped;
+        }
+    }
+    ++m_dmaCounter;
 }
 
 void SCUTracer::DMADataWrite(uint8 channel, uint32 address, uint32 value, uint8 width) {
@@ -78,7 +89,7 @@ void SCUTracer::DMADataWrite(uint8 channel, uint32 address, uint32 value, uint8 
     if (writeBegin >= dmaDataAddressEnd || writeEnd <= dmaDataAddressBegin) {
         return;
     }
-    if (dmaDataWrites.size() >= kMaxDMADataWrites) {
+    if (dmaDataWrites.size() >= maxDMADataWrites) {
         ++dmaDataWritesDropped;
         return;
     }

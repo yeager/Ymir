@@ -14,6 +14,7 @@
 
 int main(int argc, char **argv) {
     constexpr unsigned kMaxCaptureFrames = 60000;
+    constexpr unsigned kMaxSCUDMADataRows = 10'000'000;
 #if defined(_WIN32)
     // NOTE: Setting the main thread name on Linux and macOS replaces the process name displayed on tools like `top`.
     util::SetCurrentThreadName("Main thread");
@@ -91,6 +92,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSCUDMADataBegin));
     options.add_options()("trace-scu-dma-payload-end", "Exclusive bus address for a bounded SCU DMA payload trace",
                           cxxopts::value(progOpts.captureSCUDMADataEnd));
+    options.add_options()("trace-scu-dma-payload-max-rows", "Maximum matching SCU DMA payload writes to retain",
+                          cxxopts::value(progOpts.captureSCUDMADataMaxRows)->default_value("1000000"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});
@@ -117,6 +120,15 @@ int main(int argc, char **argv) {
                                           || result.count("trace-sh2-writes-end") != 0;
         progOpts.captureSCUDMAData = result.count("trace-scu-dma-payload-begin") != 0
                                      || result.count("trace-scu-dma-payload-end") != 0;
+        if (result.count("trace-scu-dma-payload-max-rows") != 0 && !progOpts.captureSCUDMAData) {
+            fmt::println("--trace-scu-dma-payload-max-rows requires a payload address range");
+            return -1;
+        }
+        if (progOpts.captureSCUDMAData
+            && (progOpts.captureSCUDMADataMaxRows == 0 || progOpts.captureSCUDMADataMaxRows > kMaxSCUDMADataRows)) {
+            fmt::println("--trace-scu-dma-payload-max-rows must be between 1 and {}", kMaxSCUDMADataRows);
+            return -1;
+        }
         if (progOpts.captureLoadStateSlot > 10) {
             fmt::println("--load-state must be between 1 and 10");
             return -1;

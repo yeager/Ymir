@@ -48,6 +48,7 @@ struct CommandLineOptions {
     bool captureSCUDMAData = false;
     unsigned captureSCUDMADataBegin = 0;
     unsigned captureSCUDMADataEnd = 0;
+    unsigned captureSCUDMADataMaxRows = 1'000'000;
 };
 
 } // namespace app

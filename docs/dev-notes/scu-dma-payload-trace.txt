@@ -18,7 +18,16 @@ recorded only after Ymir has issued it to the bus. Writes to the VDP1 register
 range that the SCU implementation suppresses are therefore not reported.
 
 Capture requires `--debug`, a nonzero frame count, `--dump-memory`, and a
-nonempty address interval. At most 1,000,000 matching writes are retained. The
-bundle records the interval, retained and dropped row counts, and whether the
-trace is complete; a trace with dropped rows must not be used as complete
-transfer evidence.
+nonempty address interval. By default, at most 1,000,000 matching writes are
+retained. `--trace-scu-dma-payload-max-rows` can set a different limit from
+1 through 10,000,000. The bundle records the interval, retained and dropped
+row counts, and whether the payload trace is complete; a trace with dropped
+rows must not be used as complete transfer evidence.
+
+When payload tracing is enabled, `scu-dma-trace.csv` contains the bounded
+ordered DMA descriptor history captured for the same frame run, rather than
+only the interactive viewer's last 1,024 descriptors. Its transfer sequence
+numbers join the payload rows' `transfer` column. The descriptor bundle reports
+its retention capacity, dropped rows, and completeness. A source-join tool must
+require complete descriptor history before assigning a payload write to a DMA
+source range.

@@ -55,7 +55,9 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     };
 
     util::RingBuffer<InterruptInfo, 1024> interrupts;
-    util::RingBuffer<DMAInfo, 1024> dmaTransfers;
+    static constexpr size_t kDMATraceCapacity = 16384;
+    util::RingBuffer<DMAInfo, kDMATraceCapacity> dmaTransfers;
+    uint64 dmaTransfersDropped = 0;
     util::RingBuffer<DSPDMAInfo, 1024> dspDmaTransfers;
     util::RingBuffer<std::string, 1024> debugMessages;
 

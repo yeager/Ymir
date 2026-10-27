@@ -201,8 +201,9 @@ ymir-sdl3 --debug --capture-frames 24 --load-state 1 --dump-memory \
 Frames are zero-based within the capture. `DX` and `DY` are one-frame relative
 movement values in the Shuttle Mouse's `-256..255` range. Buttons are `none`,
 `start`, `left`, `middle`, or `right`; button holds must fit inside the
-capture. Scheduled button states and relative movement are restored after the
-capture. This keeps mouse-menu replays independent of host cursor position and
+capture. Scheduled inputs affect only their selected frames; Ymir restores the
+host-side input values after the capture, while the emulated game retains any
+movement it processed. Replays are independent of host cursor position and
 window focus.
 
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal

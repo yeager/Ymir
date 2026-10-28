@@ -41,11 +41,7 @@ void VDP2MemoryTraceWindow::DrawContents() {
 
     size_t count = 0;
     uint64 dropped = 0;
-    {
-        std::lock_guard lock(tracer.mutex);
-        count = tracer.entries.size();
-        dropped = tracer.dropped;
-    }
+    tracer.GetStats(count, dropped);
     ImGui::Text("%zu writes captured (%llu oldest writes dropped)", count,
                 static_cast<unsigned long long>(dropped));
 

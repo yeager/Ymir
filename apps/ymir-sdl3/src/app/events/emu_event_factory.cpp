@@ -185,11 +185,7 @@ EmuEvent ExportVDP2MemoryTrace() {
         const uint64 captureFrame = saturn.VDP.GetVDP2MemoryTraceFrameIndex();
         std::vector<VDP2MemoryTracer::Entry> traceSnapshot;
         uint64 dropped = 0;
-        {
-            std::lock_guard lock(tracer.mutex);
-            traceSnapshot.assign(tracer.entries.begin(), tracer.entries.end());
-            dropped = tracer.dropped;
-        }
+        tracer.CopySnapshot(traceSnapshot, dropped);
         const bool frameRangeEnabled = tracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
         const uint64 frameRangeBegin = tracer.vdp1FrameBegin.load(std::memory_order_relaxed);
         const uint64 frameRangeEnd = tracer.vdp1FrameEnd.load(std::memory_order_relaxed);
@@ -359,9 +355,7 @@ void DumpAllMemory(SharedContext &ctx) {
     const uint64 vdp2RowsOutsideFrameRange = vdp2MemoryTracer.outOfFrameRange.load(std::memory_order_relaxed);
     const uint64 vdp2MemoryTraceFrame = vdp.GetVDP2MemoryTraceFrameIndex();
     if (vdp2MemoryTraceEnabled) {
-        std::lock_guard lock(vdp2MemoryTracer.mutex);
-        vdp2MemoryTraceSnapshot.assign(vdp2MemoryTracer.entries.begin(), vdp2MemoryTracer.entries.end());
-        vdp2MemoryTraceDropped = vdp2MemoryTracer.dropped;
+        vdp2MemoryTracer.CopySnapshot(vdp2MemoryTraceSnapshot, vdp2MemoryTraceDropped);
     }
 
     auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);

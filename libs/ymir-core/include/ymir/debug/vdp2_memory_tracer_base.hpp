@@ -23,6 +23,15 @@ struct IVDP2MemoryTracer {
     virtual ~IVDP2MemoryTracer() = default;
 
     virtual bool IsEnabled() const { return true; }
+    /// Filters a committed write before dispatching the full trace callback.
+    /// The default keeps existing tracers enabled without additional policy.
+    virtual bool ShouldTraceWrite(uint64 vdp1Frame, VDP2MemoryType type, uint32 address, uint8 width) const {
+        (void)vdp1Frame;
+        (void)type;
+        (void)address;
+        (void)width;
+        return IsEnabled();
+    }
     /// Invoked when the VDP resets, so frame indices from separate runs are not mixed.
     virtual void Reset() {}
     /// @param[in] vdp1Frame the current VDP1 frame index, or zero before its first frame

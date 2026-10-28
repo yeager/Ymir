@@ -29,7 +29,7 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
     std::atomic_bool traceVdp1FrameRange{false};
     std::atomic_uint64_t vdp1FrameBegin{0};
     std::atomic_uint64_t vdp1FrameEnd{0};
-    std::atomic_uint64_t outOfFrameRange = 0;
+    mutable std::atomic_uint64_t outOfFrameRange = 0;
     mutable std::mutex mutex;
     std::vector<Entry> entries;
     size_t nextEntry = 0;
@@ -83,6 +83,32 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
 
     bool IsEnabled() const final {
         return enabled.load(std::memory_order_relaxed);
+    }
+
+    bool ShouldTraceWrite(uint64 vdp1Frame, ymir::debug::VDP2MemoryType type, uint32 address, uint8 width) const final {
+        if (!enabled.load(std::memory_order_relaxed)) {
+            return false;
+        }
+        if ((type == ymir::debug::VDP2MemoryType::VRAM && !traceVRAM.load(std::memory_order_relaxed)) ||
+            (type == ymir::debug::VDP2MemoryType::CRAM && !traceCRAM.load(std::memory_order_relaxed))) {
+            return false;
+        }
+        const uint32 begin = addressBegin.load(std::memory_order_relaxed);
+        const uint32 end = addressEnd.load(std::memory_order_relaxed);
+        const uint64 writeEnd = static_cast<uint64>(address) + width;
+        if (begin >= end || address >= end || writeEnd <= begin) {
+            return false;
+        }
+        if (traceVdp1FrameRange.load(std::memory_order_relaxed)) {
+            const uint64 frameBegin = vdp1FrameBegin.load(std::memory_order_relaxed);
+            const uint64 frameEnd = vdp1FrameEnd.load(std::memory_order_relaxed);
+            if (vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex ||
+                vdp1Frame < frameBegin || vdp1Frame >= frameEnd) {
+                outOfFrameRange.fetch_add(1, std::memory_order_relaxed);
+                return false;
+            }
+        }
+        return true;
     }
 
     void Reset() final {

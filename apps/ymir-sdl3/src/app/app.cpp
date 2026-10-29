@@ -1234,6 +1234,9 @@ void App::RunEmulator() {
             tracer->traceMemoryWrites = true;
             tracer->memoryWriteAddressBegin = m_options.captureSH2MemoryWriteBegin;
             tracer->memoryWriteAddressEnd = m_options.captureSH2MemoryWriteEnd;
+            tracer->traceMemoryWriteFrameRange = m_options.captureSH2MemoryWriteFrameRange;
+            tracer->memoryWriteFrameBegin = m_options.captureSH2MemoryWriteFrameBegin;
+            tracer->memoryWriteFrameEnd = m_options.captureSH2MemoryWriteFrameEnd;
             tracer->ResetMemoryWriteTrace();
         }
     }

@@ -54,6 +54,9 @@ struct CommandLineOptions {
     bool captureSH2MemoryWrites = false;
     unsigned captureSH2MemoryWriteBegin = 0;
     unsigned captureSH2MemoryWriteEnd = 0;
+    bool captureSH2MemoryWriteFrameRange = false;
+    unsigned captureSH2MemoryWriteFrameBegin = 0;
+    unsigned captureSH2MemoryWriteFrameEnd = 0;
 };
 
 } // namespace app

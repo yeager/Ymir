@@ -473,11 +473,15 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!sh2MemoryOut) {
             devlog::warn<grp::base>("Could not write SH-2 VDP2 write trace in {}", dumpPath);
         } else {
-            sh2MemoryOut << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            sh2MemoryOut << "capture_frame,sh2,pc,caller_return_address,caller_target,address,width,value\n";
             const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
                     const auto entry = tracer.memoryWrites.Read(i);
-                    sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
+                    if (entry.captureFrameValid) {
+                        sh2MemoryOut << std::dec << entry.captureFrame;
+                    }
+                    sh2MemoryOut << ',' << name << ",0x" << std::hex
+                                 << entry.pc << ",0x" << entry.callerReturnAddress
                                  << ",0x" << entry.callerTarget << ",0x" << entry.address << std::dec << ','
                                  << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
                                  << '\n';
@@ -490,9 +494,15 @@ void DumpAllMemory(SharedContext &ctx) {
             sh2MemoryWritten = static_cast<bool>(sh2MemoryOut);
         }
         std::ofstream sh2MemoryManifest{dumpPath / "sh2-vdp2-write-trace-bundle.txt"};
-        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v1\n"
+        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v2\n"
                           << "trace_file=sh2-vdp2-write-trace.csv\n"
                           << "trace_file_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n'
+                          << "capture_frame_index=zero_based_capture_loop_frame\n"
+                          << "capture_frame_empty_outside_capture_loop=1\n"
+                          << "frame_range_enabled="
+                          << (ctx.tracers.masterSH2.traceMemoryWriteFrameRange ? 1 : 0) << '\n'
+                          << "frame_begin=" << ctx.tracers.masterSH2.memoryWriteFrameBegin << '\n'
+                          << "frame_end_exclusive=" << ctx.tracers.masterSH2.memoryWriteFrameEnd << '\n'
                           << "trace_rows=" << sh2MemoryRows << '\n'
                           << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                           << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
@@ -509,11 +519,15 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory write trace in {}", dumpPath);
         } else {
-            out << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            out << "capture_frame,sh2,pc,caller_return_address,caller_target,address,width,value\n";
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
                     const auto entry = tracer.memoryWrites.Read(i);
-                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
+                    if (entry.captureFrameValid) {
+                        out << std::dec << entry.captureFrame;
+                    }
+                    out << ',' << name << ",0x" << std::hex << entry.pc << ",0x"
+                        << entry.callerReturnAddress << ",0x"
                         << entry.callerTarget << ",0x" << entry.address << std::dec << ','
                         << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << '\n';
                     rows++;
@@ -525,9 +539,15 @@ void DumpAllMemory(SharedContext &ctx) {
             written = static_cast<bool>(out);
         }
         std::ofstream manifest{dumpPath / "sh2-memory-write-trace-bundle.txt"};
-        manifest << "format=ymir-sh2-memory-write-trace-bundle-v1\n"
+        manifest << "format=ymir-sh2-memory-write-trace-bundle-v2\n"
                  << "trace_file=sh2-memory-write-trace.csv\n"
                  << "trace_file_complete=" << (written ? 1 : 0) << '\n'
+                 << "capture_frame_index=zero_based_capture_loop_frame\n"
+                 << "capture_frame_empty_outside_capture_loop=1\n"
+                 << "frame_range_enabled="
+                 << (ctx.tracers.masterSH2.traceMemoryWriteFrameRange ? 1 : 0) << '\n'
+                 << "frame_begin=" << ctx.tracers.masterSH2.memoryWriteFrameBegin << '\n'
+                 << "frame_end_exclusive=" << ctx.tracers.masterSH2.memoryWriteFrameEnd << '\n'
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
                  << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
                  << "trace_rows=" << rows << '\n'
@@ -796,8 +816,12 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             }
             const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
             controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | (managedButtons & ~pressedButtons));
+            ctx.tracers.masterSH2.SetCaptureFrameIndex(frame);
+            ctx.tracers.slaveSH2.SetCaptureFrameIndex(frame);
             ctx.saturn.instance->RunFrame();
         }
+        ctx.tracers.masterSH2.ClearCaptureFrameIndex();
+        ctx.tracers.slaveSH2.ClearCaptureFrameIndex();
         const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
         controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
         DumpAllMemory(ctx);

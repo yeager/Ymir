@@ -660,6 +660,12 @@ T SH2::MemRead(uint32 address) {
         address &= kAddressMask;
     }
 
+    if constexpr (!instrFetch && !peek) {
+        if (m_traceMemoryReads) {
+            m_tracer->MemoryRead(PC, address & 0x7FFFFFFu, sizeof(T));
+        }
+    }
+
     switch (partition) {
     case 0b000: // cache
         if constexpr (emulateCache) {
@@ -781,6 +787,12 @@ void SH2::MemWrite(uint32 address, T value) {
             // TODO: address error (misaligned access)
         }
         address &= kAddressMask;
+    }
+
+    if constexpr (debug && !poke) {
+        if (m_traceMemoryWrites) {
+            m_tracer->MemoryWrite(PC, address & 0x7FFFFFFu, sizeof(T), static_cast<uint32>(value));
+        }
     }
 
     switch (partition) {

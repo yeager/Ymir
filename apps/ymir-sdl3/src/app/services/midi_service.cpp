@@ -31,7 +31,18 @@ MIDIService::MIDIService(util::ServiceLocator &serviceLocator)
 
 MIDIService::~MIDIService() = default;
 
+using MidiPortType = Settings::Audio::MidiPort::Type;
+
 void MIDIService::Initialize(std::function<void()> onComplete) {
+    auto &settings = m_serviceLocator.GetRequired<Settings>();
+    if (settings.audio.midiInputPort.Get().type == MidiPortType::None
+        && settings.audio.midiOutputPort.Get().type == MidiPortType::None) {
+        if (onComplete) {
+            onComplete();
+        }
+        return;
+    }
+
     devlog::info<grp::midi>("Initializing MIDI backend...");
 
 #if defined(YMIR_MIDI_ASYNC_INIT)
@@ -51,8 +62,6 @@ std::string MIDIService::GetMidiVirtualInputPortName() const {
 std::string MIDIService::GetMidiVirtualOutputPortName() const {
     return "Ymir Virtual MIDI Output";
 }
-
-using MidiPortType = Settings::Audio::MidiPort::Type;
 
 std::string MIDIService::GetMidiInputPortName() const {
     auto &settings = m_serviceLocator.GetRequired<Settings>();
@@ -175,6 +184,10 @@ void MIDIService::DoInit(std::function<void()> onComplete) {
         std::unique_lock lock{m_mtxCallback};
         SetInput(input);
         SetOutput(output);
+    }
+
+    if (onComplete) {
+        onComplete();
     }
 }
 

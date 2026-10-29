@@ -88,9 +88,119 @@ Use `-p <profile-path>` to point to a separate set of configuration and state fi
 
 The `-u` option forces usage of the OS's user profile folder (e.g. `C:\Users\<username>\AppData\Roaming\StrikerX3\Ymir` on Windows or `/home/<username>/.local/share/Ymir` on Linux).
 
+For VDP2 graphics reverse engineering, start with `--debug`, open **Debug > VDP > Memory write trace**, select VRAM and/or CRAM, and enable capture. The address interval is start-inclusive and end-exclusive. **Export synchronized bundle** writes the bounded trace, VDP2 VRAM, CRAM, registers, and a receipt into the profile's `dumps` directory from one emulator-thread callback. Each row records the VDP1 frame index, mapped VDP2 destination address, write width, and value. A 32-bit bus store that is split into two 16-bit accesses appears as two rows. Writes before the first VDP1 frame have an `unknown` frame index. Resetting the VDP clears the buffered trace so frame indices from before and after reset are not mixed. The address filter includes writes that overlap the selected interval. The capture retains the newest 250,000 matching writes and reports how many older entries were discarded. The trace does not identify the SH-2 or DMA source of a write.
+
+For a reproducible state capture without UI interaction, add
+`--trace-vdp2-writes` to `--debug --load-state N --capture-frames N
+--dump-memory`. The trace is enabled only for this deterministic load/frame/dump
+route and is written as `vdp2-memory-write-trace.csv` with
+`vdp2-memory-write-bundle.txt` in the profile's `dumps` directory. An empty
+but complete trace is valid evidence that the selected capture interval made no
+observed VDP2 writes; it is not a missing-output fallback.
+
+The same CLI route also writes `sh2-dma-trace.csv` and
+`sh2-dma-trace-bundle.txt`. These report the retained SH-2 DMA transfer source
+and destination ranges during the frame capture, so a VDP2 destination can be
+compared with the DMA source memory. The trace does not identify a CPU program
+counter, prove that every VDP2 write was DMA-originated, or replace byte-level
+source provenance.
+
+It also writes `scu-dma-trace.csv` and `scu-dma-trace-bundle.txt` for SCU DMA
+transfer starts. The SCU trace retains at most 1,024 entries and reports its
+overflow status as unknown, so it is evidence for recorded transfers rather
+than a claim that no other SCU transfer occurred.
+
+`sh2-vdp2-write-trace.csv` and its bundle record the master or slave SH-2
+instruction PC and current call-site that directly wrote a VDP2 VRAM/CRAM bus
+address. This trace is bounded to 250,000 entries per SH-2 and reports dropped
+entries. It records CPU writes only; DMA-originated VDP2 writes remain
+represented by the DMA traces.
+
+`--trace-sh2-reads-begin ADDRESS --trace-sh2-reads-end ADDRESS` records
+master and slave SH-2 data reads within a start-inclusive, end-exclusive
+physical bus-address range during the same deterministic `--debug` frame
+capture. It writes `sh2-memory-read-trace.csv` and
+`sh2-memory-read-trace-bundle.txt` beside the memory dump. Each retained row
+includes the SH-2 PC, current call-site, address, and read width. Instruction
+fetches, debugger peeks, and accesses outside the selected interval are not
+recorded. The trace retains the newest 250,000 matching reads per SH-2 and
+reports discarded rows; it is diagnostic evidence, not a claim of ownership
+or rendering semantics.
+
+`--trace-sh2-writes-begin ADDRESS --trace-sh2-writes-end ADDRESS` records
+master and slave SH-2 data writes in an independently selected, start-inclusive
+and end-exclusive physical bus-address range during that same deterministic
+`--debug` frame capture. It writes `sh2-memory-write-trace.csv` and
+`sh2-memory-write-trace-bundle.txt` beside the dump. A row contains the SH-2
+PC, current call-site, physical destination address, width, and value. The
+trace retains the newest 250,000 matching writes per SH-2 and reports discarded
+rows. It records direct CPU stores only, not DMA traffic or a source-resource
+ownership claim.
+
+`--capture-start-frame N --capture-start-hold N`,
+`--capture-start-repeat-frame N --capture-start-repeat-hold N`,
+`--capture-a-frame N --capture-a-hold N`,
+`--capture-a-repeat-frame N --capture-a-repeat-hold N`,
+`--capture-down-frame N --capture-down-hold N`, and
+`--capture-c-frame N --capture-c-hold N` can add deterministic Control Pad 1
+Start, A, Down, and C presses to that same capture route. The repeat pairs schedule
+second Start and A intervals. The frames are zero-based after the
+state load and the hold lengths are measured in emulated frames. Each pair
+requires a frame capture and `--dump-memory`; the hold must be nonzero and the
+start frame must be within the capture. This is useful for reproducible
+title-screen and menu investigation without relying on host window focus or
+timing.
+
+`--capture-screenshot` saves Ymir's framebuffer after the capture-owned frame
+loop and memory dump. It requires a frame capture and `--dump-memory`, and
+writes to the selected profile's `screenshots/` directory.
+
+`--capture-save-state N` saves slot `N` after the same frame loop and dump.
+It requires a frame capture and `--dump-memory`. The saved state is written to
+the selected profile and can be loaded later with `--load-state N`, which makes
+long boot or title-to-game captures practical to inspect in smaller follow-up
+runs.
+
+`--capture-no-present` is for automated deterministic captures on a host whose
+window compositor cannot present frames reliably. It keeps normal renderer
+initialization so emulation uses the configured video path, but deliberately
+does not present GUI frames and exits after its capture-owned dump is complete.
+It requires a frame capture and `--dump-memory`. It can be combined with
+`--capture-screenshot`: the screenshot queue is drained before Ymir exits.
+Interactive runs are unaffected.
+
+For arbitrary button sequences, repeat `--capture-pad-input FRAME:BUTTON:HOLD`:
+
+```sh
+ymir-sdl3 --debug --capture-boot-frames 1200 --dump-memory \
+  --capture-pad-input 700:right:2 --capture-pad-input 730:y:1
+```
+
+Frames are zero-based within the capture. Supported buttons are `up`, `down`,
+`left`, `right`, `start`, `a`, `b`, `c`, `x`, `y`, `z`, `l`, and `r`. Holds
+must fit inside the capture; button state is restored after the final captured
+frame. This supports repeatable navigation and deterministic use of the full
+Saturn Control Pad, including the Nexus manual's Y-button magic-window action,
+while keeping captures independent of host window focus and input timing.
+
+Use `--capture-boot-frames N --dump-memory` to capture directly from normal
+disc boot rather than from a save-state. It is mutually exclusive with
+`--capture-frames`; Start scheduling and `--trace-vdp2-writes` work with either
+frame-capture route.
+
 `-f` forces the emulator to start in fullscreen mode, ignoring the preference in Ymir.toml.
 
 `-D` starts the emulator with debug tracing enabled.
+
+For a frame-aligned VDP1 capture, enable **Debug > VDP > Command trace** and
+then use **Debug > Dump all memory**. The dump now writes
+`vdp1-command-trace.csv` and `vdp1-capture-bundle.txt` beside the VDP1/VDP2
+VRAM and register files. Their frame cursor, command cursor, local coordinates,
+trace row count and dropped-row count are sampled in the same emulation-thread
+callback as the memory images. A nonzero `trace_dropped_total` means the
+bounded trace buffer discarded earlier commands; `trace_file_complete=0`
+means the CSV could not be fully written. This bundle provides frame
+provenance for reverse engineering and does not assert game-specific meaning.
 
 `-F` starts the emulator in fast-forward mode.
 

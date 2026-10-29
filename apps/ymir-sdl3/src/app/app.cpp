@@ -1211,11 +1211,74 @@ void App::RunEmulator() {
 
     auto &inputContext = m_context.inputContext;
 
-    m_context.paused = m_options.startPaused || settings.general.startPaused;
+    // A frame-counted capture owns all emulation steps itself. Keep the regular
+    // loop paused so no unscheduled frame can slip between state load and dump.
+    m_context.paused = m_options.startPaused || settings.general.startPaused || m_options.captureFramesAfterLoad != 0
+                       || m_options.captureFramesFromBoot != 0;
     bool pausedByLostFocus = false;
 
     if (m_options.enableDebugTracing) {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
+    }
+    if (m_options.captureVDP2MemoryWrites) {
+        m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);
+        m_context.tracers.VDP2Memory.Clear();
+    }
+    if (m_options.captureSH2MemoryReads) {
+        for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {
+            tracer->traceMemoryReads = true;
+            tracer->memoryReadAddressBegin = m_options.captureSH2MemoryReadBegin;
+            tracer->memoryReadAddressEnd = m_options.captureSH2MemoryReadEnd;
+            tracer->ResetMemoryReadTrace();
+        }
+    }
+    if (m_options.captureSH2MemoryWrites) {
+        for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {
+            tracer->traceMemoryWrites = true;
+            tracer->memoryWriteAddressBegin = m_options.captureSH2MemoryWriteBegin;
+            tracer->memoryWriteAddressEnd = m_options.captureSH2MemoryWriteEnd;
+            tracer->ResetMemoryWriteTrace();
+        }
+    }
+    if (m_options.dumpMemoryAtStartup) {
+        if (m_options.captureLoadStateSlot != 0) {
+            m_context.EnqueueEvent(
+                events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad,
+                                       m_options.captureControlPadStartFrame,
+                                       m_options.captureControlPadStartHoldFrames,
+                                       m_options.captureControlPadStartRepeatFrame,
+                                       m_options.captureControlPadStartRepeatHoldFrames, m_options.captureControlPadAFrame,
+                                       m_options.captureControlPadAHoldFrames, m_options.captureControlPadCFrame,
+                                       m_options.captureControlPadCHoldFrames, m_options.captureControlPadARepeatFrame,
+                                       m_options.captureControlPadARepeatHoldFrames, m_options.captureControlPadDownFrame,
+                                       m_options.captureControlPadDownHoldFrames, m_options.captureControlPadInputs,
+                                       m_options.captureScreenshotAtEnd,
+                                       m_options.captureNoPresent, m_options.captureSaveStateSlot,
+                                       m_options.captureNoRender));
+        } else if (m_options.captureFramesFromBoot != 0) {
+            m_context.EnqueueEvent(events::emu::RunFramesAndDump(m_options.captureFramesFromBoot,
+                                                                  m_options.captureControlPadStartFrame,
+                                                                  m_options.captureControlPadStartHoldFrames,
+                                                                  m_options.captureControlPadStartRepeatFrame,
+                                                                  m_options.captureControlPadStartRepeatHoldFrames,
+                                                                  m_options.captureControlPadAFrame,
+                                                                  m_options.captureControlPadAHoldFrames,
+                                                                  m_options.captureControlPadCFrame,
+                                                                  m_options.captureControlPadCHoldFrames,
+                                                                  m_options.captureControlPadARepeatFrame,
+                                                                  m_options.captureControlPadARepeatHoldFrames,
+                                                                  m_options.captureControlPadDownFrame,
+                                                                  m_options.captureControlPadDownHoldFrames,
+                                                                  m_options.captureControlPadInputs,
+                                                                  m_options.captureScreenshotAtEnd,
+                                                                  m_options.captureNoPresent,
+                                                                  m_options.captureSaveStateSlot,
+                                                                  m_options.captureNoRender));
+        } else {
+            m_context.EnqueueEvent(events::emu::DumpMemory());
+        }
+    } else if (m_options.captureLoadStateSlot != 0) {
+        m_context.EnqueueEvent(events::emu::LoadState(m_options.captureLoadStateSlot - 1));
     }
 
     // ---------------------------------
@@ -1774,6 +1837,7 @@ void App::RunEmulator() {
             const GUIEvent &evt = evts[i];
             using EvtType = GUIEvent::Type;
             switch (evt.type) {
+            case EvtType::Quit: goto end_loop;
             case EvtType::LoadDisc: m_discService.OpenLoadDiscDialog(); break;
             case EvtType::LoadRecommendedGameCartridge: m_romService.LoadRecommendedCartridge(); break;
             case EvtType::OpenBackupMemoryCartFileDialog: m_romService.OpenBackupMemoryCartFileDialog(); break;
@@ -2733,6 +2797,7 @@ void App::RunEmulator() {
                         ImGui::TextUnformatted("VDP1");
                         ImGui::EndDisabled();
                         ImGui::MenuItem("Registers##vdp1", nullptr, &windowSet.vdp1Regs.Open);
+                        ImGui::MenuItem("Command trace##vdp1", nullptr, &windowSet.vdp1CommandTrace.Open);
 
                         ImGui::Separator();
                         ImGui::BeginDisabled();
@@ -2746,6 +2811,7 @@ void App::RunEmulator() {
                         ImGui::MenuItem("Debug overlay", nullptr, &windowSet.vdp2DebugOverlay.Open);
                         ImGui::MenuItem("VRAM access patterns", nullptr, &windowSet.vdp2VRAMAccessPatterns.Open);
                         ImGui::MenuItem("Color RAM palette", nullptr, &windowSet.vdp2CRAM.Open);
+                        ImGui::MenuItem("Memory write trace", nullptr, &windowSet.vdp2MemoryTrace.Open);
 
                         ImGui::EndMenu();
                     }
@@ -3395,20 +3461,22 @@ void App::RunEmulator() {
 
         screen.resolutionChanged = false;
 
-        // Render ImGui widgets
-        m_graphicsService.ImGuiRenderFrame();
+        if (!m_options.captureNoPresent) {
+            // Render ImGui widgets
+            m_graphicsService.ImGuiRenderFrame();
 
-        {
-            auto presentResult = m_graphicsService.Present();
-            if (!presentResult) {
-                // Revert to sane settings right now, just to be safe
-                settings.video.graphicsBackend = gfx::Backend::SDLRenderer;
-                settings.video.graphicsAdapter = std::nullopt;
-                settings.video.useHardwareAcceleration = false;
-                settings.Save();
-                util::ShowFatalErrorDialog("The graphics context crashed. Cannot continue execution.\n"
-                                           "Your graphics settings were reset.");
-                goto end_loop;
+            {
+                auto presentResult = m_graphicsService.Present();
+                if (!presentResult) {
+                    // Revert to sane settings right now, just to be safe
+                    settings.video.graphicsBackend = gfx::Backend::SDLRenderer;
+                    settings.video.graphicsAdapter = std::nullopt;
+                    settings.video.useHardwareAcceleration = false;
+                    settings.Save();
+                    util::ShowFatalErrorDialog("The graphics context crashed. Cannot continue execution.\n"
+                                               "Your graphics settings were reset.");
+                    goto end_loop;
+                }
             }
         }
 

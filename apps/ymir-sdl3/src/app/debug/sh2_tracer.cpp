@@ -16,6 +16,24 @@ void SH2Tracer::ResetDMACounter(uint32 channel) {
     m_dmaCounter[channel] = 0;
 }
 
+void SH2Tracer::ResetDMATraces() {
+    for (uint32 channel = 0; channel < dmaTransfers.size(); channel++) {
+        dmaTransfers[channel].Clear();
+        ResetDMACounter(channel);
+        dmaStats[channel].Clear();
+    }
+}
+
+void SH2Tracer::ResetMemoryWriteTrace() {
+    memoryWrites.Clear();
+    memoryWritesDropped = 0;
+}
+
+void SH2Tracer::ResetMemoryReadTrace() {
+    memoryReads.Clear();
+    memoryReadsDropped = 0;
+}
+
 void SH2Tracer::Attached() {
     execAnalyst.Clear();
 }
@@ -34,6 +52,40 @@ void SH2Tracer::ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) {
     }
 
     instructions.Write({pc, opcode, delaySlot});
+}
+
+void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {
+    if (!traceMemoryWrites || address < memoryWriteAddressBegin || address >= memoryWriteAddressEnd) {
+        return;
+    }
+    if (memoryWrites.Count() == memoryWrites.Capacity()) {
+        memoryWritesDropped++;
+    }
+    uint32 callerReturnAddress = 0;
+    uint32 callerTarget = 0;
+    const auto callStack = execAnalyst.GetCurrentCallStack();
+    if (!callStack.empty()) {
+        callerReturnAddress = callStack.back().address;
+        callerTarget = callStack.back().target;
+    }
+    memoryWrites.Write({pc, callerReturnAddress, callerTarget, address, value, width});
+}
+
+void SH2Tracer::MemoryRead(uint32 pc, uint32 address, uint8 width) {
+    if (!traceMemoryReads || address < memoryReadAddressBegin || address >= memoryReadAddressEnd) {
+        return;
+    }
+    if (memoryReads.Count() == memoryReads.Capacity()) {
+        memoryReadsDropped++;
+    }
+    uint32 callerReturnAddress = 0;
+    uint32 callerTarget = 0;
+    const auto callStack = execAnalyst.GetCurrentCallStack();
+    if (!callStack.empty()) {
+        callerReturnAddress = callStack.back().address;
+        callerTarget = callStack.back().target;
+    }
+    memoryReads.Write({pc, callerReturnAddress, callerTarget, address, width});
 }
 
 void SH2Tracer::DelaySlot(uint32 pc, uint32 target) {

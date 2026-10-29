@@ -42,6 +42,30 @@ struct ISH2Tracer {
     /// @param[in] delaySlot indicates if the instruction is executing in a delay slot
     virtual void ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) {}
 
+    /// Invoked immediately before a CPU data-memory write is committed.
+    /// @param[in] pc the instruction program counter
+    /// @param[in] address the physical Saturn bus address
+    /// @param[in] width the write width in bytes
+    /// @param[in] value the written value
+    virtual void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {}
+
+    /// Invoked immediately before a CPU data-memory read is performed.
+    /// Instruction fetches and debugger peeks are not reported.
+    /// @param[in] pc the instruction program counter
+    /// @param[in] address the physical Saturn bus address
+    /// @param[in] width the read width in bytes
+    virtual void MemoryRead(uint32 pc, uint32 address, uint8 width) {}
+
+    /// Whether the tracer currently wants CPU data-memory reads.
+    /// This is sampled when the tracer is attached so disabled read tracing
+    /// adds no per-read virtual dispatch to debug sessions.
+    virtual bool IsMemoryReadTracingEnabled() const { return false; }
+
+    /// Whether the tracer currently wants CPU data-memory writes.
+    /// This is sampled when the tracer is attached so disabled write tracing
+    /// adds no per-write virtual dispatch to debug sessions.
+    virtual bool IsMemoryWriteTracingEnabled() const { return false; }
+
     /// @brief Invoked when the CPU finishes a delayed branch, that is, executes an instruction in a delay slot.
     /// @param[in] pc the current program counter
     /// @param[in] target the target address

@@ -98,6 +98,7 @@ struct GUIEvent {
         CheckForUpdates,
 
         TakeScreenshot,
+        Quit,
 
         // Emulator notifications
 

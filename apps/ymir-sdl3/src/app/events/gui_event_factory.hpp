@@ -125,6 +125,10 @@ inline GUIEvent TakeScreenshot() {
     return {.type = GUIEvent::Type::TakeScreenshot};
 }
 
+inline GUIEvent Quit() {
+    return {.type = GUIEvent::Type::Quit};
+}
+
 inline GUIEvent StateLoaded(uint32 slot) {
     return {.type = GUIEvent::Type::StateLoaded, .value = slot};
 }

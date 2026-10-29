@@ -662,9 +662,20 @@ T SH2::MemRead(uint32 address, debug::SH2MemoryAccessOrigin origin, uint8 dmaCha
 
     if constexpr (!instrFetch && !peek) {
         if (m_traceMemoryReads) {
-            m_tracer->MemoryRead(origin, dmaChannel,
-                                origin == debug::SH2MemoryAccessOrigin::CPU ? PC : debug::kSH2UnknownInstructionPC,
-                                address & 0x7FFFFFFu, sizeof(T));
+            const uint32 physicalAddress = address & 0x7FFFFFFu;
+            const uint32 instructionPC =
+                origin == debug::SH2MemoryAccessOrigin::CPU ? PC : debug::kSH2UnknownInstructionPC;
+            if (m_traceMemoryReadRegisterSnapshots
+                && m_tracer->ShouldCaptureMemoryReadRegisterSnapshot(physicalAddress)) {
+                if (origin == debug::SH2MemoryAccessOrigin::CPU) {
+                    const debug::SH2RegisterSnapshot registers{R, PC, PR, MAC.H, MAC.L, SR.u32, GBR, VBR};
+                    m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T), &registers);
+                } else {
+                    m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T), nullptr);
+                }
+            } else {
+                m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T));
+            }
         }
     }
 

@@ -833,6 +833,73 @@ void DumpAllMemory(SharedContext &ctx) {
             out.close();
             written = static_cast<bool>(out);
         }
+
+        const bool registerSnapshotsRequested = ctx.tracers.masterSH2.traceMemoryReadRegisterSnapshots
+                                                || ctx.tracers.slaveSH2.traceMemoryReadRegisterSnapshots;
+        bool registerSnapshotsWritten = false;
+        size_t registerSnapshotRows = 0;
+        if (registerSnapshotsRequested) {
+            std::ofstream snapshotsOut{dumpPath / "sh2-memory-read-register-snapshots.csv"};
+            bool rowsAligned = true;
+            if (!snapshotsOut) {
+                devlog::warn<grp::base>("Could not write SH-2 read register snapshots in {}", dumpPath);
+            } else {
+                snapshotsOut << "sh2,read_row,origin,dma_channel,instruction_pc,address,width,registers_available,pc,"
+                                "r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15,pr,mach,macl,sr,gbr,vbr\n";
+                const auto writeSnapshotTracer = [&](std::string_view name, const SH2Tracer &tracer) {
+                    const auto &registers = tracer.memoryReadRegisterSnapshots;
+                    if (!registers || registers->size() != tracer.memoryReads.Count()) {
+                        rowsAligned = false;
+                        return;
+                    }
+                    for (size_t i = 0; i < tracer.memoryReads.Count(); i++) {
+                        const auto entry = tracer.memoryReads.Read(i);
+                        const auto &snapshot = registers->at(i);
+                        const bool dmac = entry.origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                        snapshotsOut << name << ',' << i << ',' << (dmac ? "dmac" : "cpu") << ',';
+                        if (dmac) {
+                            if (entry.dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                                snapshotsOut << "unknown";
+                            } else {
+                                snapshotsOut << static_cast<unsigned>(entry.dmaChannel);
+                            }
+                        }
+                        snapshotsOut << ',';
+                        if (entry.instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                            snapshotsOut << "unknown";
+                        } else {
+                            snapshotsOut << "0x" << std::hex << entry.instructionPC << std::dec;
+                        }
+                        snapshotsOut << ",0x" << std::hex << entry.address << std::dec << ','
+                                     << static_cast<unsigned>(entry.width) << ',' << (snapshot.available ? 1 : 0);
+                        if (snapshot.available) {
+                            const auto &regs = snapshot.registers;
+                            snapshotsOut << ",0x" << std::hex << regs.PC;
+                            for (const uint32 reg : regs.R) {
+                                snapshotsOut << ",0x" << reg;
+                            }
+                            snapshotsOut << ",0x" << regs.PR << ",0x" << regs.MACH << ",0x" << regs.MACL << ",0x"
+                                         << regs.SR << ",0x" << regs.GBR << ",0x" << regs.VBR << std::dec;
+                        } else {
+                            for (size_t column = 0; column < 23; column++) {
+                                snapshotsOut << ",unknown";
+                            }
+                        }
+                        snapshotsOut << '\n';
+                        registerSnapshotRows++;
+                    }
+                };
+                writeSnapshotTracer("master", ctx.tracers.masterSH2);
+                writeSnapshotTracer("slave", ctx.tracers.slaveSH2);
+                snapshotsOut.close();
+                registerSnapshotsWritten = rowsAligned && static_cast<bool>(snapshotsOut);
+                if (!rowsAligned) {
+                    devlog::warn<grp::base>("SH-2 read register snapshots did not align with the read trace in {}",
+                                            dumpPath);
+                }
+            }
+        }
+
         std::ofstream manifest{dumpPath / "sh2-memory-read-trace-bundle.txt"};
         manifest << "format=ymir-sh2-memory-read-trace-bundle-v2\n"
                  << "trace_file=sh2-memory-read-trace.csv\n"
@@ -845,8 +912,16 @@ void DumpAllMemory(SharedContext &ctx) {
                  << "dmac_channel_0_rows=" << dmacChannelRows[0] << '\n'
                  << "dmac_channel_1_rows=" << dmacChannelRows[1] << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryReadsDropped << '\n'
-                 << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n'
-                 << "bundle_complete=" << (written ? 1 : 0) << '\n';
+                 << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n';
+        if (registerSnapshotsRequested) {
+            manifest << "register_snapshot_file=sh2-memory-read-register-snapshots.csv\n"
+                     << "register_snapshot_file_complete=" << (registerSnapshotsWritten ? 1 : 0) << '\n'
+                     << "register_snapshot_rows=" << registerSnapshotRows << '\n';
+        }
+        manifest << "bundle_complete=" << (written && (!registerSnapshotsRequested || registerSnapshotsWritten)
+                                               ? 1
+                                               : 0)
+                 << '\n';
     }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};

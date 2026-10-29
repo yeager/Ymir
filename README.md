@@ -226,7 +226,14 @@ caller target are `unknown`, because transfers run asynchronously after CPU
 instruction execution. Instruction fetches, debugger peeks, and accesses
 outside the selected interval are not recorded. The trace retains the newest
 250,000 matching reads per SH-2 and reports discarded rows. The bundle reports
-CPU and DMAC row totals, including per-channel DMAC counts.
+CPU and DMAC row totals, including per-channel DMAC counts. Add
+`--trace-sh2-read-registers` to write the optional companion file
+`sh2-memory-read-register-snapshots.csv`. It contains the 16 general-purpose
+registers and PC, PR, MACH, MACL, SR, GBR, and VBR immediately before each
+address-matched read. Join it to the read trace with the SH-2 name and
+`read_row` index. DMAC rows have `registers_available=0` and unknown register
+values. Without this option, the existing read CSV and capture overhead are
+unchanged.
 
 `--trace-sh2-writes-begin ADDRESS --trace-sh2-writes-end ADDRESS` records
 master and slave SH-2 data writes in an independently selected, start-inclusive

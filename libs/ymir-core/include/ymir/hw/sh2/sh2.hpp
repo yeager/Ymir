@@ -137,6 +137,8 @@ public:
     /// or reset tracer-owned analysis state.
     void RefreshTracerConfiguration() {
         m_traceMemoryReads = m_tracer != nullptr && m_tracer->IsMemoryReadTracingEnabled();
+        m_traceMemoryReadRegisterSnapshots =
+            m_tracer != nullptr && m_tracer->IsMemoryReadRegisterSnapshotTracingEnabled();
         m_traceMemoryWrites = m_tracer != nullptr && m_tracer->IsMemoryWriteTracingEnabled();
     }
 
@@ -1010,6 +1012,7 @@ private:
     Probe m_probe{*this};
     debug::ISH2Tracer *m_tracer = nullptr;
     bool m_traceMemoryReads = false;
+    bool m_traceMemoryReadRegisterSnapshots = false;
     bool m_traceMemoryWrites = false;
 
     std::array<bool, 2> m_dmacTraced; // whether each DMA channel has had a transfer traced

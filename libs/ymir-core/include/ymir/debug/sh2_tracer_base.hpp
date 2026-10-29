@@ -7,6 +7,8 @@
 
 #include <ymir/core/types.hpp>
 
+#include <array>
+
 #include <ymir/hw/sh2/sh2_intc.hpp>
 
 #include "sh2_debug_defs.hpp"
@@ -16,6 +18,19 @@ namespace ymir::debug {
 enum class SH2MemoryAccessOrigin : uint8 { CPU, DMAC };
 inline constexpr uint8 kSH2UnknownDMAChannel = 0xFF;
 inline constexpr uint32 kSH2UnknownInstructionPC = 0xFFFFFFFF;
+
+/// CPU register values captured immediately before a data read. DMAC reads do
+/// not have a CPU register snapshot.
+struct SH2RegisterSnapshot {
+    std::array<uint32, 16> R{};
+    uint32 PC = 0;
+    uint32 PR = 0;
+    uint32 MACH = 0;
+    uint32 MACL = 0;
+    uint32 SR = 0;
+    uint32 GBR = 0;
+    uint32 VBR = 0;
+};
 
 /// @brief Interface for SH2 tracers.
 ///
@@ -82,6 +97,20 @@ struct ISH2Tracer {
             MemoryRead(instructionPC, address, width);
         }
     }
+
+    /// Invoked for a memory read when a tracer requests a register snapshot.
+    /// The default preserves existing tracer behavior.
+    virtual void MemoryRead(SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC, uint32 address,
+                            uint8 width, const SH2RegisterSnapshot *registers) {
+        MemoryRead(origin, dmaChannel, instructionPC, address, width);
+    }
+
+    /// Whether register snapshots are enabled for any memory reads.
+    virtual bool IsMemoryReadRegisterSnapshotTracingEnabled() const { return false; }
+
+    /// Whether a register snapshot should be captured for this physical address.
+    /// Called only when IsMemoryReadRegisterSnapshotTracingEnabled() is true.
+    virtual bool ShouldCaptureMemoryReadRegisterSnapshot(uint32 address) const { return false; }
 
     /// Whether the tracer currently wants CPU or SH-2 DMAC data-memory reads.
     /// This is sampled when the tracer is attached so disabled read tracing

@@ -31,6 +31,10 @@ void SH2Tracer::ResetMemoryWriteTrace() {
 
 void SH2Tracer::ResetMemoryReadTrace() {
     memoryReads.Clear();
+    memoryReadRegisterSnapshots.reset();
+    if (traceMemoryReadRegisterSnapshots) {
+        memoryReadRegisterSnapshots = std::make_unique<std::deque<MemoryReadRegisterSnapshotInfo>>();
+    }
     memoryReadsDropped = 0;
 }
 
@@ -109,6 +113,25 @@ void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaC
         }
     }
     memoryReads.Write({origin, dmaChannel, instructionPC, callerReturnAddress, callerTarget, address, width});
+}
+
+void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                           uint32 address, uint8 width,
+                           const ymir::debug::SH2RegisterSnapshot *registers) {
+    MemoryRead(origin, dmaChannel, instructionPC, address, width);
+    if (!traceMemoryReadRegisterSnapshots || !memoryReadRegisterSnapshots || !traceMemoryReads
+        || address < memoryReadAddressBegin || address >= memoryReadAddressEnd) {
+        return;
+    }
+    if (memoryReadRegisterSnapshots->size() == memoryReads.Capacity()) {
+        memoryReadRegisterSnapshots->pop_front();
+    }
+    MemoryReadRegisterSnapshotInfo snapshot{};
+    if (registers != nullptr) {
+        snapshot.available = true;
+        snapshot.registers = *registers;
+    }
+    memoryReadRegisterSnapshots->push_back(snapshot);
 }
 
 void SH2Tracer::DelaySlot(uint32 pc, uint32 target) {

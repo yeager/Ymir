@@ -111,6 +111,9 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSH2MemoryReadBegin));
     options.add_options()("trace-sh2-reads-end", "Exclusive physical bus address for a bounded SH-2 data-read trace",
                           cxxopts::value(progOpts.captureSH2MemoryReadEnd));
+    options.add_options()("trace-sh2-read-registers",
+                          "Write a companion CSV of CPU registers at each address-matched SH-2 data read",
+                          cxxopts::value(progOpts.captureSH2MemoryReadRegisterSnapshots)->default_value("false"));
     options.add_options()("trace-sh2-writes-begin", "First physical bus address for a bounded SH-2 data-write trace",
                           cxxopts::value(progOpts.captureSH2MemoryWriteBegin));
     options.add_options()("trace-sh2-writes-end", "Exclusive physical bus address for a bounded SH-2 data-write trace",
@@ -265,6 +268,10 @@ int main(int argc, char **argv) {
         }
         progOpts.captureSH2MemoryReads = result.count("trace-sh2-reads-begin") != 0
                                          || result.count("trace-sh2-reads-end") != 0;
+        if (progOpts.captureSH2MemoryReadRegisterSnapshots && !progOpts.captureSH2MemoryReads) {
+            fmt::println("--trace-sh2-read-registers requires --trace-sh2-reads-begin/end");
+            return -1;
+        }
         progOpts.captureSH2MemoryWrites = result.count("trace-sh2-writes-begin") != 0
                                           || result.count("trace-sh2-writes-end") != 0;
         if (progOpts.captureSH2MemoryWriteFrameRange && !progOpts.captureSH2MemoryWrites) {

@@ -173,14 +173,15 @@ For arbitrary button sequences, repeat `--capture-pad-input FRAME:BUTTON:HOLD`:
 
 ```sh
 ymir-sdl3 --debug --capture-boot-frames 1200 --dump-memory \
-  --capture-pad-input 700:right:2 --capture-pad-input 730:a:2
+  --capture-pad-input 700:right:2 --capture-pad-input 730:y:1
 ```
 
 Frames are zero-based within the capture. Supported buttons are `up`, `down`,
-`left`, `right`, `start`, `a`, `b`, and `c`. Holds must fit inside the capture;
-button state is restored after the final captured frame. This supports repeatable
-navigation through BIOS and game menus while keeping captures independent of
-host window focus and input timing.
+`left`, `right`, `start`, `a`, `b`, `c`, `x`, `y`, `z`, `l`, and `r`. Holds
+must fit inside the capture; button state is restored after the final captured
+frame. This supports repeatable navigation and deterministic use of the full
+Saturn Control Pad, including the Nexus manual's Y-button magic-window action,
+while keeping captures independent of host window focus and input timing.
 
 Use `--capture-boot-frames N --dump-memory` to capture directly from normal
 disc boot rather than from a save-state. It is mutually exclusive with

@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
     options.add_options()("capture-down-hold", "Number of capture frames to hold Control Pad 1 Down",
                           cxxopts::value(progOpts.captureControlPadDownHoldFrames));
     options.add_options()("capture-pad-input",
-                          "Schedule Control Pad 1 input as FRAME:BUTTON:HOLD (repeatable; up/down/left/right/start/a/b/c)",
+                          "Schedule Control Pad 1 input as FRAME:BUTTON:HOLD (repeatable; all standard buttons)",
                           cxxopts::value<std::vector<std::string>>());
     options.add_options()("capture-c-frame", "Zero-based capture frame at which to assert Control Pad 1 C",
                           cxxopts::value(progOpts.captureControlPadCFrame));
@@ -135,6 +135,11 @@ int main(int argc, char **argv) {
                 if (name == "a") return static_cast<std::uint16_t>(Button::A);
                 if (name == "b") return static_cast<std::uint16_t>(Button::B);
                 if (name == "c") return static_cast<std::uint16_t>(Button::C);
+                if (name == "x") return static_cast<std::uint16_t>(Button::X);
+                if (name == "y") return static_cast<std::uint16_t>(Button::Y);
+                if (name == "z") return static_cast<std::uint16_t>(Button::Z);
+                if (name == "l") return static_cast<std::uint16_t>(Button::L);
+                if (name == "r") return static_cast<std::uint16_t>(Button::R);
                 return 0;
             };
             for (const std::string &spec : result["capture-pad-input"].as<std::vector<std::string>>()) {

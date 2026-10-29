@@ -48,6 +48,11 @@ struct CommandLineOptions {
     bool captureNoPresent = false;
     bool captureNoRender = false;
     bool captureVDP2MemoryWrites = false;
+    std::filesystem::path captureVDP2RenderStatePath;
+    bool captureVDP2RenderStateFrameRange = false;
+    unsigned captureVDP2RenderStateFrameBegin = 0, captureVDP2RenderStateFrameEnd = 0;
+    bool captureVDP2RenderStateRowRange = false;
+    unsigned captureVDP2RenderStateRowBegin = 0, captureVDP2RenderStateRowEnd = 0;
     unsigned captureVDP2MemoryMaxRows = 250000;
     bool captureVDP2FrameRange = false;
     unsigned captureVDP2FrameBegin = 0;

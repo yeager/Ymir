@@ -266,6 +266,11 @@ public:
         m_vdp2MemoryTracer = tracer;
     }
 
+    void UseVDP2RenderStateTracer(debug::IVDP2RenderStateTracer *tracer) {
+        m_vdp2RenderStateTracer = tracer;
+        m_renderer->UseVDP2RenderStateTracer(tracer);
+    }
+
     /// Returns the VDP1 frame index used to timestamp VDP2 memory writes.
     [[nodiscard]] uint64 GetVDP2MemoryTraceFrameIndex() const {
         return m_vdp1FrameCounter == 0 ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
@@ -297,6 +302,7 @@ private:
     uint32 m_vdp1CommandIndex = 0;
     uint32 m_vdp1CommandRootAddress = 0;
     debug::IVDP2MemoryTracer *m_vdp2MemoryTracer = nullptr;
+    debug::IVDP2RenderStateTracer *m_vdp2RenderStateTracer = nullptr;
 
     core::Configuration &m_config;
 

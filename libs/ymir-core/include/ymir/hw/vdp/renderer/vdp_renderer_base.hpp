@@ -8,6 +8,7 @@
 #include "vdp_renderer_defs.hpp"
 
 #include <ymir/hw/vdp/vdp_callbacks.hpp>
+#include <ymir/debug/vdp2_render_state_tracer.hpp>
 #include <ymir/hw/vdp/vdp_configs.hpp>
 #include <ymir/hw/vdp/vdp_state.hpp>
 
@@ -30,6 +31,9 @@ public:
         : m_type(type) {}
 
     virtual ~IVDPRenderer() = default;
+
+    virtual void UseVDP2RenderStateTracer(debug::IVDP2RenderStateTracer *) {}
+    virtual void SetVDP2TraceFrameIndex(uint64) {}
 
     // -------------------------------------------------------------------------
     // Basics

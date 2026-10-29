@@ -71,6 +71,13 @@ public:
 
     void Reset(bool hard) override;
 
+    void UseVDP2RenderStateTracer(debug::IVDP2RenderStateTracer *tracer) override {
+        m_vdp2RenderStateTracer = tracer;
+    }
+    void SetVDP2TraceFrameIndex(uint64 frame) override {
+        m_vdp2CurrentFrameIndex.store(frame, std::memory_order_relaxed);
+    }
+
     // -------------------------------------------------------------------------
     // Configuration
 
@@ -169,6 +176,8 @@ public:
 
 private:
     VDPState &m_state;
+    debug::IVDP2RenderStateTracer *m_vdp2RenderStateTracer = nullptr;
+    std::atomic_uint64_t m_vdp2CurrentFrameIndex{0};
     const config::VDP2DebugRender &m_vdp2DebugRenderOptions;
     const config::VDP2AccessPatternsConfig &m_vdp2AccessPatternsConfig;
 
@@ -418,6 +427,7 @@ private:
 
             struct {
                 uint32 vcnt;
+                uint64 frame;
             } drawLine;
 
             struct {
@@ -466,8 +476,8 @@ private:
             return {Type::VDP2UpdateEnabledBGs};
         }
 
-        static VDP2RenderEvent VDP2DrawLine(uint32 vcnt) {
-            return {Type::VDP2DrawLine, {.drawLine = {.vcnt = vcnt}}};
+        static VDP2RenderEvent VDP2DrawLine(uint32 vcnt, uint64 frame) {
+            return {Type::VDP2DrawLine, {.drawLine = {.vcnt = vcnt, .frame = frame}}};
         }
 
         static VDP2RenderEvent VDP2EndFrame() {

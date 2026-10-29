@@ -817,6 +817,9 @@ void VDP::BeginHPhaseActiveDisplay() {
             m_cbTriggerOptimizedINTBACKRead();
         }
 
+        if (m_vdp2RenderStateTracer != nullptr) {
+            m_renderer->SetVDP2TraceFrameIndex(GetVDP2MemoryTraceFrameIndex());
+        }
         m_renderer->VDP2RenderLine(m_state.regs2.VCNT);
     }
 }

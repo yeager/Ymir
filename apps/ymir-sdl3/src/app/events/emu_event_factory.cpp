@@ -884,6 +884,25 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
+        auto &vdp = ctx.saturn.instance->VDP;
+        auto &renderStateTracer = ctx.tracers.VDP2RenderState;
+        if (!renderStateTracer.csvPath.empty()) {
+            if (!renderStateTracer.csv.is_open()) {
+                renderStateTracer.Abort("csv_open_failed");
+                renderStateTracer.Finalize();
+                ctx.saturn.instance->VDP.UseVDP2RenderStateTracer(nullptr);
+                ctx.DisplayMessage("Could not open VDP2 render-state CSV output");
+                return;
+            }
+            vdp.UseVDP2RenderStateTracer(&renderStateTracer);
+            if (vdp.GetRenderer().GetType() != ymir::vdp::VDPRendererType::Software) {
+                renderStateTracer.Abort("unsupported_renderer");
+                renderStateTracer.Finalize();
+                vdp.UseVDP2RenderStateTracer(nullptr);
+                ctx.DisplayMessage("VDP2 render-state tracing requires the software renderer");
+                return;
+            }
+        }
         if (ctx.saturn.instance->IsDebugTracingEnabled()) {
             ctx.tracers.VDP.enabled.store(true, std::memory_order_relaxed);
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
@@ -942,7 +961,6 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             audio.SetSilent(audioSilent);
             audio.SetSync(audioSync);
         }};
-        auto &vdp = ctx.saturn.instance->VDP;
         const auto rendererType = vdp.GetRenderer().GetType();
         if (captureNoRender) {
             auto result = vdp.UseNullRenderer();
@@ -989,6 +1007,15 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
         controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
         DumpAllMemory(ctx);
+        if (!renderStateTracer.csvPath.empty()) {
+            const bool outputOkay = renderStateTracer.Finalize();
+            if (!outputOkay) {
+                ctx.DisplayMessage("VDP2 render-state trace output failed; inspect CSV and receipt");
+            } else if (renderStateTracer.captureStatus != "complete") {
+                ctx.DisplayMessage("VDP2 render-state trace coverage is incomplete; inspect its receipt");
+            }
+            vdp.UseVDP2RenderStateTracer(nullptr);
+        }
         if (saveStateSlot != 0) {
             const uint32 slotIndex = saveStateSlot - 1;
             auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();

@@ -90,6 +90,57 @@ The `-u` option forces usage of the OS's user profile folder (e.g. `C:\Users\<us
 
 For VDP2 graphics reverse engineering, start with `--debug`, open **Debug > VDP > Memory write trace**, select VRAM and/or CRAM, and enable capture. The address interval is start-inclusive and end-exclusive. **Export synchronized bundle** writes the bounded trace, VDP2 VRAM, CRAM, registers, and a receipt into the profile's `dumps` directory from one emulator-thread callback. Each row records the VDP1 frame index, mapped VDP2 destination address, write width, and value. A 32-bit bus store that is split into two 16-bit accesses appears as two rows. Writes before the first VDP1 frame have an `unknown` frame index. Resetting the VDP clears the buffered trace so frame indices from before and after reset are not mixed. The address filter includes writes that overlap the selected interval. The capture retains the newest 250,000 matching writes and reports how many older entries were discarded. The deterministic memory-dump receipt records completion for the trace, VRAM, CRAM, and register files; it marks the bundle complete only when all four writes succeed. The trace does not identify the SH-2 or DMA source of a write.
 
+### Per-line NBG0 render-state trace
+
+Use `--trace-vdp2-render-state CSV` to record the effective NBG0 parameters at
+software-renderer line entry, after per-line preparation and before NBG0 drawing.
+The CSV tags every sample with the zero-based VDP1 `frame_index` and vertical
+`row_vcnt`; it also records scroll, increments, fractional scroll, priority,
+color-calculation state, bitmap/color format, and layer-enable state. Scroll and
+increment values use 11.8 fixed-point units. The frame index is the VDP1 counter,
+not the capture-loop frame used by scheduled input.
+
+The CSV option requires all of the following: `--debug`, either
+`--capture-frames` or `--capture-boot-frames`, `--dump-memory`, and the software
+renderer. It captures rendered lines; `--capture-no-present` is compatible,
+but `--capture-no-render` is not. Supply both range options:
+
+- `--trace-vdp2-render-state-frame-range BEGIN:END` selects a nonempty,
+  half-open interval of VDP1 frame indices.
+- `--trace-vdp2-render-state-row-range BEGIN:END` selects a nonempty,
+  half-open vertical-counter interval. The bounds must be within 0 through 1024.
+
+The selected frame-row product is limited to 500,000 pairs. Each CSV row has
+explicit frame, row, and alternate-field tags so it can be joined to other
+captures without inferring coordinates. Interlaced alternate-field samples are
+tagged separately from the expected main-field coverage.
+
+Ymir writes `CSV.receipt.txt` beside the CSV. It records the requested bounds,
+expected and observed main samples, unique frame-row coverage, missing and
+duplicate counts, alternate-field samples, and output errors. The receipt says
+`capture_status=complete` only when every expected frame-row pair was captured
+exactly once and CSV/receipt writes succeeded. A missing or zero-sample capture
+is marked `incomplete`, even if the CSV header was written; check the receipt
+before using the trace. Ymir opens and checks the CSV header before starting the
+capture, and reports an error with a nonzero exit status if the output path
+cannot be opened.
+
+For example, this authentic Nexus capture samples rows 4 through 116 of VDP1
+frame 7486 while rendering without presenting frames to the window:
+
+```sh
+ymir-sdl3 --debug --profile /path/to/nexus-profile \\
+  --capture-boot-frames 8400 --dump-memory --capture-no-present \\
+  --capture-pad-input 700:right:2 --capture-pad-input 720:right:2 \\
+  --capture-pad-input 740:right:2 --capture-pad-input 760:right:2 \\
+  --capture-pad-input 780:right:2 --capture-pad-input 800:right:2 \\
+  --capture-pad-input 830:a:2 --capture-pad-input 7000:start:2 \\
+  --trace-vdp2-render-state /path/to/dumps/nexus-nbg0.csv \\
+  --trace-vdp2-render-state-frame-range 7486:7487 \\
+  --trace-vdp2-render-state-row-range 4:117 \\
+  "/path/to/Dungeon Master Nexus (Japan).cue"
+```
+
 Long cold boots can produce more than the trace buffer's 250,000-row capacity.
 Add `--trace-vdp2-writes-frame-range BEGIN:END` with
 `--trace-vdp2-writes` to retain writes only when their VDP1 frame index is in

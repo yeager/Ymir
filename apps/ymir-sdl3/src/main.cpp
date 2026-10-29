@@ -12,6 +12,7 @@
 #endif
 
 #include <charconv>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -95,6 +96,12 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureNoRender)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
+    options.add_options()("trace-vdp2-render-state", "Write bounded NBG0 render-state CSV to this path",
+                          cxxopts::value(progOpts.captureVDP2RenderStatePath));
+    options.add_options()("trace-vdp2-render-state-frame-range", "Half-open VDP1 frame range BEGIN:END for render-state samples",
+                          cxxopts::value<std::string>());
+    options.add_options()("trace-vdp2-render-state-row-range", "Half-open rendered row range BEGIN:END for render-state samples",
+                          cxxopts::value<std::string>());
     options.add_options()("trace-vdp2-writes-max-rows", "Maximum VDP2 VRAM/CRAM writes to retain",
                           cxxopts::value(progOpts.captureVDP2MemoryMaxRows)->default_value("250000"));
     options.add_options()("trace-vdp2-writes-frame-range",
@@ -129,6 +136,54 @@ int main(int argc, char **argv) {
     try {
 #endif
         auto result = options.parse(argc, argv);
+        const auto parseRenderStateRange = [&](const char *option, bool &enabled, unsigned &begin, unsigned &end) {
+            if (result.count(option) == 0) return true;
+            const std::string spec = result[option].as<std::string>();
+            const size_t separator = spec.find(':');
+            const auto parseBound = [](std::string_view text, unsigned &value) {
+                const auto [parsed, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && parsed == text.data() + text.size();
+            };
+            if (separator == std::string::npos || spec.find(':', separator + 1) != std::string::npos ||
+                !parseBound(std::string_view(spec).substr(0, separator), begin) ||
+                !parseBound(std::string_view(spec).substr(separator + 1), end) || begin >= end) {
+                fmt::println("invalid --{} '{}'; expected nonempty BEGIN:END", option, spec);
+                return false;
+            }
+            enabled = true;
+            return true;
+        };
+        if (!parseRenderStateRange("trace-vdp2-render-state-frame-range",
+                                   progOpts.captureVDP2RenderStateFrameRange,
+                                   progOpts.captureVDP2RenderStateFrameBegin,
+                                   progOpts.captureVDP2RenderStateFrameEnd) ||
+            !parseRenderStateRange("trace-vdp2-render-state-row-range",
+                                   progOpts.captureVDP2RenderStateRowRange,
+                                   progOpts.captureVDP2RenderStateRowBegin,
+                                   progOpts.captureVDP2RenderStateRowEnd)) return -1;
+        const bool renderStateTrace = !progOpts.captureVDP2RenderStatePath.empty();
+        if ((progOpts.captureVDP2RenderStateFrameRange || progOpts.captureVDP2RenderStateRowRange) &&
+            !renderStateTrace) {
+            fmt::println("render-state frame/row ranges require --trace-vdp2-render-state");
+            return -1;
+        }
+        if (renderStateTrace &&
+            (!progOpts.captureVDP2RenderStateFrameRange || !progOpts.captureVDP2RenderStateRowRange ||
+             !progOpts.enableDebugTracing ||
+             (progOpts.captureFramesAfterLoad == 0 && progOpts.captureFramesFromBoot == 0) ||
+             !progOpts.dumpMemoryAtStartup ||
+             progOpts.captureNoRender || progOpts.captureVDP2RenderStateRowEnd > 1024)) {
+            fmt::println("--trace-vdp2-render-state requires both ranges, --debug, a rendered frame capture, and --dump-memory");
+            return -1;
+        }
+        if (renderStateTrace &&
+            (static_cast<std::uint64_t>(progOpts.captureVDP2RenderStateFrameEnd -
+                                   progOpts.captureVDP2RenderStateFrameBegin) *
+                 (progOpts.captureVDP2RenderStateRowEnd - progOpts.captureVDP2RenderStateRowBegin) >
+             500'000)) {
+            fmt::println("--trace-vdp2-render-state range may cover at most 500000 frame-row pairs");
+            return -1;
+        }
         if (result.count("trace-vdp2-writes-frame-range") != 0) {
             const std::string spec = result["trace-vdp2-writes-frame-range"].as<std::string>();
             const size_t separator = spec.find(':');

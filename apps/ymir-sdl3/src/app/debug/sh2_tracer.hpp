@@ -91,7 +91,9 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
 
     struct MemoryWriteInfo {
         uint64 vdp1Frame;
-        uint32 pc;
+        ymir::debug::SH2MemoryAccessOrigin origin;
+        uint8 dmaChannel;
+        uint32 instructionPC;
         uint32 callerReturnAddress;
         uint32 callerTarget;
         uint32 address;
@@ -102,7 +104,9 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     };
 
     struct MemoryReadInfo {
-        uint32 pc;
+        ymir::debug::SH2MemoryAccessOrigin origin;
+        uint8 dmaChannel;
+        uint32 instructionPC;
         uint32 callerReturnAddress;
         uint32 callerTarget;
         uint32 address;
@@ -164,8 +168,10 @@ private:
     void Reset(uint32 pc, uint32 sp, bool watchdogInitiated) final;
 
     void ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) final;
-    void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) final;
-    void MemoryRead(uint32 pc, uint32 address, uint8 width) final;
+    void MemoryWrite(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                     uint32 address, uint8 width, uint32 value) final;
+    void MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                    uint32 address, uint8 width) final;
     bool IsMemoryReadTracingEnabled() const final { return traceMemoryReads; }
     bool IsMemoryWriteTracingEnabled() const final { return traceMemoryWrites; }
     void DelaySlot(uint32 pc, uint32 target) final;

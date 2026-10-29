@@ -620,17 +620,38 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!sh2MemoryOut) {
             devlog::warn<grp::base>("Could not write SH-2 VDP2 write trace in {}", dumpPath);
         } else {
-            sh2MemoryOut << "sh2,vdp1_frame,pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
+            sh2MemoryOut << "sh2,vdp1_frame,origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
             const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (const auto &entry : tracer.memoryWrites) {
+                    const bool dmac = entry.origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
                     sh2MemoryOut << name << ',';
                     if (entry.vdp1Frame == ~uint64{0}) {
                         sh2MemoryOut << "unknown";
                     } else {
                         sh2MemoryOut << entry.vdp1Frame;
                     }
-                    sh2MemoryOut << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
-                                 << ",0x" << entry.callerTarget << ",0x" << entry.address << std::dec << ','
+                    sh2MemoryOut << (dmac ? ",dmac," : ",cpu,");
+                    if (dmac) {
+                        if (entry.dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                            sh2MemoryOut << "unknown";
+                        } else {
+                            sh2MemoryOut << static_cast<unsigned>(entry.dmaChannel);
+                        }
+                    }
+                    sh2MemoryOut << ',';
+                    if (entry.instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                        sh2MemoryOut << "unknown";
+                    } else {
+                        sh2MemoryOut << "0x" << std::hex << entry.instructionPC << std::dec;
+                    }
+                    sh2MemoryOut << ',';
+                    if (dmac) {
+                        sh2MemoryOut << "unknown,unknown";
+                    } else {
+                        sh2MemoryOut << "0x" << std::hex << entry.callerReturnAddress << ",0x"
+                                     << entry.callerTarget << std::dec;
+                    }
+                    sh2MemoryOut << ",0x" << std::hex << entry.address << std::dec << ','
                                  << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
                                  << ',';
                     for (uint8 i = 0; i < entry.callerTargetCount; i++) {
@@ -649,7 +670,7 @@ void DumpAllMemory(SharedContext &ctx) {
             sh2MemoryWritten = static_cast<bool>(sh2MemoryOut);
         }
         std::ofstream sh2MemoryManifest{dumpPath / "sh2-vdp2-write-trace-bundle.txt"};
-        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v1\n"
+        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v2\n"
                           << "trace_file=sh2-vdp2-write-trace.csv\n"
                           << "trace_file_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n'
                           << "trace_rows=" << sh2MemoryRows << '\n'
@@ -669,10 +690,45 @@ void DumpAllMemory(SharedContext &ctx) {
         std::ofstream out{dumpPath / "sh2-memory-write-trace.csv"};
         bool written = false;
         size_t rows = 0;
+        size_t cpuRows = 0;
+        size_t dmacRows = 0;
+        std::array<size_t, 2> dmacChannelRows{};
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory write trace in {}", dumpPath);
         } else {
-            out << "sh2,vdp1_frame,pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
+            out << "sh2,vdp1_frame,origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
+            const auto writeContext = [&](ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel,
+                                          uint32 instructionPC, uint32 callerReturnAddress, uint32 callerTarget) {
+                const bool dmac = origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                out << (dmac ? "dmac" : "cpu") << ',';
+                if (dmac) {
+                    if (dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                        out << "unknown";
+                    } else {
+                        out << static_cast<unsigned>(dmaChannel);
+                    }
+                    ++dmacRows;
+                    if (dmaChannel < dmacChannelRows.size()) {
+                        ++dmacChannelRows[dmaChannel];
+                    }
+                } else {
+                    out << "";
+                    ++cpuRows;
+                }
+                out << ',';
+                if (instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                    out << "unknown";
+                } else {
+                    out << "0x" << std::hex << instructionPC << std::dec;
+                }
+                out << ',';
+                if (dmac) {
+                    out << "unknown,unknown";
+                } else {
+                    out << "0x" << std::hex << callerReturnAddress << ",0x" << callerTarget << std::dec;
+                }
+                out << ',';
+            };
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (const auto &entry : tracer.memoryWrites) {
                     out << name << ',';
@@ -681,9 +737,11 @@ void DumpAllMemory(SharedContext &ctx) {
                     } else {
                         out << entry.vdp1Frame;
                     }
-                    out << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
-                        << entry.callerTarget << ",0x" << entry.address << std::dec << ','
-                        << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << ',';
+                    out << ',';
+                    writeContext(entry.origin, entry.dmaChannel, entry.instructionPC, entry.callerReturnAddress,
+                                 entry.callerTarget);
+                    out << "0x" << std::hex << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width)
+                        << ",0x" << std::hex << entry.value << std::dec << ',';
                     for (uint8 i = 0; i < entry.callerTargetCount; i++) {
                         if (i != 0) {
                             out << '|';
@@ -700,12 +758,16 @@ void DumpAllMemory(SharedContext &ctx) {
             written = static_cast<bool>(out);
         }
         std::ofstream manifest{dumpPath / "sh2-memory-write-trace-bundle.txt"};
-        manifest << "format=ymir-sh2-memory-write-trace-bundle-v1\n"
+        manifest << "format=ymir-sh2-memory-write-trace-bundle-v2\n"
                  << "trace_file=sh2-memory-write-trace.csv\n"
                  << "trace_file_complete=" << (written ? 1 : 0) << '\n'
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
                  << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
                  << "trace_rows=" << rows << '\n'
+                 << "cpu_rows=" << cpuRows << '\n'
+                 << "dmac_rows=" << dmacRows << '\n'
+                 << "dmac_channel_0_rows=" << dmacChannelRows[0] << '\n'
+                 << "dmac_channel_1_rows=" << dmacChannelRows[1] << '\n'
                  << "capacity_rows=" << ctx.tracers.masterSH2.memoryWriteMaxRows << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                  << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
@@ -716,16 +778,53 @@ void DumpAllMemory(SharedContext &ctx) {
         std::ofstream out{dumpPath / "sh2-memory-read-trace.csv"};
         bool written = false;
         size_t rows = 0;
+        size_t cpuRows = 0;
+        size_t dmacRows = 0;
+        std::array<size_t, 2> dmacChannelRows{};
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory read trace in {}", dumpPath);
         } else {
-            out << "sh2,pc,caller_return_address,caller_target,address,width\n";
+            out << "sh2,origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width\n";
+            const auto writeContext = [&](ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel,
+                                          uint32 instructionPC, uint32 callerReturnAddress, uint32 callerTarget) {
+                const bool dmac = origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                out << (dmac ? "dmac" : "cpu") << ',';
+                if (dmac) {
+                    if (dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                        out << "unknown";
+                    } else {
+                        out << static_cast<unsigned>(dmaChannel);
+                    }
+                    ++dmacRows;
+                    if (dmaChannel < dmacChannelRows.size()) {
+                        ++dmacChannelRows[dmaChannel];
+                    }
+                } else {
+                    out << "";
+                    ++cpuRows;
+                }
+                out << ',';
+                if (instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                    out << "unknown";
+                } else {
+                    out << "0x" << std::hex << instructionPC << std::dec;
+                }
+                out << ',';
+                if (dmac) {
+                    out << "unknown,unknown";
+                } else {
+                    out << "0x" << std::hex << callerReturnAddress << ",0x" << callerTarget << std::dec;
+                }
+                out << ',';
+            };
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (size_t i = 0; i < tracer.memoryReads.Count(); i++) {
                     const auto entry = tracer.memoryReads.Read(i);
-                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
-                        << entry.callerTarget << ",0x" << entry.address << std::dec << ','
-                        << static_cast<unsigned>(entry.width) << '\n';
+                    out << name << ',';
+                    writeContext(entry.origin, entry.dmaChannel, entry.instructionPC, entry.callerReturnAddress,
+                                 entry.callerTarget);
+                    out << "0x" << std::hex << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width)
+                        << '\n';
                     rows++;
                 }
             };
@@ -735,12 +834,16 @@ void DumpAllMemory(SharedContext &ctx) {
             written = static_cast<bool>(out);
         }
         std::ofstream manifest{dumpPath / "sh2-memory-read-trace-bundle.txt"};
-        manifest << "format=ymir-sh2-memory-read-trace-bundle-v1\n"
+        manifest << "format=ymir-sh2-memory-read-trace-bundle-v2\n"
                  << "trace_file=sh2-memory-read-trace.csv\n"
                  << "trace_file_complete=" << (written ? 1 : 0) << '\n'
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryReadAddressBegin << '\n'
                  << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryReadAddressEnd << std::dec << '\n'
                  << "trace_rows=" << rows << '\n'
+                 << "cpu_rows=" << cpuRows << '\n'
+                 << "dmac_rows=" << dmacRows << '\n'
+                 << "dmac_channel_0_rows=" << dmacChannelRows[0] << '\n'
+                 << "dmac_channel_1_rows=" << dmacChannelRows[1] << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryReadsDropped << '\n'
                  << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n'
                  << "bundle_complete=" << (written ? 1 : 0) << '\n';

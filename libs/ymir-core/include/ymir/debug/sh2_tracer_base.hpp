@@ -13,6 +13,10 @@
 
 namespace ymir::debug {
 
+enum class SH2MemoryAccessOrigin : uint8 { CPU, DMAC };
+inline constexpr uint8 kSH2UnknownDMAChannel = 0xFF;
+inline constexpr uint32 kSH2UnknownInstructionPC = 0xFFFFFFFF;
+
 /// @brief Interface for SH2 tracers.
 ///
 /// Must be implemented by users of the core library.
@@ -43,25 +47,48 @@ struct ISH2Tracer {
     virtual void ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) {}
 
     /// Invoked immediately before a CPU data-memory write is committed.
-    /// @param[in] pc the instruction program counter
+    /// Retained for compatibility with tracers that do not consume origin metadata.
+    virtual void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {}
+
+    /// Invoked immediately before a CPU or SH-2 DMAC data-memory write is committed.
+    /// CPU-origin events are forwarded to the legacy overload by default.
+    /// @param[in] origin whether this access belongs to a CPU instruction or the SH-2 DMAC
+    /// @param[in] dmaChannel the DMAC channel, or kSH2UnknownDMAChannel for CPU accesses
+    /// @param[in] instructionPC the instruction PC, or kSH2UnknownInstructionPC for DMAC accesses
     /// @param[in] address the physical Saturn bus address
     /// @param[in] width the write width in bytes
     /// @param[in] value the written value
-    virtual void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {}
+    virtual void MemoryWrite(SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC, uint32 address,
+                             uint8 width, uint32 value) {
+        if (origin == SH2MemoryAccessOrigin::CPU) {
+            MemoryWrite(instructionPC, address, width, value);
+        }
+    }
 
     /// Invoked immediately before a CPU data-memory read is performed.
-    /// Instruction fetches and debugger peeks are not reported.
-    /// @param[in] pc the instruction program counter
-    /// @param[in] address the physical Saturn bus address
-    /// @param[in] width the read width in bytes
+    /// Instruction fetches and debugger peeks are not reported. Retained for compatibility.
     virtual void MemoryRead(uint32 pc, uint32 address, uint8 width) {}
 
-    /// Whether the tracer currently wants CPU data-memory reads.
+    /// Invoked immediately before a CPU or SH-2 DMAC data-memory read is performed.
+    /// CPU-origin events are forwarded to the legacy overload by default.
+    /// @param[in] origin whether this access belongs to a CPU instruction or the SH-2 DMAC
+    /// @param[in] dmaChannel the DMAC channel, or kSH2UnknownDMAChannel for CPU accesses
+    /// @param[in] instructionPC the instruction PC, or kSH2UnknownInstructionPC for DMAC accesses
+    /// @param[in] address the physical Saturn bus address
+    /// @param[in] width the read width in bytes
+    virtual void MemoryRead(SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC, uint32 address,
+                            uint8 width) {
+        if (origin == SH2MemoryAccessOrigin::CPU) {
+            MemoryRead(instructionPC, address, width);
+        }
+    }
+
+    /// Whether the tracer currently wants CPU or SH-2 DMAC data-memory reads.
     /// This is sampled when the tracer is attached so disabled read tracing
     /// adds no per-read virtual dispatch to debug sessions.
     virtual bool IsMemoryReadTracingEnabled() const { return false; }
 
-    /// Whether the tracer currently wants CPU data-memory writes.
+    /// Whether the tracer currently wants CPU or SH-2 DMAC data-memory writes.
     /// This is sampled when the tracer is attached so disabled write tracing
     /// adds no per-write virtual dispatch to debug sessions.
     virtual bool IsMemoryWriteTracingEnabled() const { return false; }

@@ -156,7 +156,9 @@ emulation or the final memory snapshot. The separate SH-2 data-write trace also
 supports `--trace-sh2-writes-max-rows` (1 through 10,000,000) when an SH-2
 address interval is selected; its receipt records the retained capacity,
 address interval, frame bounds, and dropped-row count. Each SH-2 write row is
-tagged with the active VDP1 frame and up to four nested caller targets.
+tagged with the active VDP1 frame and its CPU or DMAC origin. CPU rows retain
+their instruction PC and caller context; DMAC rows carry a channel and mark
+instruction PC and caller context as unknown.
 `--trace-sh2-writes-frame-range BEGIN:END` restricts the trace to a half-open
 VDP1 frame interval, which makes frame-local producer joins possible without
 assuming that an untagged write happened in the frame of a matching VDP2 row.
@@ -199,32 +201,45 @@ transfer starts. The SCU trace retains at most 1,024 entries and reports its
 overflow status as unknown, so it is evidence for recorded transfers rather
 than a claim that no other SCU transfer occurred.
 
-`sh2-vdp2-write-trace.csv` and its bundle record the master or slave SH-2
-instruction PC and current call-site that directly wrote a VDP2 VRAM/CRAM bus
-address. This trace is bounded to 250,000 entries per SH-2 and reports dropped
-entries. It records CPU writes only; DMA-originated VDP2 writes remain
-represented by the DMA traces.
+`sh2-vdp2-write-trace.csv` and its bundle (format v2) record master or slave
+SH-2 writes to VDP2 VRAM/CRAM bus addresses, including their CPU or DMAC
+origin. CPU rows retain the instruction PC and current call-site; DMAC rows
+include the channel and mark instruction/caller fields unknown. The trace is
+bounded to 250,000 entries per SH-2 and reports dropped entries.
+
+SH-2 memory trace v1 used a plain pc field and did not distinguish CPU
+instructions from SH-2 DMAC transfers. Both kinds of access passed through the
+same memory helpers, so a v1 DMA row may carry the CPU PC current after the
+preceding instruction. Treat v1 PC and caller fields as untyped context, not
+proof that a CPU instruction caused the access. V2 records origin explicitly
+and marks DMA instruction/caller fields unknown.
 
 `--trace-sh2-reads-begin ADDRESS --trace-sh2-reads-end ADDRESS` records
 master and slave SH-2 data reads within a start-inclusive, end-exclusive
 physical bus-address range during the same deterministic `--debug` frame
 capture. It writes `sh2-memory-read-trace.csv` and
-`sh2-memory-read-trace-bundle.txt` beside the memory dump. Each retained row
-includes the SH-2 PC, current call-site, address, and read width. Instruction
-fetches, debugger peeks, and accesses outside the selected interval are not
-recorded. The trace retains the newest 250,000 matching reads per SH-2 and
-reports discarded rows; it is diagnostic evidence, not a claim of ownership
-or rendering semantics.
+`sh2-memory-read-trace-bundle.txt` beside the memory dump. These files use
+schema and bundle format v2. Each row has `origin=cpu` or `origin=dmac`.
+CPU rows contain `instruction_pc` and the current caller return/target.
+DMAC rows contain `dma_channel`; their `instruction_pc`, caller return, and
+caller target are `unknown`, because transfers run asynchronously after CPU
+instruction execution. Instruction fetches, debugger peeks, and accesses
+outside the selected interval are not recorded. The trace retains the newest
+250,000 matching reads per SH-2 and reports discarded rows. The bundle reports
+CPU and DMAC row totals, including per-channel DMAC counts.
 
 `--trace-sh2-writes-begin ADDRESS --trace-sh2-writes-end ADDRESS` records
 master and slave SH-2 data writes in an independently selected, start-inclusive
 and end-exclusive physical bus-address range during that same deterministic
 `--debug` frame capture. It writes `sh2-memory-write-trace.csv` and
-`sh2-memory-write-trace-bundle.txt` beside the dump. A row contains the SH-2
-PC, current call-site, physical destination address, width, and value. The
-trace retains the newest 250,000 matching writes per SH-2 and reports discarded
-rows. It records direct CPU stores only, not DMA traffic or a source-resource
-ownership claim.
+`sh2-memory-write-trace-bundle.txt` beside the dump. These files use schema
+and bundle format v2. Each row contains origin, optional DMA channel,
+instruction PC when CPU-origin, physical destination address, width, and
+value. The trace includes both CPU stores and SH-2 DMAC destination writes.
+For DMAC rows, instruction PC and caller metadata are `unknown`; CPU rows
+preserve their instruction PC and caller context. The trace retains the newest
+250,000 matching writes per SH-2 and reports discarded rows. The bundle reports
+CPU and DMAC row totals, including per-channel DMAC counts.
 
 `--capture-start-frame N --capture-start-hold N`,
 `--capture-start-repeat-frame N --capture-start-repeat-hold N`,

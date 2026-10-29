@@ -48,6 +48,7 @@ struct CommandLineOptions {
     bool captureNoPresent = false;
     bool captureNoRender = false;
     bool captureVDP2MemoryWrites = false;
+    bool captureSCUDMATrace = false;
     bool captureSH2MemoryReads = false;
     unsigned captureSH2MemoryReadBegin = 0;
     unsigned captureSH2MemoryReadEnd = 0;

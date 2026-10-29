@@ -4,8 +4,10 @@
 
 #include <util/ring_buffer.hpp>
 
+#include <limits>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace app {
 
@@ -18,6 +20,11 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     void ClearInterrupts();
     void ClearDMATransfers();
     void ClearDSPDMATransfers();
+    void SetCaptureFrame(uint32 frame) { m_captureFrame = frame; }
+    void RecordCaptureFrame(uint32 frame, uint64 vdp1FrameBefore, uint64 vdp1FrameAfter) {
+        captureFrameInfo.push_back({frame, vdp1FrameBefore, vdp1FrameAfter});
+    }
+    void ClearCaptureFrame() { m_captureFrame = kUnknownCaptureFrame; }
 
     void DebugPortWrite(uint8 ch);
 
@@ -32,8 +39,17 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
         bool acknowledged;
     };
 
+    static constexpr uint32 kUnknownCaptureFrame = std::numeric_limits<uint32>::max();
+
+    struct CaptureFrameInfo {
+        uint32 captureFrame;
+        uint64 vdp1FrameBefore;
+        uint64 vdp1FrameAfter;
+    };
+
     struct DMAInfo {
         uint32 counter;
+        uint32 captureFrame;
         uint32 srcAddr;
         uint32 dstAddr;
         uint32 xferCount;
@@ -55,7 +71,10 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     };
 
     util::RingBuffer<InterruptInfo, 1024> interrupts;
-    util::RingBuffer<DMAInfo, 1024> dmaTransfers;
+    static constexpr size_t kDMATraceCapacity = 16384;
+    util::RingBuffer<DMAInfo, kDMATraceCapacity> dmaTransfers;
+    std::vector<CaptureFrameInfo> captureFrameInfo;
+    uint64 dmaTransfersDropped = 0;
     util::RingBuffer<DSPDMAInfo, 1024> dspDmaTransfers;
     util::RingBuffer<std::string, 1024> debugMessages;
 
@@ -63,6 +82,7 @@ private:
     uint32 m_interruptCounter = 0;
     uint32 m_dmaCounter = 0;
     uint32 m_dspDmaCounter = 0;
+    uint32 m_captureFrame = kUnknownCaptureFrame;
     std::string m_debugMessageBuffer;
 
     // -------------------------------------------------------------------------

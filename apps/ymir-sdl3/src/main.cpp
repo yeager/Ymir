@@ -92,6 +92,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureNoRender)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
+    options.add_options()("trace-scu-dma", "Record SCU DMA transfer starts during a frame capture",
+                          cxxopts::value(progOpts.captureSCUDMATrace)->default_value("false"));
     options.add_options()("trace-sh2-reads-begin", "First physical bus address for a bounded SH-2 data-read trace",
                           cxxopts::value(progOpts.captureSH2MemoryReadBegin));
     options.add_options()("trace-sh2-reads-end", "Exclusive physical bus address for a bounded SH-2 data-read trace",
@@ -269,6 +271,11 @@ int main(int argc, char **argv) {
                     return -1;
                 }
             }
+        }
+        if (progOpts.captureSCUDMATrace
+            && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
+            fmt::println("--trace-scu-dma requires --debug, a frame capture, and --dump-memory");
+            return -1;
         }
         if (progOpts.captureVDP2MemoryWrites
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {

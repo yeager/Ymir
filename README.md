@@ -152,14 +152,13 @@ The raw row capture and receipt are preserved in the external
 Firestaff evidence package `firestaff-evidence/nexus/ymir_nbg0_frame_serial_diagnostic_20261030/`.
 
 Add `--trace-vdp2-rendered-frames DIR` alongside the render-state CSV to save
-the software renderer VDP2 framebuffer at each completed VDP2 pass whose VDP1
-frame index is in the selected frame range. This is captured after VDP2
-rendering completes and before VDP1 composition; it is not a final Saturn screen
-capture and should not be compared directly to a full frontend screenshot. A
-screenshot from another frame or run is not a same-frame parity comparison. The directory must be new or
+the composed software-renderer framebuffer at each completed VDP2 pass whose
+VDP1 frame index is in the selected range. The VDP2 line renderer includes the
+VDP1 sprite plane and enabled VDP2 layers before it invokes the frontend frame
+callback. These files can be compared with a same-frame frontend screenshot. The directory must be new or
 empty. `index.csv` records VDP1 frame, VDP2 serial, dimensions, format and file
-for each output. Pixel files use the documented packed XRGB8888 framebuffer
-format as little-endian uint32 bytes; each file contains `width * height * 4`
+for each output. Pixel files preserve the callback buffer bytes in RGBX order (the low-to-high
+bytes of each little-endian uint32 word); each file contains `width * height * 4`
 bytes and is written after threaded rendering completes, before the frontend
 callback. Output is capped at 256 MiB per capture; the receipt records bytes,
 the limit, frame-output count and write status. An empty frame-output range,
@@ -176,20 +175,28 @@ command above to retain both VDP2 pass images for VDP1 frame 7716:
 --trace-vdp2-rendered-frames /path/to/dumps/nexus-vdp2-frames
 ```
 
-An authentic frame-7716 run retained two `320x224` VDP2 buffers, for serials
-8476 and 8477. Both contained only `0xffffffff`; the corresponding 448 row
-samples report NBG0 disabled on every line. This is the VDP2 output before
-VDP1 composition, not the complete game screen, so these buffers are not a
-menu screenshot parity comparison. The raw files, row trace, receipts and
-analysis are preserved in the external evidence package at
+An authentic frame-7716 run retained two `320x224` composed buffers, for
+serials 8476 and 8477. Both contained only `0xffffffff`; the corresponding
+448 row samples report NBG0 disabled on every line. The raw files, row trace,
+receipts and analysis are preserved in the external evidence package at
 `firestaff-evidence/nexus/ymir_nbg0_frame_serial_diagnostic_20261030/rendered_frame_capture/`.
 
-A separate attempt using `--capture-boot-frames 8038` did not reach VDP1 frame
-8037: its bounded row trace and pixel output were empty, even though the GUI
-saved a screenshot after the capture loop. That screenshot is not tagged to
-VDP1 frame 8037 and is preserved only as an incomplete attempt. Use the VDP1
-frame range receipt to confirm that a requested frame was actually observed
-before comparing its output.
+The title-menu run using `--capture-boot-frames 9120` captured VDP1 frame
+8037 twice, under VDP2 serials 9118 and 9119. Both passes contain rows and line
+ordinals 0–223 exactly once, with NBG0 enabled. Their identical RGBX buffers
+match the same-run frontend screenshot pixel-for-pixel after nearest-neighbor
+2x downscaling; the final VDP1 register snapshot also reports frame 8037. The
+receipt remains incomplete only under the one-sample-per-VDP1-frame-row
+contract (448 samples for 224 frame-row pairs); its per-pass row coverage and
+frame output are complete.
+
+A shorter `--capture-boot-frames 8038` attempt did not reach VDP1 frame 8037: its
+trace and pixel output were empty, even though a screenshot was saved after the
+capture loop. That image is not tagged to VDP1 frame 8037. Use the VDP1 frame
+range receipt to confirm the requested frame was observed before comparing
+output. The successful frame-8037 buffers, screenshot, row trace, final VDP1
+index and checksums are in the external evidence package under
+`firestaff-evidence/nexus/ymir_nbg0_frame_serial_diagnostic_20261030/rendered_frame_capture/frame8037-authentic-target/`.
 
 For example, this authentic Nexus capture samples rows 4 through 116 of VDP1
 frame 7486 while rendering without presenting frames to the window:

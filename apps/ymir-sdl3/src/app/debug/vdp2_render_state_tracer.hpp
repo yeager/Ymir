@@ -98,7 +98,7 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
 
         std::ostringstream filename;
         filename << "vdp1-" << frame << "-vdp2-" << vdp2FrameSerial << "-" << width << "x" << height
-                 << ".xrgb8888le";
+                 << ".rgbx8888le";
         const auto framePath = renderedFramesPath / filename.str();
         if (pixels == nullptr || width == 0 || height == 0 ||
             static_cast<uint64>(width) > std::numeric_limits<uint64>::max() / height / sizeof(uint32)) {
@@ -137,7 +137,7 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
         }
 
         renderedFramesIndex << frame << ',' << vdp2FrameSerial << ',' << width << ',' << height
-                            << ",xrgb8888le," << filename.str() << '\n';
+                            << ",rgbx8888le," << filename.str() << '\n';
         renderedFramesIndex.flush();
         if (!renderedFramesIndex.good()) {
             failed = true;
@@ -233,8 +233,8 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
                     << "rendered_frame_output_status="
                     << (!renderedFrameFailed && renderedFrames > 0 ? "complete" : "incomplete") << "\n"
                     << "rendered_frame_output_directory=" << renderedFramesPath.string() << "\n"
-                    << "rendered_frame_capture_stage=VDP2 framebuffer after VDP2 rendering and before VDP1 composition\n"
-                    << "rendered_frame_pixel_format=xrgb8888le (packed uint32, little-endian bytes)\n";
+                    << "rendered_frame_capture_stage=composed software-renderer framebuffer after VDP1 sprite and VDP2 layer rendering\n"
+                    << "rendered_frame_pixel_format=rgbx8888le (RGBX byte order from little-endian uint32 words)\n";
         }
         receipt << "observed_main_frame_ids=";
         bool first = true;

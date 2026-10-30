@@ -35,7 +35,7 @@
 namespace ymir::vdp {
 
 /// @brief Invoked when the software VDP2 renderer finishes rendering a frame.
-/// Framebuffer data is in little-endian XRGB8888 format.
+/// Framebuffer words use little-endian RGBX byte order (R, G, B, X in memory).
 ///
 /// @param[in] fb a pointer to the framebuffer data
 /// @param[in] width the width of the framebuffer (in pixels)

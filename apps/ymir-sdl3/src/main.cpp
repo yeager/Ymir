@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     options.add_options()("trace-vdp2-render-state", "Write bounded NBG0 render-state CSV to this path",
                           cxxopts::value(progOpts.captureVDP2RenderStatePath));
     options.add_options()("trace-vdp2-rendered-frames",
-                          "Write per-pass XRGB8888LE VDP2 buffers before VDP1 composition for the selected frame range",
+                          "Write per-pass composed RGBX8888LE software-renderer frames for the selected frame range",
                           cxxopts::value(progOpts.captureVDP2RenderedFramesPath));
     options.add_options()("trace-vdp2-render-state-frame-range", "Half-open VDP1 frame range BEGIN:END for render-state samples",
                           cxxopts::value<std::string>());

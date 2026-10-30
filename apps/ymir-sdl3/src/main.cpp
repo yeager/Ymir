@@ -36,6 +36,16 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.startFastForward)->default_value("false"));
     options.add_options()("D,debug", "Start with debug tracing enabled",
                           cxxopts::value(progOpts.enableDebugTracing)->default_value("false"));
+    options.add_options()("pnd-fetch-trace", "Write bounded VDP2 NBG1/NBG2 PND fetch CSV",
+                          cxxopts::value(progOpts.pndFetchTracePath));
+    options.add_options()("pnd-fetch-first-frame", "First frame to trace (inclusive)",
+                          cxxopts::value(progOpts.pndFetchFirstFrame)->default_value("0"));
+    options.add_options()("pnd-fetch-end-frame", "Frame end to trace (exclusive, maximum 64-frame range)",
+                          cxxopts::value(progOpts.pndFetchEndFrame)->default_value("64"));
+    options.add_options()("pnd-fetch-first-row", "First VCNT row to trace (inclusive)",
+                          cxxopts::value(progOpts.pndFetchFirstRow)->default_value("0"));
+    options.add_options()("pnd-fetch-end-row", "VCNT row end to trace (exclusive)",
+                          cxxopts::value(progOpts.pndFetchEndRow)->default_value("512"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});
@@ -51,6 +61,13 @@ int main(int argc, char **argv) {
             return 0;
         }
 
+        if (!progOpts.pndFetchTracePath.empty() &&
+            (progOpts.pndFetchEndFrame <= progOpts.pndFetchFirstFrame ||
+             progOpts.pndFetchEndFrame - progOpts.pndFetchFirstFrame > 64 ||
+             progOpts.pndFetchEndRow <= progOpts.pndFetchFirstRow || progOpts.pndFetchEndRow > 2048)) {
+            fmt::println(stderr, "Invalid PND fetch range (max 64 frames; VCNT rows must be within 0..2048)");
+            return 2;
+        }
         util::RegisterExceptionHandler(enableAllExceptions);
 
         auto app = std::make_unique<app::App>();

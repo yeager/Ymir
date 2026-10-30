@@ -2055,6 +2055,7 @@ FORCE_INLINE std::array<uint8, kVDP2VRAMSize> &SoftwareVDPRenderer::VDP2GetVRAM(
 }
 
 void SoftwareVDPRenderer::VDP2InitFrame() {
+    m_vdp2CurrentFrameIndex.fetch_add(1, std::memory_order_relaxed);
     const VDP2Regs &regs2 = VDP2GetRegs();
     if (!regs2.bgEnabled[5]) {
         VDP2InitNormalBG<0>(regs2);
@@ -2611,15 +2612,15 @@ void SoftwareVDPRenderer::VDP2DrawLine(uint32 y, bool altField) {
         VDP2DrawRotationBG<0>(regs2, colorMode, altField); // RBG0
         VDP2DrawRotationBG<1>(regs2, colorMode, altField); // RBG1
         if (interlaced) {
-            VDP2DrawNormalBG<0, deinterlace>(regs2, colorMode, altField); // NBG0
-            VDP2DrawNormalBG<1, deinterlace>(regs2, colorMode, altField); // NBG1
-            VDP2DrawNormalBG<2, deinterlace>(regs2, colorMode, altField); // NBG2
-            VDP2DrawNormalBG<3, deinterlace>(regs2, colorMode, altField); // NBG3
+            VDP2DrawNormalBG<0, deinterlace>(y, regs2, colorMode, altField); // NBG0
+            VDP2DrawNormalBG<1, deinterlace>(y, regs2, colorMode, altField); // NBG1
+            VDP2DrawNormalBG<2, deinterlace>(y, regs2, colorMode, altField); // NBG2
+            VDP2DrawNormalBG<3, deinterlace>(y, regs2, colorMode, altField); // NBG3
         } else {
-            VDP2DrawNormalBG<0, false>(regs2, colorMode, altField); // NBG0
-            VDP2DrawNormalBG<1, false>(regs2, colorMode, altField); // NBG1
-            VDP2DrawNormalBG<2, false>(regs2, colorMode, altField); // NBG2
-            VDP2DrawNormalBG<3, false>(regs2, colorMode, altField); // NBG3
+            VDP2DrawNormalBG<0, false>(y, regs2, colorMode, altField); // NBG0
+            VDP2DrawNormalBG<1, false>(y, regs2, colorMode, altField); // NBG1
+            VDP2DrawNormalBG<2, false>(y, regs2, colorMode, altField); // NBG2
+            VDP2DrawNormalBG<3, false>(y, regs2, colorMode, altField); // NBG3
         }
     }
 
@@ -2809,10 +2810,10 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawSpritePixel(uint32 x, const VDP2R
 }
 
 template <uint32 bgIndex, bool deinterlace>
-FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, uint32 colorMode, bool altField) {
+FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(uint32 y, const VDP2Regs &regs2, uint32 colorMode, bool altField) {
     static_assert(bgIndex < 4, "Invalid NBG index");
 
-    using FnDraw = void (SoftwareVDPRenderer::*)(const VDP2Regs &, const BGParams &, LayerOutput &,
+    using FnDraw = void (SoftwareVDPRenderer::*)(uint32, const VDP2Regs &, const BGParams &, LayerOutput &,
                                                  const NBGLayerState &, VRAMFetcher &, std::span<const bool>, bool);
 
     // Lookup table of scroll BG drawing functions
@@ -2829,7 +2830,7 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
             const auto chmEnum = static_cast<CharacterMode>(chm);
             const auto cfEnum = static_cast<ColorFormat>(cf <= 4 ? cf : 4);
             const uint32 colorMode = clm <= 2 ? clm : 2;
-            arr[chm][fcc][cf][clm] = &SoftwareVDPRenderer::VDP2DrawNormalScrollBG<chmEnum, fcc, cfEnum, colorMode,
+            arr[chm][fcc][cf][clm] = &SoftwareVDPRenderer::VDP2DrawNormalScrollBG<bgIndex, chmEnum, fcc, cfEnum, colorMode,
                                                                                   bgIndex <= 1, deinterlace>;
         });
 
@@ -2879,7 +2880,7 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
 
     const uint32 cf = static_cast<uint32>(bgParams.colorFormat);
     if (bgParams.bitmap) {
-        (this->*fnDrawBitmap[cf][colorMode])(regs2, bgParams, layerOut, bgState, vramFetcher, windowState, altField);
+        (this->*fnDrawBitmap[cf][colorMode])(y, regs2, bgParams, layerOut, bgState, vramFetcher, windowState, altField);
     } else {
         const bool twc = bgParams.twoWordChar;
         const bool fcc = bgParams.cellSizeShift;
@@ -2887,7 +2888,7 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
         const uint32 chm = static_cast<uint32>(twc   ? CharacterMode::TwoWord
                                                : exc ? CharacterMode::OneWordExtended
                                                      : CharacterMode::OneWordStandard);
-        (this->*fnDrawScroll[chm][fcc][cf][colorMode])(regs2, bgParams, layerOut, bgState, vramFetcher, windowState,
+        (this->*fnDrawScroll[chm][fcc][cf][colorMode])(y, regs2, bgParams, layerOut, bgState, vramFetcher, windowState,
                                                        altField);
     }
 }
@@ -4441,9 +4442,9 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2ComposeLine(uint32 y, const VDP2Regs 
     }
 }
 
-template <SoftwareVDPRenderer::CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat, uint32 colorMode,
-          bool useVCellScroll, bool deinterlace>
-NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2, const BGParams &bgParams,
+template <uint32 bgIndex, SoftwareVDPRenderer::CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat,
+          uint32 colorMode, bool useVCellScroll, bool deinterlace>
+NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(uint32 y, const VDP2Regs &regs2, const BGParams &bgParams,
                                                            LayerOutput &layerOut, const NBGLayerState &bgState,
                                                            VRAMFetcher &vramFetcher, std::span<const bool> windowState,
                                                            bool altField) {
@@ -4511,9 +4512,23 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2
             const CoordU32 scrollCoord{scrollX, scrollY};
 
             // Plot pixel
+            debug::VDP2PNDFetchContext context;
+            const debug::VDP2PNDFetchContext *traceContext = nullptr;
+            if (m_vdp2PNDFetchTracer != nullptr && (bgIndex == 1 || bgIndex == 2)) {
+                context = {
+                    .frame = m_vdp2CurrentFrameIndex.load(std::memory_order_relaxed),
+                    .row = y,
+                    .alternateField = altField,
+                    .layer = static_cast<uint8>(bgIndex),
+                    .screenX = x,
+                    .scrollX = scrollX,
+                    .scrollY = scrollY,
+                };
+                traceContext = &context;
+            }
             const Pixel pixel = VDP2FetchScrollBGPixel<false, charMode, fourCellChar, colorFormat, colorMode>(
                 bgParams, regs2, bgParams.pageBaseAddresses, bgParams.pageShiftH, bgParams.pageShiftV, scrollCoord,
-                vramFetcher);
+                vramFetcher, traceContext);
             layerOut.pixels.SetPixel(x, pixel);
         }
 
@@ -4541,12 +4556,12 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2
         // Fetch pixel
         VDP2FetchScrollBGPixel<false, charMode, fourCellChar, colorFormat, colorMode>(
             bgParams, regs2, bgParams.pageBaseAddresses, bgParams.pageShiftH, bgParams.pageShiftV, scrollCoord,
-            vramFetcher);
+            vramFetcher, nullptr);
     }
 }
 
 template <ColorFormat colorFormat, uint32 colorMode, bool useVCellScroll, bool deinterlace>
-NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBitmapBG(const VDP2Regs &regs2, const BGParams &bgParams,
+NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBitmapBG(uint32, const VDP2Regs &regs2, const BGParams &bgParams,
                                                            LayerOutput &layerOut, const NBGLayerState &bgState,
                                                            VRAMFetcher &vramFetcher, std::span<const bool> windowState,
                                                            bool altField) {
@@ -4698,7 +4713,7 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawRotationScrollBG(const VDP2Regs &reg
             // Plot pixel
             const Pixel pixel = VDP2FetchScrollBGPixel<true, charMode, fourCellChar, colorFormat, colorMode>(
                 bgParams, regs2, state2.rbgPageBaseAddresses[rotParamSelector][bgIndex], rotParams.pageShiftH,
-                rotParams.pageShiftV, scrollCoord, m_vramFetchers[altField][rotParamSelector + 4]);
+                rotParams.pageShiftV, scrollCoord, m_vramFetchers[altField][rotParamSelector + 4], nullptr);
             if (!doubleResH || !windowState[xx]) {
                 layerOut.pixels.SetPixel(xx, pixel);
             }
@@ -4954,7 +4969,8 @@ template <bool rot, SoftwareVDPRenderer::CharacterMode charMode, bool fourCellCh
 FORCE_INLINE_EX SoftwareVDPRenderer::Pixel
 SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2Regs &regs2,
                                             std::span<const uint32> pageBaseAddresses, uint32 pageShiftH,
-                                            uint32 pageShiftV, CoordU32 scrollCoord, VRAMFetcher &vramFetcher) {
+                                            uint32 pageShiftV, CoordU32 scrollCoord, VRAMFetcher &vramFetcher,
+                                            const debug::VDP2PNDFetchContext *traceContext) {
     //      Map (NBGs)              Map (RBGs)
     // +---------+---------+   +----+----+----+----+
     // |         |         |   | A  | B  | C  | D  |
@@ -5125,8 +5141,9 @@ SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2
         static constexpr bool largePalette = colorFormat != ColorFormat::Palette16;
         const Character ch =
             twoWordChar
-                ? VDP2FetchTwoWordCharacter(bgParams, pageAddress, charIndex)
-                : VDP2FetchOneWordCharacter<fourCellChar, largePalette, extChar>(bgParams, pageAddress, charIndex);
+                ? VDP2FetchTwoWordCharacter(bgParams, pageAddress, charIndex, traceContext)
+                : VDP2FetchOneWordCharacter<fourCellChar, largePalette, extChar>(bgParams, pageAddress, charIndex,
+                                                                                 traceContext);
 
         // Send character to pipeline
         vramFetcher.currChar = bgParams.charPatDelay[bank] ? vramFetcher.nextChar : ch;
@@ -5147,7 +5164,8 @@ SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2
 }
 
 FORCE_INLINE Character SoftwareVDPRenderer::VDP2FetchTwoWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress,
-                                                                      uint32 charIndex) {
+                                                                      uint32 charIndex,
+                                                                      const debug::VDP2PNDFetchContext *traceContext) {
     const uint32 charAddress = pageBaseAddress + charIndex * sizeof(uint32);
     const uint32 charBank = (charAddress >> 17u) & 3u;
 
@@ -5156,12 +5174,17 @@ FORCE_INLINE Character SoftwareVDPRenderer::VDP2FetchTwoWordCharacter(const BGPa
     }
 
     const uint32 charData = VDP2ReadRendererVRAM<uint32>(charAddress);
+    if (traceContext != nullptr && m_vdp2PNDFetchTracer != nullptr &&
+        m_vdp2PNDFetchTracer->ShouldTrace(traceContext->frame, traceContext->row, traceContext->layer)) {
+        m_vdp2PNDFetchTracer->Fetch({*traceContext, charAddress, static_cast<uint8>(sizeof(uint32)), charData});
+    }
     return Character{.u32 = charData};
 }
 
 template <bool fourCellChar, bool largePalette, bool extChar>
 FORCE_INLINE Character SoftwareVDPRenderer::VDP2FetchOneWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress,
-                                                                      uint32 charIndex) {
+                                                                      uint32 charIndex,
+                                                                      const debug::VDP2PNDFetchContext *traceContext) {
     const uint32 charAddress = pageBaseAddress + charIndex * sizeof(uint16);
     const uint32 charBank = (charAddress >> 17u) & 3u;
 
@@ -5170,6 +5193,10 @@ FORCE_INLINE Character SoftwareVDPRenderer::VDP2FetchOneWordCharacter(const BGPa
     }
 
     const uint16 charData = VDP2ReadRendererVRAM<uint16>(charAddress);
+    if (traceContext != nullptr && m_vdp2PNDFetchTracer != nullptr &&
+        m_vdp2PNDFetchTracer->ShouldTrace(traceContext->frame, traceContext->row, traceContext->layer)) {
+        m_vdp2PNDFetchTracer->Fetch({*traceContext, charAddress, static_cast<uint8>(sizeof(uint16)), charData});
+    }
     return VDP2ExtractOneWordCharacter<fourCellChar, largePalette, extChar>(bgParams, charData);
 }
 

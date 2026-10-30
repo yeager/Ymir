@@ -6,6 +6,7 @@
 */
 
 #include <ymir/hw/vdp/renderer/vdp_renderer_base.hpp>
+#include <ymir/debug/vdp2_pnd_fetch_tracer.hpp>
 
 #include <ymir/hw/vdp/vdp1_regs.hpp>
 #include <ymir/hw/vdp/vdp2_regs.hpp>
@@ -28,6 +29,7 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include <limits>
 #include <span>
 #include <thread>
 #include <type_traits>
@@ -70,6 +72,10 @@ public:
     }
 
     void Reset(bool hard) override;
+
+    void UseVDP2PNDFetchTracer(debug::IVDP2PNDFetchTracer *tracer) {
+        m_vdp2PNDFetchTracer = tracer;
+    }
 
     // -------------------------------------------------------------------------
     // Configuration
@@ -171,6 +177,7 @@ private:
     VDPState &m_state;
     const config::VDP2DebugRender &m_vdp2DebugRenderOptions;
     const config::VDP2AccessPatternsConfig &m_vdp2AccessPatternsConfig;
+    debug::IVDP2PNDFetchTracer *m_vdp2PNDFetchTracer = nullptr;
 
     uint32 m_HRes;
     uint32 m_VRes;
@@ -955,6 +962,7 @@ private:
 
     // Current display framebuffer.
     std::array<uint32, kMaxResH * kMaxResV> m_framebuffer;
+    std::atomic<uint64> m_vdp2CurrentFrameIndex{std::numeric_limits<uint64>::max()};
 
     // Retrieves the current set of VDP2 registers.
     VDP2Regs &VDP2GetRegs();
@@ -1101,7 +1109,7 @@ private:
     // deinterlace determines whether to deinterlace video output
     // altField selects the complementary field when rendering deinterlaced frames
     template <uint32 bgIndex, bool deinterlace>
-    void VDP2DrawNormalBG(const VDP2Regs &regs2, uint32 colorMode, bool altField);
+    void VDP2DrawNormalBG(uint32 y, const VDP2Regs &regs2, uint32 colorMode, bool altField);
 
     // Draws the current VDP2 scanline of the specified rotation background layer.
     //
@@ -1140,9 +1148,9 @@ private:
     // colorMode is the CRAM color mode.
     // useVCellScroll determines whether to use the vertical cell scroll effect
     // deinterlace determines whether to deinterlace video output
-    template <CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat, uint32 colorMode, bool useVCellScroll,
-              bool deinterlace>
-    void VDP2DrawNormalScrollBG(const VDP2Regs &regs2, const BGParams &bgParams, LayerOutput &layerOut,
+    template <uint32 bgIndex, CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat, uint32 colorMode,
+              bool useVCellScroll, bool deinterlace>
+    void VDP2DrawNormalScrollBG(uint32 y, const VDP2Regs &regs2, const BGParams &bgParams, LayerOutput &layerOut,
                                 const NBGLayerState &bgState, VRAMFetcher &vramFetcher,
                                 std::span<const bool> windowState, bool altField);
 
@@ -1161,7 +1169,7 @@ private:
     // useVCellScroll determines whether to use the vertical cell scroll effect
     // deinterlace determines whether to deinterlace video output
     template <ColorFormat colorFormat, uint32 colorMode, bool useVCellScroll, bool deinterlace>
-    void VDP2DrawNormalBitmapBG(const VDP2Regs &regs2, const BGParams &bgParams, LayerOutput &layerOut,
+    void VDP2DrawNormalBitmapBG(uint32 y, const VDP2Regs &regs2, const BGParams &bgParams, LayerOutput &layerOut,
                                 const NBGLayerState &bgState, VRAMFetcher &vramFetcher,
                                 std::span<const bool> windowState, bool altField);
 
@@ -1250,14 +1258,16 @@ private:
     template <bool rot, CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat, uint32 colorMode>
     Pixel VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2Regs &regs2,
                                  std::span<const uint32> pageBaseAddresses, uint32 pageShiftH, uint32 pageShiftV,
-                                 CoordU32 scrollCoord, VRAMFetcher &vramFetcher);
+                                 CoordU32 scrollCoord, VRAMFetcher &vramFetcher,
+                                 const debug::VDP2PNDFetchContext *traceContext);
 
     // Fetches a two-word character from VRAM.
     //
     // bgParams contains the parameters for the BG to draw.
     // pageBaseAddress specifies the base address of the page of character patterns.
     // charIndex is the index of the character to fetch.
-    Character VDP2FetchTwoWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress, uint32 charIndex);
+    Character VDP2FetchTwoWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress, uint32 charIndex,
+                                        const debug::VDP2PNDFetchContext *traceContext);
 
     // Fetches a one-word character from VRAM.
     //
@@ -1269,7 +1279,8 @@ private:
     // largePalette indicates if the color format uses 16 colors (false) or more (true).
     // extChar indicates if the flip bits are available (false) or used to extend the character number (true).
     template <bool fourCellChar, bool largePalette, bool extChar>
-    Character VDP2FetchOneWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress, uint32 charIndex);
+    Character VDP2FetchOneWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress, uint32 charIndex,
+                                        const debug::VDP2PNDFetchContext *traceContext);
 
     // Extract a one-word character from the given raw character data.
     //

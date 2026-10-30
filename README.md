@@ -142,6 +142,14 @@ before using the trace. Ymir opens and checks the CSV header before starting the
 capture, and reports an error with a nonzero exit status if the output path
 cannot be opened.
 
+A full-row follow-up for the same Nexus VDP1 frame requested rows 0–223 and
+observed 448 main-field samples: serials 8476 and 8477 each contained all 224
+line-call ordinals once. The receipt remained incomplete under the VDP1
+frame-row contract (448 samples for 224 expected pairs). This verifies two
+complete render-state line passes, but does not retain separate pixel images
+for those passes. The raw capture and receipt are preserved in the external
+Firestaff evidence package `firestaff-evidence/nexus/ymir_nbg0_frame_serial_diagnostic_20261030/`.
+
 For example, this authentic Nexus capture samples rows 4 through 116 of VDP1
 frame 7486 while rendering without presenting frames to the window:
 

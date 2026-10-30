@@ -226,9 +226,9 @@ int App::Run(const CommandLineOptions &options) {
         auto &tracer = m_context.tracers.VDP2RenderState;
         if (!tracer.Configure(options.captureVDP2RenderStatePath, options.captureVDP2RenderStateFrameBegin,
                               options.captureVDP2RenderStateFrameEnd, options.captureVDP2RenderStateRowBegin,
-                              options.captureVDP2RenderStateRowEnd)) {
-            tracer.Abort("csv_open_failed");
-            devlog::error<grp::base>("Could not open VDP2 render-state CSV output '{}'",
+                              options.captureVDP2RenderStateRowEnd, options.captureVDP2RenderedFramesPath)) {
+            tracer.Abort("render_state_or_frame_output_open_failed");
+            devlog::error<grp::base>("Could not open VDP2 render-state or frame output for '{}'",
                                      options.captureVDP2RenderStatePath.string());
             return -1;
         }

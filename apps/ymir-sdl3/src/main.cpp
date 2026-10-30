@@ -98,6 +98,9 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
     options.add_options()("trace-vdp2-render-state", "Write bounded NBG0 render-state CSV to this path",
                           cxxopts::value(progOpts.captureVDP2RenderStatePath));
+    options.add_options()("trace-vdp2-rendered-frames",
+                          "Write per-pass XRGB8888LE VDP2 buffers before VDP1 composition for the selected frame range",
+                          cxxopts::value(progOpts.captureVDP2RenderedFramesPath));
     options.add_options()("trace-vdp2-render-state-frame-range", "Half-open VDP1 frame range BEGIN:END for render-state samples",
                           cxxopts::value<std::string>());
     options.add_options()("trace-vdp2-render-state-row-range", "Half-open rendered row range BEGIN:END for render-state samples",
@@ -167,6 +170,11 @@ int main(int argc, char **argv) {
                                    progOpts.captureVDP2RenderStateRowBegin,
                                    progOpts.captureVDP2RenderStateRowEnd)) return -1;
         const bool renderStateTrace = !progOpts.captureVDP2RenderStatePath.empty();
+        const bool renderedFrameTrace = !progOpts.captureVDP2RenderedFramesPath.empty();
+        if (renderedFrameTrace && (!renderStateTrace || !progOpts.captureVDP2RenderStateFrameRange)) {
+            fmt::println("--trace-vdp2-rendered-frames requires --trace-vdp2-render-state and its frame range");
+            return -1;
+        }
         if ((progOpts.captureVDP2RenderStateFrameRange || progOpts.captureVDP2RenderStateRowRange) &&
             !renderStateTrace) {
             fmt::println("render-state frame/row ranges require --trace-vdp2-render-state");

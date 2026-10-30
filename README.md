@@ -147,8 +147,49 @@ observed 448 main-field samples: serials 8476 and 8477 each contained all 224
 line-call ordinals once. The receipt remained incomplete under the VDP1
 frame-row contract (448 samples for 224 expected pairs). This verifies two
 complete render-state line passes, but does not retain separate pixel images
-for those passes. The raw capture and receipt are preserved in the external
+in the original run. Use the frame-output option below to retain each pass.
+The raw row capture and receipt are preserved in the external
 Firestaff evidence package `firestaff-evidence/nexus/ymir_nbg0_frame_serial_diagnostic_20261030/`.
+
+Add `--trace-vdp2-rendered-frames DIR` alongside the render-state CSV to save
+the software renderer VDP2 framebuffer at each completed VDP2 pass whose VDP1
+frame index is in the selected frame range. This is captured after VDP2
+rendering completes and before VDP1 composition; it is not a final Saturn screen
+capture and should not be compared directly to a full frontend screenshot. A
+screenshot from another frame or run is not a same-frame parity comparison. The directory must be new or
+empty. `index.csv` records VDP1 frame, VDP2 serial, dimensions, format and file
+for each output. Pixel files use the documented packed XRGB8888 framebuffer
+format as little-endian uint32 bytes; each file contains `width * height * 4`
+bytes and is written after threaded rendering completes, before the frontend
+callback. Output is capped at 256 MiB per capture; the receipt records bytes,
+the limit, frame-output count and write status. An empty frame-output range,
+limit overflow or any write error is marked incomplete. The option does not
+alter the existing VDP1 frame-row coverage status.
+
+For the same Nexus witness, add the following options to the authentic boot
+command above to retain both VDP2 pass images for VDP1 frame 7716:
+
+```sh
+--trace-vdp2-render-state /path/to/dumps/nexus-nbg0.csv \
+--trace-vdp2-render-state-frame-range 7716:7717 \
+--trace-vdp2-render-state-row-range 0:224 \
+--trace-vdp2-rendered-frames /path/to/dumps/nexus-vdp2-frames
+```
+
+An authentic frame-7716 run retained two `320x224` VDP2 buffers, for serials
+8476 and 8477. Both contained only `0xffffffff`; the corresponding 448 row
+samples report NBG0 disabled on every line. This is the VDP2 output before
+VDP1 composition, not the complete game screen, so these buffers are not a
+menu screenshot parity comparison. The raw files, row trace, receipts and
+analysis are preserved in the external evidence package at
+`firestaff-evidence/nexus/ymir_nbg0_frame_serial_diagnostic_20261030/rendered_frame_capture/`.
+
+A separate attempt using `--capture-boot-frames 8038` did not reach VDP1 frame
+8037: its bounded row trace and pixel output were empty, even though the GUI
+saved a screenshot after the capture loop. That screenshot is not tagged to
+VDP1 frame 8037 and is preserved only as an incomplete attempt. Use the VDP1
+frame range receipt to confirm that a requested frame was actually observed
+before comparing its output.
 
 For example, this authentic Nexus capture samples rows 4 through 116 of VDP1
 frame 7486 while rendering without presenting frames to the window:

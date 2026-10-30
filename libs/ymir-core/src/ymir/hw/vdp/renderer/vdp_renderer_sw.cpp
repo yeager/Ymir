@@ -573,6 +573,14 @@ void SoftwareVDPRenderer::VDP2EndFrame() {
         m_vdp2RenderingContext.renderFinishedSignal.Wait();
         m_vdp2RenderingContext.renderFinishedSignal.Reset();
     }
+    if (m_vdp2RenderStateTracer != nullptr) {
+        const uint64 frame = m_vdp2CurrentFrameIndex.load(std::memory_order_relaxed);
+        if (m_vdp2RenderStateTracer->ShouldCaptureFrame(frame)) {
+            m_vdp2RenderStateTracer->CompletedFrame(
+                frame, m_vdp2CurrentFrameSerial.load(std::memory_order_relaxed), m_HRes, m_VRes,
+                m_framebuffer.data());
+        }
+    }
     Callbacks.VDP2DrawFinished();
     SwCallbacks.FrameComplete(m_framebuffer.data(), m_HRes, m_VRes);
 }

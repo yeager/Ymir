@@ -4,17 +4,28 @@
 
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <set>
+#include <sstream>
 #include <string>
 #include <utility>
 
 namespace app {
 
 struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
+    static constexpr uint64 kMaxRenderedFrameBytes = 256 * 1024 * 1024;
+
     std::filesystem::path csvPath;
+    std::filesystem::path renderedFramesPath;
+    std::filesystem::path renderedFramesIndexPath;
     unsigned frameBegin = 0, frameEnd = 0, rowBegin = 0, rowEnd = 0;
     std::ofstream csv;
+    std::ofstream renderedFramesIndex;
     uint64 rows = 0;
+    uint64 renderedFrames = 0;
+    uint64 renderedFrameBytes = 0;
+    bool renderedFrameFailed = false;
+    bool renderedFrameLimitExceeded = false;
     bool failed = false;
     uint64 mainSamples = 0;
     uint64 alternateSamples = 0;
@@ -25,12 +36,39 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
     std::set<uint32> observedMainRows;
     std::string captureStatus = "pending";
 
-    bool Configure(const std::filesystem::path &path, unsigned fb, unsigned fe, unsigned rb, unsigned re) {
+    bool Configure(const std::filesystem::path &path, unsigned fb, unsigned fe, unsigned rb, unsigned re,
+                   const std::filesystem::path &framesPath = {}) {
         csvPath = path;
+        renderedFramesPath = framesPath;
         frameBegin = fb; frameEnd = fe; rowBegin = rb; rowEnd = re;
-        rows = 0; failed = false; mainSamples = 0; alternateSamples = 0; captureStatus = "pending";
+        rows = 0; renderedFrames = 0; renderedFrameBytes = 0; renderedFrameFailed = false;
+        renderedFrameLimitExceeded = false;
+        failed = false; mainSamples = 0; alternateSamples = 0;
+        captureStatus = "pending";
         mainCoverage.clear(); mainVdp2FrameCoverage.clear(); observedMainFrames.clear();
         observedVdp2FrameSerials.clear(); observedMainRows.clear();
+
+        if (!renderedFramesPath.empty()) {
+            std::error_code error;
+            if (std::filesystem::exists(renderedFramesPath, error)) {
+                if (error || !std::filesystem::is_directory(renderedFramesPath, error) || error ||
+                    !std::filesystem::is_empty(renderedFramesPath, error) || error) {
+                    return false;
+                }
+            } else if (error || !std::filesystem::create_directories(renderedFramesPath, error) || error) {
+                return false;
+            }
+            renderedFramesIndexPath = renderedFramesPath / "index.csv";
+            renderedFramesIndex.open(renderedFramesIndexPath, std::ios::trunc);
+            if (!renderedFramesIndex) return false;
+            renderedFramesIndex << "frame_index,vdp2_frame_serial,width,height,pixel_format,file\n";
+            renderedFramesIndex.flush();
+            if (!renderedFramesIndex.good()) {
+                renderedFramesIndex.close();
+                return false;
+            }
+        }
+
         csv.open(csvPath, std::ios::trunc);
         if (!csv) return false;
         csv << "frame_index,vdp2_frame_serial,line_call_ordinal,row_vcnt,alternate_field,scroll_h_11_8,scroll_v_11_8,scroll_inc_h_11_8,scroll_inc_v_11_8,"
@@ -47,6 +85,69 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
 
     bool ShouldTrace(uint64 frame, uint32 y) const final {
         return csv.is_open() && frame >= frameBegin && frame < frameEnd && y >= rowBegin && y < rowEnd;
+    }
+
+    bool ShouldCaptureFrame(uint64 frame) const final {
+        return renderedFramesIndex.is_open() && frame >= frameBegin && frame < frameEnd && !renderedFrameFailed &&
+               renderedFrameBytes < kMaxRenderedFrameBytes;
+    }
+
+    void CompletedFrame(uint64 frame, uint64 vdp2FrameSerial, uint32 width, uint32 height,
+                        const uint32 *pixels) final {
+        if (!ShouldCaptureFrame(frame)) return;
+
+        std::ostringstream filename;
+        filename << "vdp1-" << frame << "-vdp2-" << vdp2FrameSerial << "-" << width << "x" << height
+                 << ".xrgb8888le";
+        const auto framePath = renderedFramesPath / filename.str();
+        if (pixels == nullptr || width == 0 || height == 0 ||
+            static_cast<uint64>(width) > std::numeric_limits<uint64>::max() / height / sizeof(uint32)) {
+            failed = true;
+            renderedFrameFailed = true;
+            return;
+        }
+        const uint64 byteCount = static_cast<uint64>(width) * height * sizeof(uint32);
+        if (byteCount > kMaxRenderedFrameBytes - renderedFrameBytes) {
+            failed = true;
+            renderedFrameFailed = true;
+            renderedFrameLimitExceeded = true;
+            return;
+        }
+        std::ofstream output(framePath, std::ios::binary | std::ios::trunc);
+        bool fileOk = static_cast<bool>(output);
+        if (fileOk) {
+            for (uint64 i = 0; i < byteCount / sizeof(uint32); ++i) {
+                const uint32 pixel = pixels[i];
+                const char bytes[4] = {static_cast<char>(pixel & 0xFF), static_cast<char>((pixel >> 8) & 0xFF),
+                                       static_cast<char>((pixel >> 16) & 0xFF), static_cast<char>((pixel >> 24) & 0xFF)};
+                output.write(bytes, sizeof(bytes));
+                if (!output) { fileOk = false; break; }
+            }
+            output.flush();
+            fileOk = fileOk && static_cast<bool>(output);
+        }
+        output.close();
+        fileOk = fileOk && !output.fail();
+        if (!fileOk) {
+            failed = true;
+            renderedFrameFailed = true;
+            std::error_code error;
+            std::filesystem::remove(framePath, error);
+            return;
+        }
+
+        renderedFramesIndex << frame << ',' << vdp2FrameSerial << ',' << width << ',' << height
+                            << ",xrgb8888le," << filename.str() << '\n';
+        renderedFramesIndex.flush();
+        if (!renderedFramesIndex.good()) {
+            failed = true;
+            renderedFrameFailed = true;
+            std::error_code error;
+            std::filesystem::remove(framePath, error);
+        } else {
+            ++renderedFrames;
+            renderedFrameBytes += byteCount;
+        }
     }
 
     void Sample(const ymir::debug::VDP2RenderStateSample &s) final {
@@ -84,17 +185,30 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
             csv.close();
             failed = failed || csv.fail();
         }
+        if (renderedFramesIndex.is_open()) {
+            renderedFramesIndex.flush();
+            if (!renderedFramesIndex.good()) {
+                failed = true;
+                renderedFrameFailed = true;
+            }
+            renderedFramesIndex.close();
+            if (renderedFramesIndex.fail()) {
+                failed = true;
+                renderedFrameFailed = true;
+            }
+        }
         const uint64 expectedMainSamples =
             static_cast<uint64>(frameEnd - frameBegin) * (rowEnd - rowBegin);
         if (captureStatus == "pending") {
-            captureStatus = !failed && mainSamples == expectedMainSamples &&
+            captureStatus = mainSamples == expectedMainSamples &&
                                     mainCoverage.size() == expectedMainSamples ? "complete" : "incomplete";
         }
         auto receiptPath = csvPath;
         receiptPath += ".receipt.txt";
         std::ofstream receipt(receiptPath, std::ios::trunc);
         if (!receipt) return false;
-        receipt << "format=ymir-vdp2-render-state-trace-v2\n"
+        receipt << "format=" << (renderedFramesPath.empty() ? "ymir-vdp2-render-state-trace-v2"
+                                                              : "ymir-vdp2-render-state-trace-v3") << "\n"
                 << "layer=NBG0\n"
                 << "frame_index=VDP1 frame counter, zero-based (same convention as VDP2 memory trace)\n"
                 << "frame_range_half_open=" << frameBegin << ':' << frameEnd << "\n"
@@ -110,8 +224,19 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
                                                    ? expectedMainSamples - mainCoverage.size() : 0) << "\n"
                 << "observed_main_frames=" << observedMainFrames.size() << "\n"
                 << "observed_main_rows=" << observedMainRows.size() << "\n"
-                << "observed_alternate_field_samples=" << alternateSamples << "\n"
-                << "observed_main_frame_ids=";
+                << "observed_alternate_field_samples=" << alternateSamples << "\n";
+        if (!renderedFramesPath.empty()) {
+            receipt << "rendered_frame_output_count=" << renderedFrames << "\n"
+                    << "rendered_frame_output_bytes=" << renderedFrameBytes << "\n"
+                    << "rendered_frame_output_byte_limit=" << kMaxRenderedFrameBytes << "\n"
+                    << "rendered_frame_output_limit_exceeded=" << (renderedFrameLimitExceeded ? 1 : 0) << "\n"
+                    << "rendered_frame_output_status="
+                    << (!renderedFrameFailed && renderedFrames > 0 ? "complete" : "incomplete") << "\n"
+                    << "rendered_frame_output_directory=" << renderedFramesPath.string() << "\n"
+                    << "rendered_frame_capture_stage=VDP2 framebuffer after VDP2 rendering and before VDP1 composition\n"
+                    << "rendered_frame_pixel_format=xrgb8888le (packed uint32, little-endian bytes)\n";
+        }
+        receipt << "observed_main_frame_ids=";
         bool first = true;
         for (uint64 frame : observedMainFrames) {
             receipt << (first ? "" : ",") << frame;

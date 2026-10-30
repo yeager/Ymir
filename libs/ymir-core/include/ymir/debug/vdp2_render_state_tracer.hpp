@@ -31,6 +31,9 @@ struct IVDP2RenderStateTracer {
     virtual ~IVDP2RenderStateTracer() = default;
     virtual bool ShouldTrace(uint64 frame, uint32 y) const = 0;
     virtual void Sample(const VDP2RenderStateSample &sample) = 0;
+    virtual bool ShouldCaptureFrame(uint64 frame) const = 0;
+    virtual void CompletedFrame(uint64 frame, uint64 vdp2FrameSerial, uint32 width, uint32 height,
+                                const uint32 *pixels) = 0;
 };
 
 } // namespace ymir::debug

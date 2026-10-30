@@ -198,6 +198,7 @@ App::App()
 }
 
 App::~App() {
+    m_context.saturn.instance->VDP.UseVDP2PNDFetchTracer(nullptr);
     m_context.saturn.instance->SMPC.ClearPersistDataCallback();
 }
 
@@ -877,6 +878,23 @@ void App::RunEmulator() {
     });
 
     auto &vdp = m_context.saturn.instance->VDP;
+    if (!m_options.pndFetchTracePath.empty()) {
+        if (vdp.GetRenderer().GetType() != ymir::vdp::VDPRendererType::Software) {
+            if (auto result = vdp.UseSoftwareRenderer(); !result) {
+                ShowStartupFailure("PND fetch tracing requires the software VDP renderer: {}", result.Error().message);
+                return;
+            }
+        }
+        m_vdp2PNDFetchTrace = std::make_unique<VDP2PNDFetchTrace>(
+            m_options.pndFetchTracePath, m_options.pndFetchFirstFrame, m_options.pndFetchEndFrame,
+            m_options.pndFetchFirstRow, m_options.pndFetchEndRow, 1000000);
+        if (!m_vdp2PNDFetchTrace->IsOpen()) {
+            ShowStartupFailure("Could not open PND fetch trace CSV: {}", m_options.pndFetchTracePath.string());
+            m_vdp2PNDFetchTrace.reset();
+            return;
+        }
+        vdp.UseVDP2PNDFetchTracer(m_vdp2PNDFetchTrace.get());
+    }
 
     ScopeGuard sgReleaseVDPRenderer{[&] { vdp.UseNullRenderer(); }};
 

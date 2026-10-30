@@ -24,6 +24,7 @@
 #include <ymir/hw/smpc/smpc_internal_callbacks.hpp>
 
 #include <ymir/hw/hw_defs.hpp>
+#include <ymir/debug/vdp2_pnd_fetch_tracer.hpp>
 
 #include "renderer/vdp_renderer.hpp"
 
@@ -80,6 +81,13 @@ public:
     /// @brief Configures the software renderer frame callback to use whenever the software renderer is in use.
     ///
     /// @param[in] callback the callback to register
+    void UseVDP2PNDFetchTracer(debug::IVDP2PNDFetchTracer *tracer) {
+        m_vdp2PNDFetchTracer = tracer;
+        if (auto *swRenderer = m_renderer->As<VDPRendererType::Software>()) {
+            swRenderer->UseVDP2PNDFetchTracer(tracer);
+        }
+    }
+
     void SetSoftwareRenderCallback(CBSoftwareFrameComplete callback) {
         if (auto *swRenderer = m_renderer->As<VDPRendererType::Software>()) {
             // Apply directly to renderer
@@ -272,6 +280,7 @@ private:
     uint32 m_virtuaGunLastJitterY = 0u;
 
     std::unique_ptr<IVDPRenderer> m_renderer;
+    debug::IVDP2PNDFetchTracer *m_vdp2PNDFetchTracer = nullptr;
 
     /// @brief Attempts to replaces the renderer with an instance of the given renderer.
     ///
@@ -314,6 +323,7 @@ private:
         renderer->Callbacks = callbacks;
         if constexpr (std::is_same_v<T, SoftwareVDPRenderer>) {
             renderer->SwCallbacks = m_swRendererCallbacks;
+            renderer->UseVDP2PNDFetchTracer(m_vdp2PNDFetchTracer);
 #if YMIR_PLATFORM_HAS_DIRECT3D
         } else if constexpr (std::is_same_v<T, Direct3D12VDPRenderer>) {
             renderer->HwCallbacks = m_d3d12RendererCallbacks;

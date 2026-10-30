@@ -178,6 +178,8 @@ private:
     VDPState &m_state;
     debug::IVDP2RenderStateTracer *m_vdp2RenderStateTracer = nullptr;
     std::atomic_uint64_t m_vdp2CurrentFrameIndex{0};
+    std::atomic_uint64_t m_vdp2CurrentFrameSerial{0};
+    std::atomic_uint32_t m_vdp2LineCallOrdinal{0};
     const config::VDP2DebugRender &m_vdp2DebugRenderOptions;
     const config::VDP2AccessPatternsConfig &m_vdp2AccessPatternsConfig;
 
@@ -428,6 +430,8 @@ private:
             struct {
                 uint32 vcnt;
                 uint64 frame;
+                uint64 vdp2FrameSerial;
+                uint32 lineCallOrdinal;
             } drawLine;
 
             struct {
@@ -476,8 +480,12 @@ private:
             return {Type::VDP2UpdateEnabledBGs};
         }
 
-        static VDP2RenderEvent VDP2DrawLine(uint32 vcnt, uint64 frame) {
-            return {Type::VDP2DrawLine, {.drawLine = {.vcnt = vcnt, .frame = frame}}};
+        static VDP2RenderEvent VDP2DrawLine(uint32 vcnt, uint64 frame, uint64 vdp2FrameSerial,
+                                            uint32 lineCallOrdinal) {
+            return {Type::VDP2DrawLine, {.drawLine = {.vcnt = vcnt,
+                                                      .frame = frame,
+                                                      .vdp2FrameSerial = vdp2FrameSerial,
+                                                      .lineCallOrdinal = lineCallOrdinal}}};
         }
 
         static VDP2RenderEvent VDP2EndFrame() {
@@ -550,6 +558,8 @@ private:
         util::Event deinterlaceRenderBeginSignal{false};
         util::Event deinterlaceRenderEndSignal{false};
         uint32 deinterlaceY;
+        uint64 deinterlaceVdp2FrameSerial;
+        uint32 deinterlaceLineCallOrdinal;
         std::atomic_bool deinterlaceShutdown;
 
         std::array<VDP2RenderEvent, 64> pendingEvents;
@@ -637,7 +647,8 @@ private:
 
     using FnVDP1ProcessCommand = void (SoftwareVDPRenderer::*)();
     using FnVDP1HandleCommand = void (SoftwareVDPRenderer::*)(uint32 cmdAddress, VDP1Command::Control control);
-    using FnVDP2DrawLine = void (SoftwareVDPRenderer::*)(uint32 y, bool altField);
+    using FnVDP2DrawLine = void (SoftwareVDPRenderer::*)(uint32 y, bool altField, uint64 vdp2FrameSerial,
+                                                        uint32 lineCallOrdinal);
 
     FnVDP1HandleCommand m_fnVDP1HandleCommand;
     FnVDP2DrawLine m_fnVDP2DrawLine;
@@ -1064,7 +1075,7 @@ private:
     // deinterlace determines whether to deinterlace video output
     // transparentMeshes enables transparent mesh rendering enhancement
     template <bool deinterlace, bool transparentMeshes>
-    void VDP2DrawLine(uint32 y, bool altField);
+    void VDP2DrawLine(uint32 y, bool altField, uint64 vdp2FrameSerial, uint32 lineCallOrdinal);
 
     // Draws the line color and back screens.
     //

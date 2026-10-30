@@ -111,13 +111,30 @@ but `--capture-no-render` is not. Supply both range options:
   half-open vertical-counter interval. The bounds must be within 0 through 1024.
 
 The selected frame-row product is limited to 500,000 pairs. Each CSV row has
-explicit frame, row, and alternate-field tags so it can be joined to other
-captures without inferring coordinates. Interlaced alternate-field samples are
-tagged separately from the expected main-field coverage.
+explicit VDP1 frame, VDP2 frame serial, line-call ordinal, row, and
+alternate-field tags so it can be joined to other captures without inferring
+coordinates. The VDP2 serial increments at each software-renderer frame begin;
+the line-call ordinal increments for each `VDP2RenderLine` call within that
+serial. Interlaced alternate-field samples share the line-call ordinal and are
+tagged separately from the main-field coverage.
+
+VDP1 frame indices and VDP2 frame serials describe different boundaries. A
+single VDP1 frame index can contain multiple VDP2 frame serials. For example,
+an authentic Japanese Nexus capture at VDP1 frame 7716 recorded rows 100 through
+111 once for VDP2 serial 8476 and again for serial 8477; both passes had
+`alternate_field=0` and line-call ordinals matching their row values. This is
+two distinct VDP2 render passes with one VDP1 frame label, not duplicate line
+callbacks within one VDP2 frame. Use both frame fields when comparing samples
+from this capture path.
 
 Ymir writes `CSV.receipt.txt` beside the CSV. It records the requested bounds,
 expected and observed main samples, unique frame-row coverage, missing and
-duplicate counts, alternate-field samples, and output errors. The receipt says
+duplicate counts, unique VDP2 frame-row pairs, observed VDP2 frame serials,
+alternate-field samples, and output errors. Its legacy `complete` status
+requires one main sample per requested VDP1 frame-row pair, so multiple VDP2
+passes under one VDP1 label remain `incomplete` even when each pass has a
+complete set of line calls. Inspect the serial and ordinal fields to identify
+the pass structure; do not silently deduplicate the samples. The receipt says
 `capture_status=complete` only when every expected frame-row pair was captured
 exactly once and CSV/receipt writes succeeded. A missing or zero-sample capture
 is marked `incomplete`, even if the CSV header was written; check the receipt

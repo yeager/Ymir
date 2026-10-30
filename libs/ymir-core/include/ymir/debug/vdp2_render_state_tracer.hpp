@@ -8,6 +8,8 @@ struct VDP2RenderStateSample {
     uint64 frame;
     uint32 y;
     bool alternateField;
+    uint64 vdp2FrameSerial;
+    uint32 lineCallOrdinal;
     uint32 scrollH;
     uint32 scrollV;
     uint32 scrollIncH;

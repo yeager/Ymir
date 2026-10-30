@@ -19,7 +19,9 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
     uint64 mainSamples = 0;
     uint64 alternateSamples = 0;
     std::set<std::pair<uint64, uint32>> mainCoverage;
+    std::set<std::pair<uint64, uint32>> mainVdp2FrameCoverage;
     std::set<uint64> observedMainFrames;
+    std::set<uint64> observedVdp2FrameSerials;
     std::set<uint32> observedMainRows;
     std::string captureStatus = "pending";
 
@@ -27,10 +29,11 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
         csvPath = path;
         frameBegin = fb; frameEnd = fe; rowBegin = rb; rowEnd = re;
         rows = 0; failed = false; mainSamples = 0; alternateSamples = 0; captureStatus = "pending";
-        mainCoverage.clear(); observedMainFrames.clear(); observedMainRows.clear();
+        mainCoverage.clear(); mainVdp2FrameCoverage.clear(); observedMainFrames.clear();
+        observedVdp2FrameSerials.clear(); observedMainRows.clear();
         csv.open(csvPath, std::ios::trunc);
         if (!csv) return false;
-        csv << "frame_index,row_vcnt,alternate_field,scroll_h_11_8,scroll_v_11_8,scroll_inc_h_11_8,scroll_inc_v_11_8,"
+        csv << "frame_index,vdp2_frame_serial,line_call_ordinal,row_vcnt,alternate_field,scroll_h_11_8,scroll_v_11_8,scroll_inc_h_11_8,scroll_inc_v_11_8,"
                "fractional_scroll_x_11_8,fractional_scroll_y_11_8,priority,color_calculation,color_calculation_ratio,"
                "bitmap,color_format,nbg0_enabled,layer_enabled,rbg1_enabled,mosaic_reuse\n";
         csv.flush();
@@ -48,7 +51,8 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
 
     void Sample(const ymir::debug::VDP2RenderStateSample &s) final {
         if (!ShouldTrace(s.frame, s.y)) return;
-        csv << s.frame << ',' << s.y << ',' << (s.alternateField ? 1 : 0) << ','
+        csv << s.frame << ',' << s.vdp2FrameSerial << ',' << s.lineCallOrdinal << ','
+            << s.y << ',' << (s.alternateField ? 1 : 0) << ','
             << s.scrollH << ',' << s.scrollV << ',' << s.scrollIncH << ',' << s.scrollIncV << ','
             << s.fractionalScrollX << ',' << s.fractionalScrollY << ',' << unsigned(s.priority) << ','
             << (s.colorCalculation ? 1 : 0) << ',' << unsigned(s.colorCalculationRatio) << ','
@@ -63,7 +67,9 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
             } else {
                 ++mainSamples;
                 mainCoverage.emplace(s.frame, s.y);
+                mainVdp2FrameCoverage.emplace(s.vdp2FrameSerial, s.y);
                 observedMainFrames.insert(s.frame);
+                observedVdp2FrameSerials.insert(s.vdp2FrameSerial);
                 observedMainRows.insert(s.y);
             }
         }
@@ -88,7 +94,7 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
         receiptPath += ".receipt.txt";
         std::ofstream receipt(receiptPath, std::ios::trunc);
         if (!receipt) return false;
-        receipt << "format=ymir-vdp2-render-state-trace-v1\n"
+        receipt << "format=ymir-vdp2-render-state-trace-v2\n"
                 << "layer=NBG0\n"
                 << "frame_index=VDP1 frame counter, zero-based (same convention as VDP2 memory trace)\n"
                 << "frame_range_half_open=" << frameBegin << ':' << frameEnd << "\n"
@@ -98,6 +104,8 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
                 << "unique_main_coverage_pairs=" << mainCoverage.size() << "\n"
                 << "duplicate_main_samples=" << (mainSamples > mainCoverage.size()
                                                       ? mainSamples - mainCoverage.size() : 0) << "\n"
+                << "unique_vdp2_frame_row_pairs=" << mainVdp2FrameCoverage.size() << "\n"
+                << "observed_vdp2_frame_serials=" << observedVdp2FrameSerials.size() << "\n"
                 << "missing_main_samples=" << (expectedMainSamples > mainCoverage.size()
                                                    ? expectedMainSamples - mainCoverage.size() : 0) << "\n"
                 << "observed_main_frames=" << observedMainFrames.size() << "\n"
@@ -115,11 +123,19 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
             receipt << (first ? "" : ",") << row;
             first = false;
         }
+        receipt << "\nobserved_vdp2_frame_serial_ids=";
+        first = true;
+        for (uint64 serial : observedVdp2FrameSerials) {
+            receipt << (first ? "" : ",") << serial;
+            first = false;
+        }
         receipt << "\ncoordinate_units=11.8 fixed point for scroll and increments\n"
                 << "parameter_source=VDP2Regs BGParams[1] and current NBG0 layer state\n"
                 << "sample_point=software renderer, after line preparation and before NBG0 drawing\n"
                 << "interlace=alternate_field distinguishes second field sample when present\n"
-                << "fields=frame_index,row_vcnt,alternate_field,scroll_h_11_8,scroll_v_11_8,scroll_inc_h_11_8,scroll_inc_v_11_8,"
+                << "vdp2_frame_serial=monotonic software-renderer VDP2BeginFrame count\n"
+                << "line_call_ordinal=per-VDP2-frame sequence of VDP2RenderLine calls; alternate-field samples share ordinal\n"
+                << "fields=frame_index,vdp2_frame_serial,line_call_ordinal,row_vcnt,alternate_field,scroll_h_11_8,scroll_v_11_8,scroll_inc_h_11_8,scroll_inc_v_11_8,"
                    "fractional_scroll_x_11_8,fractional_scroll_y_11_8,priority,color_calculation,"
                    "color_calculation_ratio,bitmap,color_format,nbg0_enabled,layer_enabled,rbg1_enabled,mosaic_reuse\n"
                 << "capture_status=" << captureStatus << "\n"

@@ -775,6 +775,8 @@ void DumpAllMemory(SharedContext &ctx) {
         WriteSH2FrameReceipt(manifest, ctx.tracers.masterSH2, ctx.tracers.slaveSH2);
     }
     if (sh2MemoryReadTraceEnabled) {
+        const bool includeReadFrame = ctx.tracers.masterSH2.memoryReadPCFilterEnabled
+                                      || ctx.tracers.slaveSH2.memoryReadPCFilterEnabled;
         std::ofstream out{dumpPath / "sh2-memory-read-trace.csv"};
         bool written = false;
         size_t rows = 0;
@@ -784,7 +786,11 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory read trace in {}", dumpPath);
         } else {
-            out << "sh2,origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width\n";
+            out << "sh2,";
+            if (includeReadFrame) {
+                out << "vdp1_frame,";
+            }
+            out << "origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width\n";
             const auto writeContext = [&](ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel,
                                           uint32 instructionPC, uint32 callerReturnAddress, uint32 callerTarget) {
                 const bool dmac = origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
@@ -821,6 +827,13 @@ void DumpAllMemory(SharedContext &ctx) {
                 for (size_t i = 0; i < tracer.memoryReads.Count(); i++) {
                     const auto entry = tracer.memoryReads.Read(i);
                     out << name << ',';
+                    if (includeReadFrame) {
+                        if (entry.vdp1Frame == ~uint64{0}) {
+                            out << "unknown,";
+                        } else {
+                            out << entry.vdp1Frame << ',';
+                        }
+                    }
                     writeContext(entry.origin, entry.dmaChannel, entry.instructionPC, entry.callerReturnAddress,
                                  entry.callerTarget);
                     out << "0x" << std::hex << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width)
@@ -844,7 +857,11 @@ void DumpAllMemory(SharedContext &ctx) {
             if (!snapshotsOut) {
                 devlog::warn<grp::base>("Could not write SH-2 read register snapshots in {}", dumpPath);
             } else {
-                snapshotsOut << "sh2,read_row,origin,dma_channel,instruction_pc,address,width,registers_available,pc,"
+                snapshotsOut << "sh2,read_row,";
+                if (includeReadFrame) {
+                    snapshotsOut << "vdp1_frame,";
+                }
+                snapshotsOut << "origin,dma_channel,instruction_pc,address,width,registers_available,pc,"
                                 "r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15,pr,mach,macl,sr,gbr,vbr\n";
                 const auto writeSnapshotTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                     const auto &registers = tracer.memoryReadRegisterSnapshots;
@@ -856,7 +873,15 @@ void DumpAllMemory(SharedContext &ctx) {
                         const auto entry = tracer.memoryReads.Read(i);
                         const auto &snapshot = registers->at(i);
                         const bool dmac = entry.origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
-                        snapshotsOut << name << ',' << i << ',' << (dmac ? "dmac" : "cpu") << ',';
+                        snapshotsOut << name << ',' << i << ',';
+                        if (includeReadFrame) {
+                            if (entry.vdp1Frame == ~uint64{0}) {
+                                snapshotsOut << "unknown,";
+                            } else {
+                                snapshotsOut << entry.vdp1Frame << ',';
+                            }
+                        }
+                        snapshotsOut << (dmac ? "dmac" : "cpu") << ',';
                         if (dmac) {
                             if (entry.dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
                                 snapshotsOut << "unknown";
@@ -901,7 +926,8 @@ void DumpAllMemory(SharedContext &ctx) {
         }
 
         std::ofstream manifest{dumpPath / "sh2-memory-read-trace-bundle.txt"};
-        manifest << "format=ymir-sh2-memory-read-trace-bundle-v2\n"
+        manifest << (includeReadFrame ? "format=ymir-sh2-memory-read-trace-bundle-v3\n"
+                                      : "format=ymir-sh2-memory-read-trace-bundle-v2\n")
                  << "trace_file=sh2-memory-read-trace.csv\n"
                  << "trace_file_complete=" << (written ? 1 : 0) << '\n'
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryReadAddressBegin << '\n'
@@ -913,6 +939,13 @@ void DumpAllMemory(SharedContext &ctx) {
                  << "dmac_channel_1_rows=" << dmacChannelRows[1] << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryReadsDropped << '\n'
                  << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n';
+        if (includeReadFrame) {
+            manifest << "instruction_pc_filter_enabled=1\n"
+                     << "instruction_pc=0x" << std::hex << ctx.tracers.masterSH2.memoryReadPC << std::dec << '\n'
+                     << "frame_index_column=vdp1_frame\n"
+                     << "address_filter_enabled=" << (ctx.tracers.masterSH2.memoryReadAddressRangeEnabled ? 1 : 0)
+                     << '\n';
+        }
         if (registerSnapshotsRequested) {
             manifest << "register_snapshot_file=sh2-memory-read-register-snapshots.csv\n"
                      << "register_snapshot_file_complete=" << (registerSnapshotsWritten ? 1 : 0) << '\n'

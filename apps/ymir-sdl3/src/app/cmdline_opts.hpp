@@ -58,8 +58,11 @@ struct CommandLineOptions {
     unsigned captureVDP2FrameBegin = 0;
     unsigned captureVDP2FrameEnd = 0;
     bool captureSH2MemoryReads = false;
+    bool captureSH2MemoryReadAddressRange = false;
     unsigned captureSH2MemoryReadBegin = 0;
     unsigned captureSH2MemoryReadEnd = 0;
+    bool captureSH2MemoryReadPCFilter = false;
+    unsigned captureSH2MemoryReadPC = 0;
     bool captureSH2MemoryReadRegisterSnapshots = false;
     bool captureSH2MemoryWrites = false;
     unsigned captureSH2MemoryWriteBegin = 0;

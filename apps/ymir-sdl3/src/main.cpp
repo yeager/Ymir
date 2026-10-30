@@ -111,6 +111,8 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureSH2MemoryReadBegin));
     options.add_options()("trace-sh2-reads-end", "Exclusive physical bus address for a bounded SH-2 data-read trace",
                           cxxopts::value(progOpts.captureSH2MemoryReadEnd));
+    options.add_options()("trace-sh2-reads-pc", "Capture SH-2 data reads executed by this exact instruction PC",
+                          cxxopts::value(progOpts.captureSH2MemoryReadPC));
     options.add_options()("trace-sh2-read-registers",
                           "Write a companion CSV of CPU registers at each address-matched SH-2 data read",
                           cxxopts::value(progOpts.captureSH2MemoryReadRegisterSnapshots)->default_value("false"));
@@ -266,10 +268,22 @@ int main(int argc, char **argv) {
                 progOpts.captureControlPadInputs.push_back(input);
             }
         }
-        progOpts.captureSH2MemoryReads = result.count("trace-sh2-reads-begin") != 0
-                                         || result.count("trace-sh2-reads-end") != 0;
+        const bool readAddressBeginSpecified = result.count("trace-sh2-reads-begin") != 0;
+        const bool readAddressEndSpecified = result.count("trace-sh2-reads-end") != 0;
+        progOpts.captureSH2MemoryReadAddressRange = readAddressBeginSpecified || readAddressEndSpecified;
+        progOpts.captureSH2MemoryReadPCFilter = result.count("trace-sh2-reads-pc") != 0;
+        progOpts.captureSH2MemoryReads = progOpts.captureSH2MemoryReadAddressRange
+                                         || progOpts.captureSH2MemoryReadPCFilter;
+        if (readAddressBeginSpecified != readAddressEndSpecified) {
+            fmt::println("--trace-sh2-reads-begin and --trace-sh2-reads-end must be specified together");
+            return -1;
+        }
         if (progOpts.captureSH2MemoryReadRegisterSnapshots && !progOpts.captureSH2MemoryReads) {
-            fmt::println("--trace-sh2-read-registers requires --trace-sh2-reads-begin/end");
+            fmt::println("--trace-sh2-read-registers requires an SH-2 read address range or PC filter");
+            return -1;
+        }
+        if (progOpts.captureSH2MemoryReadPCFilter && progOpts.captureSH2MemoryReadPC == 0) {
+            fmt::println("--trace-sh2-reads-pc requires a nonzero instruction PC");
             return -1;
         }
         progOpts.captureSH2MemoryWrites = result.count("trace-sh2-writes-begin") != 0
@@ -412,8 +426,11 @@ int main(int argc, char **argv) {
         }
         if (progOpts.captureSH2MemoryReads
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
-                || progOpts.captureSH2MemoryReadBegin >= progOpts.captureSH2MemoryReadEnd)) {
-            fmt::println("--trace-sh2-reads-begin/end require --debug, a frame capture, --dump-memory, and a nonempty range");
+                || (progOpts.captureSH2MemoryReadAddressRange
+                    && progOpts.captureSH2MemoryReadBegin >= progOpts.captureSH2MemoryReadEnd)
+                || (!progOpts.captureSH2MemoryReadAddressRange && !progOpts.captureSH2MemoryReadPCFilter))) {
+            fmt::println("SH-2 read tracing requires --debug, a frame capture, --dump-memory, and either a nonempty "
+                         "address range or --trace-sh2-reads-pc");
             return -1;
         }
         if (result.count("trace-sh2-writes-max-rows") != 0 && !progOpts.captureSH2MemoryWrites) {

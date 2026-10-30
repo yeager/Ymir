@@ -235,6 +235,15 @@ address-matched read. Join it to the read trace with the SH-2 name and
 values. Without this option, the existing read CSV and capture overhead are
 unchanged.
 
+`--trace-sh2-reads-pc ADDRESS` selects CPU data reads executed at one exact
+instruction PC. It can be used by itself, or with both address-range options
+to intersect the filters. Pair it with `--trace-sh2-read-registers` to capture
+the source and destination registers around a retail copy instruction. PC
+filter mode emits read-trace bundle v3 and adds the VDP1 frame index to both
+read and register-snapshot CSV rows. Omitting the PC option preserves the v2
+CSV schemas and existing address-range behavior. DMAC rows cannot match a CPU
+instruction PC and are excluded in PC-filter mode.
+
 `--trace-sh2-writes-begin ADDRESS --trace-sh2-writes-end ADDRESS` records
 master and slave SH-2 data writes in an independently selected, start-inclusive
 and end-exclusive physical bus-address range during that same deterministic

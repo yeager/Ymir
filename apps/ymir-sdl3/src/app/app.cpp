@@ -1244,8 +1244,11 @@ void App::RunEmulator() {
         for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {
             tracer->traceMemoryReads = true;
             tracer->traceMemoryReadRegisterSnapshots = m_options.captureSH2MemoryReadRegisterSnapshots;
+            tracer->memoryReadAddressRangeEnabled = m_options.captureSH2MemoryReadAddressRange;
             tracer->memoryReadAddressBegin = m_options.captureSH2MemoryReadBegin;
             tracer->memoryReadAddressEnd = m_options.captureSH2MemoryReadEnd;
+            tracer->memoryReadPCFilterEnabled = m_options.captureSH2MemoryReadPCFilter;
+            tracer->memoryReadPC = m_options.captureSH2MemoryReadPC;
             tracer->ResetMemoryReadTrace();
         }
     }

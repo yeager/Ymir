@@ -35,8 +35,11 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     bool memoryWriteFrameRangeEnabled = false;
     uint64 memoryWriteFrameBegin = 0;
     uint64 memoryWriteFrameEnd = 0;
+    bool memoryReadAddressRangeEnabled = true;
     uint32 memoryReadAddressBegin = 0;
     uint32 memoryReadAddressEnd = 0;
+    bool memoryReadPCFilterEnabled = false;
+    uint32 memoryReadPC = 0;
 
     struct InstructionInfo {
         uint32 pc;
@@ -106,6 +109,7 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     };
 
     struct MemoryReadInfo {
+        uint64 vdp1Frame;
         ymir::debug::SH2MemoryAccessOrigin origin;
         uint8 dmaChannel;
         uint32 instructionPC;
@@ -184,8 +188,11 @@ private:
                     uint32 address, uint8 width, const ymir::debug::SH2RegisterSnapshot *registers) final;
     bool IsMemoryReadTracingEnabled() const final { return traceMemoryReads; }
     bool IsMemoryReadRegisterSnapshotTracingEnabled() const final { return traceMemoryReadRegisterSnapshots; }
-    bool ShouldCaptureMemoryReadRegisterSnapshot(uint32 address) const final {
-        return traceMemoryReadRegisterSnapshots && address >= memoryReadAddressBegin && address < memoryReadAddressEnd;
+    bool ShouldCaptureMemoryReadRegisterSnapshot(uint32 instructionPC, uint32 address) const final {
+        return traceMemoryReadRegisterSnapshots
+               && (!memoryReadPCFilterEnabled || instructionPC == memoryReadPC)
+               && (!memoryReadAddressRangeEnabled
+                   || (address >= memoryReadAddressBegin && address < memoryReadAddressEnd));
     }
     bool IsMemoryWriteTracingEnabled() const final { return traceMemoryWrites; }
     void DelaySlot(uint32 pc, uint32 target) final;

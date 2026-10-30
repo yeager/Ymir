@@ -97,7 +97,10 @@ void SH2Tracer::MemoryWrite(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dma
 
 void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
                            uint32 address, uint8 width) {
-    if (!traceMemoryReads || address < memoryReadAddressBegin || address >= memoryReadAddressEnd) {
+    if (!traceMemoryReads || (memoryReadPCFilterEnabled
+                              && (origin != ymir::debug::SH2MemoryAccessOrigin::CPU || instructionPC != memoryReadPC))
+        || (memoryReadAddressRangeEnabled
+            && (address < memoryReadAddressBegin || address >= memoryReadAddressEnd))) {
         return;
     }
     if (memoryReads.Count() == memoryReads.Capacity()) {
@@ -112,15 +115,18 @@ void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaC
             callerTarget = callStack.back().target;
         }
     }
-    memoryReads.Write({origin, dmaChannel, instructionPC, callerReturnAddress, callerTarget, address, width});
+    const uint64 vdp1Frame = !memoryReadPCFilterEnabled || currentVDP1FrameIndex == nullptr
+                                 ? ~uint64{0}
+                                 : currentVDP1FrameIndex->load(std::memory_order_relaxed);
+    memoryReads.Write({vdp1Frame, origin, dmaChannel, instructionPC, callerReturnAddress, callerTarget, address,
+                       width});
 }
 
 void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
                            uint32 address, uint8 width,
                            const ymir::debug::SH2RegisterSnapshot *registers) {
     MemoryRead(origin, dmaChannel, instructionPC, address, width);
-    if (!traceMemoryReadRegisterSnapshots || !memoryReadRegisterSnapshots || !traceMemoryReads
-        || address < memoryReadAddressBegin || address >= memoryReadAddressEnd) {
+    if (!memoryReadRegisterSnapshots || !ShouldCaptureMemoryReadRegisterSnapshot(instructionPC, address)) {
         return;
     }
     if (memoryReadRegisterSnapshots->size() == memoryReads.Capacity()) {

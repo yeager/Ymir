@@ -666,7 +666,7 @@ T SH2::MemRead(uint32 address, debug::SH2MemoryAccessOrigin origin, uint8 dmaCha
             const uint32 instructionPC =
                 origin == debug::SH2MemoryAccessOrigin::CPU ? PC : debug::kSH2UnknownInstructionPC;
             if (m_traceMemoryReadRegisterSnapshots
-                && m_tracer->ShouldCaptureMemoryReadRegisterSnapshot(physicalAddress)) {
+                && m_tracer->ShouldCaptureMemoryReadRegisterSnapshot(instructionPC, physicalAddress)) {
                 if (origin == debug::SH2MemoryAccessOrigin::CPU) {
                     const debug::SH2RegisterSnapshot registers{R, PC, PR, MAC.H, MAC.L, SR.u32, GBR, VBR};
                     m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T), &registers);

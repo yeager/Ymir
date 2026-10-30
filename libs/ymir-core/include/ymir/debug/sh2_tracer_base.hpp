@@ -110,7 +110,11 @@ struct ISH2Tracer {
 
     /// Whether a register snapshot should be captured for this physical address.
     /// Called only when IsMemoryReadRegisterSnapshotTracingEnabled() is true.
-    virtual bool ShouldCaptureMemoryReadRegisterSnapshot(uint32 address) const { return false; }
+    virtual bool ShouldCaptureMemoryReadRegisterSnapshot(uint32 instructionPC, uint32 address) const {
+        (void)instructionPC;
+        (void)address;
+        return false;
+    }
 
     /// Whether the tracer currently wants CPU or SH-2 DMAC data-memory reads.
     /// This is sampled when the tracer is attached so disabled read tracing

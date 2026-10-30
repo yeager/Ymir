@@ -18,9 +18,11 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <fstream>
 #include <memory>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace ymir;
@@ -183,11 +185,11 @@ EmuEvent ExportVDP2MemoryTrace() {
         const uint64 captureFrame = saturn.VDP.GetVDP2MemoryTraceFrameIndex();
         std::vector<VDP2MemoryTracer::Entry> traceSnapshot;
         uint64 dropped = 0;
-        {
-            std::lock_guard lock(tracer.mutex);
-            traceSnapshot.assign(tracer.entries.begin(), tracer.entries.end());
-            dropped = tracer.dropped;
-        }
+        tracer.CopySnapshot(traceSnapshot, dropped);
+        const bool frameRangeEnabled = tracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
+        const uint64 frameRangeBegin = tracer.vdp1FrameBegin.load(std::memory_order_relaxed);
+        const uint64 frameRangeEnd = tracer.vdp1FrameEnd.load(std::memory_order_relaxed);
+        const uint64 outOfFrameRange = tracer.outOfFrameRange.load(std::memory_order_relaxed);
         const auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
         std::error_code error{};
         std::filesystem::create_directories(dumpPath, error);
@@ -246,7 +248,22 @@ EmuEvent ExportVDP2MemoryTrace() {
                  << "vdp2_cram_file_complete=" << (cramWritten ? 1 : 0) << '\n'
                  << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
                  << "trace_rows=" << traceSnapshot.size() << '\n'
-                 << "trace_dropped_total=" << dropped << '\n';
+                 << "trace_capacity_rows=" << tracer.capacity.load(std::memory_order_relaxed) << '\n'
+                 << "trace_dropped_total=" << dropped << '\n'
+                 << "trace_vdp1_frame_range_enabled=" << (frameRangeEnabled ? 1 : 0) << '\n'
+                 << "trace_vdp1_frame_begin=";
+        if (frameRangeEnabled) {
+            manifest << frameRangeBegin;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_vdp1_frame_end_exclusive=";
+        if (frameRangeEnabled) {
+            manifest << frameRangeEnd;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_rows_outside_vdp1_frame_range=" << outOfFrameRange << '\n';
         if (!traceSnapshot.empty()) {
             const auto writeFrame = [&](std::string_view key, uint64 frame) {
                 manifest << key << '=';
@@ -272,6 +289,42 @@ EmuEvent ExportVDP2MemoryTrace() {
 
 namespace {
 
+std::pair<uint64, uint64> SH2WriteFrameBounds(const SH2Tracer &master, const SH2Tracer &slave) {
+    uint64 minimum = ~uint64{0};
+    uint64 maximum = 0;
+    for (const SH2Tracer *tracer : {&master, &slave}) {
+        for (const auto &entry : tracer->memoryWrites) {
+            if (entry.vdp1Frame != ~uint64{0}) {
+                minimum = std::min(minimum, entry.vdp1Frame);
+                maximum = std::max(maximum, entry.vdp1Frame);
+            }
+        }
+    }
+    if (minimum == ~uint64{0}) {
+        maximum = ~uint64{0};
+    }
+    return {minimum, maximum};
+}
+
+void WriteSH2FrameReceipt(std::ostream &out, const SH2Tracer &master, const SH2Tracer &slave) {
+    const auto [minimum, maximum] = SH2WriteFrameBounds(master, slave);
+    const auto writeFrame = [&](std::string_view key, uint64 frame) {
+        out << key << '=';
+        if (frame == ~uint64{0}) {
+            out << "unknown\n";
+        } else {
+            out << frame << '\n';
+        }
+    };
+    writeFrame("sh2_ram_write_frame_min", minimum);
+    writeFrame("sh2_ram_write_frame_max", maximum);
+    out << "sh2_ram_write_frame_range_enabled=" << (master.memoryWriteFrameRangeEnabled ? 1 : 0) << '\n';
+    if (master.memoryWriteFrameRangeEnabled) {
+        out << "sh2_ram_write_frame_begin=" << master.memoryWriteFrameBegin << '\n'
+            << "sh2_ram_write_frame_end_exclusive=" << master.memoryWriteFrameEnd << '\n';
+    }
+}
+
 void DumpAllMemory(SharedContext &ctx) {
     // Sample the VDP cursor and trace on the emulation thread before dumping
     // memory, so the bundle identifies the exact captured frame.
@@ -296,11 +349,13 @@ void DumpAllMemory(SharedContext &ctx) {
     std::vector<VDP2MemoryTracer::Entry> vdp2MemoryTraceSnapshot;
     uint64 vdp2MemoryTraceDropped = 0;
     const bool vdp2MemoryTraceEnabled = vdp2MemoryTracer.enabled.load(std::memory_order_relaxed);
+    const bool vdp2FrameRangeEnabled = vdp2MemoryTracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
+    const uint64 vdp2FrameRangeBegin = vdp2MemoryTracer.vdp1FrameBegin.load(std::memory_order_relaxed);
+    const uint64 vdp2FrameRangeEnd = vdp2MemoryTracer.vdp1FrameEnd.load(std::memory_order_relaxed);
+    const uint64 vdp2RowsOutsideFrameRange = vdp2MemoryTracer.outOfFrameRange.load(std::memory_order_relaxed);
     const uint64 vdp2MemoryTraceFrame = vdp.GetVDP2MemoryTraceFrameIndex();
     if (vdp2MemoryTraceEnabled) {
-        std::lock_guard lock(vdp2MemoryTracer.mutex);
-        vdp2MemoryTraceSnapshot.assign(vdp2MemoryTracer.entries.begin(), vdp2MemoryTracer.entries.end());
-        vdp2MemoryTraceDropped = vdp2MemoryTracer.dropped;
+        vdp2MemoryTracer.CopySnapshot(vdp2MemoryTraceSnapshot, vdp2MemoryTraceDropped);
     }
 
     auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
@@ -348,19 +403,34 @@ void DumpAllMemory(SharedContext &ctx) {
         std::ofstream out{dumpPath / "vdp1-fbs.bin", std::ios::binary};
         ctx.saturn.instance->VDP.DumpVDP1Framebuffers(out);
     }
+    bool vdp2VRAMWritten = false;
     {
         std::ofstream out{dumpPath / "vdp2-vram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2VRAM(out);
+        if (out) {
+            ctx.saturn.instance->VDP.DumpVDP2VRAM(out);
+            out.close();
+            vdp2VRAMWritten = static_cast<bool>(out);
+        }
     }
+    bool vdp2CRAMWritten = false;
     {
         std::ofstream out{dumpPath / "vdp2-cram.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
+        if (out) {
+            ctx.saturn.instance->VDP.DumpVDP2CRAM(out);
+            out.close();
+            vdp2CRAMWritten = static_cast<bool>(out);
+        }
     }
+    bool vdp2RegistersWritten = false;
     {
         std::ofstream out{dumpPath / "vdp2-registers.bin", std::ios::binary};
-        ctx.saturn.instance->VDP.DumpVDP2Registers(out);
+        if (out) {
+            ctx.saturn.instance->VDP.DumpVDP2Registers(out);
+            out.close();
+            vdp2RegistersWritten = static_cast<bool>(out);
+        }
     }
-    if (vdp2MemoryTraceEnabled) {
+    if (vdp2MemoryTraceEnabled || ctx.tracers.SCU.traceDMA) {
         std::ofstream traceOut{dumpPath / "vdp2-memory-write-trace.csv"};
         bool traceWritten = false;
         if (!traceOut) {
@@ -391,9 +461,40 @@ void DumpAllMemory(SharedContext &ctx) {
                  << (vdp2MemoryTracer.traceVRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
                  << "trace_cram=" << (vdp2MemoryTracer.traceCRAM.load(std::memory_order_relaxed) ? 1 : 0) << '\n'
                  << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
+                 << "vdp2_vram_file_complete=" << (vdp2VRAMWritten ? 1 : 0) << '\n'
+                 << "vdp2_cram_file_complete=" << (vdp2CRAMWritten ? 1 : 0) << '\n'
+                 << "vdp2_register_file_complete=" << (vdp2RegistersWritten ? 1 : 0) << '\n'
                  << "trace_rows=" << vdp2MemoryTraceSnapshot.size() << '\n'
+                 << "trace_capacity_rows=" << vdp2MemoryTracer.capacity.load(std::memory_order_relaxed) << '\n'
                  << "trace_dropped_total=" << vdp2MemoryTraceDropped << '\n'
-                 << "bundle_complete=" << (traceWritten ? 1 : 0) << '\n';
+                 << "trace_vdp1_frame_range_enabled=" << (vdp2FrameRangeEnabled ? 1 : 0) << '\n'
+                 << "trace_vdp1_frame_begin=";
+        if (vdp2FrameRangeEnabled) {
+            manifest << vdp2FrameRangeBegin;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_vdp1_frame_end_exclusive=";
+        if (vdp2FrameRangeEnabled) {
+            manifest << vdp2FrameRangeEnd;
+        } else {
+            manifest << "not_set";
+        }
+        manifest << '\n' << "trace_rows_outside_vdp1_frame_range=" << vdp2RowsOutsideFrameRange << '\n';
+        if (!vdp2MemoryTraceSnapshot.empty()) {
+            const auto writeFrame = [&](std::string_view key, uint64 frameIndex) {
+                manifest << key << '=';
+                if (frameIndex == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
+                    manifest << "unknown\n";
+                } else {
+                    manifest << frameIndex << '\n';
+                }
+            };
+            writeFrame("first_vdp1_frame_index", vdp2MemoryTraceSnapshot.front().vdp1Frame);
+            writeFrame("last_vdp1_frame_index", vdp2MemoryTraceSnapshot.back().vdp1Frame);
+        }
+        manifest << "bundle_complete="
+                 << (traceWritten && vdp2VRAMWritten && vdp2CRAMWritten && vdp2RegistersWritten ? 1 : 0) << '\n';
 
         std::ofstream dmaOut{dumpPath / "sh2-dma-trace.csv"};
         bool dmaWritten = false;
@@ -448,8 +549,10 @@ void DumpAllMemory(SharedContext &ctx) {
             scuDMAOut << "transfer,channel,source_address,destination_address,count,source_increment,"
                          "destination_increment,indirect,indirect_address\n";
             const auto &transfers = ctx.tracers.SCU.dmaTransfers;
-            for (size_t i = 0; i < transfers.Count(); i++) {
-                const auto entry = transfers.Read(i);
+            const auto &transferHistory = ctx.tracers.SCU.dmaTransferHistory;
+            const size_t transferCount = ctx.tracers.SCU.traceDMAData ? transferHistory.size() : transfers.Count();
+            for (size_t i = 0; i < transferCount; i++) {
+                const auto entry = ctx.tracers.SCU.traceDMAData ? transferHistory[i] : transfers.Read(i);
                 scuDMAOut << entry.counter << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
                           << entry.srcAddr << ",0x" << entry.dstAddr << std::dec << ',' << entry.xferCount << ','
                           << entry.srcAddrInc << ',' << entry.dstAddrInc << ',' << (entry.indirect ? 1 : 0) << ",0x"
@@ -459,13 +562,57 @@ void DumpAllMemory(SharedContext &ctx) {
             scuDMAWritten = static_cast<bool>(scuDMAOut);
         }
         std::ofstream scuDMAManifest{dumpPath / "scu-dma-trace-bundle.txt"};
+        const bool scuDMAFullHistory = ctx.tracers.SCU.traceDMAData;
+        const size_t scuDMARetainedRows =
+            scuDMAFullHistory ? ctx.tracers.SCU.dmaTransferHistory.size() : ctx.tracers.SCU.dmaTransfers.Count();
+        const size_t scuDMADroppedRows = scuDMAFullHistory ? ctx.tracers.SCU.dmaTransferHistoryDropped : 0;
         scuDMAManifest << "format=ymir-scu-dma-trace-bundle-v1\n"
                        << "trace_file=scu-dma-trace.csv\n"
                        << "trace_file_complete=" << (scuDMAWritten ? 1 : 0) << '\n'
-                       << "retained_rows=" << ctx.tracers.SCU.dmaTransfers.Count() << '\n'
-                       << "retention_capacity=" << ctx.tracers.SCU.dmaTransfers.Capacity() << '\n'
-                       << "overflow=unknown\n"
-                       << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
+                       << "capture_mode=" << (scuDMAFullHistory ? "full_history" : "ring_buffer") << '\n'
+                       << "retained_rows=" << scuDMARetainedRows << '\n'
+                       << "retention_capacity="
+                       << (scuDMAFullHistory ? app::SCUTracer::kMaxDMATransferHistory
+                                             : ctx.tracers.SCU.dmaTransfers.Capacity())
+                       << '\n';
+        if (scuDMAFullHistory) {
+            scuDMAManifest << "dropped_rows=" << scuDMADroppedRows << '\n'
+                           << "trace_complete=" << (scuDMADroppedRows == 0 ? 1 : 0) << '\n'
+                           << "overflow=" << (scuDMADroppedRows == 0 ? "none" : "known") << '\n';
+        } else {
+            scuDMAManifest << "dropped_rows=unknown\ntrace_complete=unknown\noverflow=unknown\n";
+        }
+        scuDMAManifest << "bundle_complete=" << (scuDMAWritten ? 1 : 0) << '\n';
+
+        if (ctx.tracers.SCU.traceDMAData) {
+            std::ofstream payloadOut{dumpPath / "scu-dma-payload-trace.csv"};
+            bool payloadWritten = false;
+            if (!payloadOut) {
+                devlog::warn<grp::base>("Could not write SCU DMA payload trace in {}", dumpPath);
+            } else {
+                payloadOut << "transfer,channel,destination_address,width,value\n";
+                for (const auto &entry : ctx.tracers.SCU.dmaDataWrites) {
+                    payloadOut << entry.transfer << ',' << static_cast<unsigned>(entry.channel) << ",0x" << std::hex
+                               << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width) << ",0x"
+                               << std::hex << entry.value << std::dec << '\n';
+                }
+                payloadOut.close();
+                payloadWritten = static_cast<bool>(payloadOut);
+            }
+            std::ofstream payloadManifest{dumpPath / "scu-dma-payload-trace-bundle.txt"};
+            payloadManifest << "format=ymir-scu-dma-payload-trace-bundle-v1\n"
+                            << "trace_file=scu-dma-payload-trace.csv\n"
+                            << "trace_file_complete=" << (payloadWritten ? 1 : 0) << '\n'
+                            << "address_begin=0x" << std::hex << ctx.tracers.SCU.dmaDataAddressBegin << '\n'
+                            << "address_end_exclusive=0x" << ctx.tracers.SCU.dmaDataAddressEnd << std::dec << '\n'
+                            << "retained_rows=" << ctx.tracers.SCU.dmaDataWrites.size() << '\n'
+                            << "retention_capacity=" << ctx.tracers.SCU.maxDMADataWrites << '\n'
+                            << "dropped_rows=" << ctx.tracers.SCU.dmaDataWritesDropped << '\n'
+                            << "trace_complete=" << (ctx.tracers.SCU.dmaDataWritesDropped == 0 ? 1 : 0) << '\n'
+                            << "transfer_trace_complete=" << (scuDMAFullHistory && scuDMADroppedRows == 0 ? 1 : 0)
+                            << '\n'
+                            << "bundle_complete=" << (payloadWritten ? 1 : 0) << '\n';
+        }
 
         std::ofstream sh2MemoryOut{dumpPath / "sh2-vdp2-write-trace.csv"};
         bool sh2MemoryWritten = false;
@@ -473,14 +620,47 @@ void DumpAllMemory(SharedContext &ctx) {
         if (!sh2MemoryOut) {
             devlog::warn<grp::base>("Could not write SH-2 VDP2 write trace in {}", dumpPath);
         } else {
-            sh2MemoryOut << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            sh2MemoryOut << "sh2,vdp1_frame,origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
             const auto writeMemoryTracer = [&](std::string_view name, const SH2Tracer &tracer) {
-                for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
-                    const auto entry = tracer.memoryWrites.Read(i);
-                    sh2MemoryOut << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress
-                                 << ",0x" << entry.callerTarget << ",0x" << entry.address << std::dec << ','
+                for (const auto &entry : tracer.memoryWrites) {
+                    const bool dmac = entry.origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                    sh2MemoryOut << name << ',';
+                    if (entry.vdp1Frame == ~uint64{0}) {
+                        sh2MemoryOut << "unknown";
+                    } else {
+                        sh2MemoryOut << entry.vdp1Frame;
+                    }
+                    sh2MemoryOut << (dmac ? ",dmac," : ",cpu,");
+                    if (dmac) {
+                        if (entry.dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                            sh2MemoryOut << "unknown";
+                        } else {
+                            sh2MemoryOut << static_cast<unsigned>(entry.dmaChannel);
+                        }
+                    }
+                    sh2MemoryOut << ',';
+                    if (entry.instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                        sh2MemoryOut << "unknown";
+                    } else {
+                        sh2MemoryOut << "0x" << std::hex << entry.instructionPC << std::dec;
+                    }
+                    sh2MemoryOut << ',';
+                    if (dmac) {
+                        sh2MemoryOut << "unknown,unknown";
+                    } else {
+                        sh2MemoryOut << "0x" << std::hex << entry.callerReturnAddress << ",0x"
+                                     << entry.callerTarget << std::dec;
+                    }
+                    sh2MemoryOut << ",0x" << std::hex << entry.address << std::dec << ','
                                  << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec
-                                 << '\n';
+                                 << ',';
+                    for (uint8 i = 0; i < entry.callerTargetCount; i++) {
+                        if (i != 0) {
+                            sh2MemoryOut << '|';
+                        }
+                        sh2MemoryOut << "0x" << std::hex << entry.callerTargets[i] << std::dec;
+                    }
+                    sh2MemoryOut << '\n';
                     sh2MemoryRows++;
                 }
             };
@@ -490,13 +670,17 @@ void DumpAllMemory(SharedContext &ctx) {
             sh2MemoryWritten = static_cast<bool>(sh2MemoryOut);
         }
         std::ofstream sh2MemoryManifest{dumpPath / "sh2-vdp2-write-trace-bundle.txt"};
-        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v1\n"
+        sh2MemoryManifest << "format=ymir-sh2-vdp2-write-trace-bundle-v2\n"
                           << "trace_file=sh2-vdp2-write-trace.csv\n"
                           << "trace_file_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n'
                           << "trace_rows=" << sh2MemoryRows << '\n'
+                          << "capacity_rows=" << ctx.tracers.masterSH2.memoryWriteMaxRows << '\n'
+                          << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
+                          << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
                           << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                           << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                           << "bundle_complete=" << (sh2MemoryWritten ? 1 : 0) << '\n';
+        WriteSH2FrameReceipt(sh2MemoryManifest, ctx.tracers.masterSH2, ctx.tracers.slaveSH2);
     }
     const bool sh2MemoryReadTraceEnabled = ctx.tracers.masterSH2.traceMemoryReads
                                            || ctx.tracers.slaveSH2.traceMemoryReads;
@@ -506,16 +690,65 @@ void DumpAllMemory(SharedContext &ctx) {
         std::ofstream out{dumpPath / "sh2-memory-write-trace.csv"};
         bool written = false;
         size_t rows = 0;
+        size_t cpuRows = 0;
+        size_t dmacRows = 0;
+        std::array<size_t, 2> dmacChannelRows{};
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory write trace in {}", dumpPath);
         } else {
-            out << "sh2,pc,caller_return_address,caller_target,address,width,value\n";
+            out << "sh2,vdp1_frame,origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width,value,caller_stack_targets\n";
+            const auto writeContext = [&](ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel,
+                                          uint32 instructionPC, uint32 callerReturnAddress, uint32 callerTarget) {
+                const bool dmac = origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                out << (dmac ? "dmac" : "cpu") << ',';
+                if (dmac) {
+                    if (dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                        out << "unknown";
+                    } else {
+                        out << static_cast<unsigned>(dmaChannel);
+                    }
+                    ++dmacRows;
+                    if (dmaChannel < dmacChannelRows.size()) {
+                        ++dmacChannelRows[dmaChannel];
+                    }
+                } else {
+                    out << "";
+                    ++cpuRows;
+                }
+                out << ',';
+                if (instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                    out << "unknown";
+                } else {
+                    out << "0x" << std::hex << instructionPC << std::dec;
+                }
+                out << ',';
+                if (dmac) {
+                    out << "unknown,unknown";
+                } else {
+                    out << "0x" << std::hex << callerReturnAddress << ",0x" << callerTarget << std::dec;
+                }
+                out << ',';
+            };
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
-                for (size_t i = 0; i < tracer.memoryWrites.Count(); i++) {
-                    const auto entry = tracer.memoryWrites.Read(i);
-                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
-                        << entry.callerTarget << ",0x" << entry.address << std::dec << ','
-                        << static_cast<unsigned>(entry.width) << ",0x" << std::hex << entry.value << std::dec << '\n';
+                for (const auto &entry : tracer.memoryWrites) {
+                    out << name << ',';
+                    if (entry.vdp1Frame == ~uint64{0}) {
+                        out << "unknown";
+                    } else {
+                        out << entry.vdp1Frame;
+                    }
+                    out << ',';
+                    writeContext(entry.origin, entry.dmaChannel, entry.instructionPC, entry.callerReturnAddress,
+                                 entry.callerTarget);
+                    out << "0x" << std::hex << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width)
+                        << ",0x" << std::hex << entry.value << std::dec << ',';
+                    for (uint8 i = 0; i < entry.callerTargetCount; i++) {
+                        if (i != 0) {
+                            out << '|';
+                        }
+                        out << "0x" << std::hex << entry.callerTargets[i] << std::dec;
+                    }
+                    out << '\n';
                     rows++;
                 }
             };
@@ -525,30 +758,86 @@ void DumpAllMemory(SharedContext &ctx) {
             written = static_cast<bool>(out);
         }
         std::ofstream manifest{dumpPath / "sh2-memory-write-trace-bundle.txt"};
-        manifest << "format=ymir-sh2-memory-write-trace-bundle-v1\n"
+        manifest << "format=ymir-sh2-memory-write-trace-bundle-v2\n"
                  << "trace_file=sh2-memory-write-trace.csv\n"
                  << "trace_file_complete=" << (written ? 1 : 0) << '\n'
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryWriteAddressBegin << '\n'
                  << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryWriteAddressEnd << std::dec << '\n'
                  << "trace_rows=" << rows << '\n'
+                 << "cpu_rows=" << cpuRows << '\n'
+                 << "dmac_rows=" << dmacRows << '\n'
+                 << "dmac_channel_0_rows=" << dmacChannelRows[0] << '\n'
+                 << "dmac_channel_1_rows=" << dmacChannelRows[1] << '\n'
+                 << "capacity_rows=" << ctx.tracers.masterSH2.memoryWriteMaxRows << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryWritesDropped << '\n'
                  << "slave_dropped=" << ctx.tracers.slaveSH2.memoryWritesDropped << '\n'
                  << "bundle_complete=" << (written ? 1 : 0) << '\n';
+        WriteSH2FrameReceipt(manifest, ctx.tracers.masterSH2, ctx.tracers.slaveSH2);
     }
     if (sh2MemoryReadTraceEnabled) {
+        const bool includeReadFrame = ctx.tracers.masterSH2.memoryReadPCFilterEnabled
+                                      || ctx.tracers.slaveSH2.memoryReadPCFilterEnabled;
         std::ofstream out{dumpPath / "sh2-memory-read-trace.csv"};
         bool written = false;
         size_t rows = 0;
+        size_t cpuRows = 0;
+        size_t dmacRows = 0;
+        std::array<size_t, 2> dmacChannelRows{};
         if (!out) {
             devlog::warn<grp::base>("Could not write SH-2 memory read trace in {}", dumpPath);
         } else {
-            out << "sh2,pc,caller_return_address,caller_target,address,width\n";
+            out << "sh2,";
+            if (includeReadFrame) {
+                out << "vdp1_frame,";
+            }
+            out << "origin,dma_channel,instruction_pc,caller_return_address,caller_target,address,width\n";
+            const auto writeContext = [&](ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel,
+                                          uint32 instructionPC, uint32 callerReturnAddress, uint32 callerTarget) {
+                const bool dmac = origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                out << (dmac ? "dmac" : "cpu") << ',';
+                if (dmac) {
+                    if (dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                        out << "unknown";
+                    } else {
+                        out << static_cast<unsigned>(dmaChannel);
+                    }
+                    ++dmacRows;
+                    if (dmaChannel < dmacChannelRows.size()) {
+                        ++dmacChannelRows[dmaChannel];
+                    }
+                } else {
+                    out << "";
+                    ++cpuRows;
+                }
+                out << ',';
+                if (instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                    out << "unknown";
+                } else {
+                    out << "0x" << std::hex << instructionPC << std::dec;
+                }
+                out << ',';
+                if (dmac) {
+                    out << "unknown,unknown";
+                } else {
+                    out << "0x" << std::hex << callerReturnAddress << ",0x" << callerTarget << std::dec;
+                }
+                out << ',';
+            };
             const auto writeTracer = [&](std::string_view name, const SH2Tracer &tracer) {
                 for (size_t i = 0; i < tracer.memoryReads.Count(); i++) {
                     const auto entry = tracer.memoryReads.Read(i);
-                    out << name << ",0x" << std::hex << entry.pc << ",0x" << entry.callerReturnAddress << ",0x"
-                        << entry.callerTarget << ",0x" << entry.address << std::dec << ','
-                        << static_cast<unsigned>(entry.width) << '\n';
+                    out << name << ',';
+                    if (includeReadFrame) {
+                        if (entry.vdp1Frame == ~uint64{0}) {
+                            out << "unknown,";
+                        } else {
+                            out << entry.vdp1Frame << ',';
+                        }
+                    }
+                    writeContext(entry.origin, entry.dmaChannel, entry.instructionPC, entry.callerReturnAddress,
+                                 entry.callerTarget);
+                    out << "0x" << std::hex << entry.address << std::dec << ',' << static_cast<unsigned>(entry.width)
+                        << '\n';
                     rows++;
                 }
             };
@@ -557,16 +846,115 @@ void DumpAllMemory(SharedContext &ctx) {
             out.close();
             written = static_cast<bool>(out);
         }
+
+        const bool registerSnapshotsRequested = ctx.tracers.masterSH2.traceMemoryReadRegisterSnapshots
+                                                || ctx.tracers.slaveSH2.traceMemoryReadRegisterSnapshots;
+        bool registerSnapshotsWritten = false;
+        size_t registerSnapshotRows = 0;
+        if (registerSnapshotsRequested) {
+            std::ofstream snapshotsOut{dumpPath / "sh2-memory-read-register-snapshots.csv"};
+            bool rowsAligned = true;
+            if (!snapshotsOut) {
+                devlog::warn<grp::base>("Could not write SH-2 read register snapshots in {}", dumpPath);
+            } else {
+                snapshotsOut << "sh2,read_row,";
+                if (includeReadFrame) {
+                    snapshotsOut << "vdp1_frame,";
+                }
+                snapshotsOut << "origin,dma_channel,instruction_pc,address,width,registers_available,pc,"
+                                "r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15,pr,mach,macl,sr,gbr,vbr\n";
+                const auto writeSnapshotTracer = [&](std::string_view name, const SH2Tracer &tracer) {
+                    const auto &registers = tracer.memoryReadRegisterSnapshots;
+                    if (!registers || registers->size() != tracer.memoryReads.Count()) {
+                        rowsAligned = false;
+                        return;
+                    }
+                    for (size_t i = 0; i < tracer.memoryReads.Count(); i++) {
+                        const auto entry = tracer.memoryReads.Read(i);
+                        const auto &snapshot = registers->at(i);
+                        const bool dmac = entry.origin == ymir::debug::SH2MemoryAccessOrigin::DMAC;
+                        snapshotsOut << name << ',' << i << ',';
+                        if (includeReadFrame) {
+                            if (entry.vdp1Frame == ~uint64{0}) {
+                                snapshotsOut << "unknown,";
+                            } else {
+                                snapshotsOut << entry.vdp1Frame << ',';
+                            }
+                        }
+                        snapshotsOut << (dmac ? "dmac" : "cpu") << ',';
+                        if (dmac) {
+                            if (entry.dmaChannel == ymir::debug::kSH2UnknownDMAChannel) {
+                                snapshotsOut << "unknown";
+                            } else {
+                                snapshotsOut << static_cast<unsigned>(entry.dmaChannel);
+                            }
+                        }
+                        snapshotsOut << ',';
+                        if (entry.instructionPC == ymir::debug::kSH2UnknownInstructionPC) {
+                            snapshotsOut << "unknown";
+                        } else {
+                            snapshotsOut << "0x" << std::hex << entry.instructionPC << std::dec;
+                        }
+                        snapshotsOut << ",0x" << std::hex << entry.address << std::dec << ','
+                                     << static_cast<unsigned>(entry.width) << ',' << (snapshot.available ? 1 : 0);
+                        if (snapshot.available) {
+                            const auto &regs = snapshot.registers;
+                            snapshotsOut << ",0x" << std::hex << regs.PC;
+                            for (const uint32 reg : regs.R) {
+                                snapshotsOut << ",0x" << reg;
+                            }
+                            snapshotsOut << ",0x" << regs.PR << ",0x" << regs.MACH << ",0x" << regs.MACL << ",0x"
+                                         << regs.SR << ",0x" << regs.GBR << ",0x" << regs.VBR << std::dec;
+                        } else {
+                            for (size_t column = 0; column < 23; column++) {
+                                snapshotsOut << ",unknown";
+                            }
+                        }
+                        snapshotsOut << '\n';
+                        registerSnapshotRows++;
+                    }
+                };
+                writeSnapshotTracer("master", ctx.tracers.masterSH2);
+                writeSnapshotTracer("slave", ctx.tracers.slaveSH2);
+                snapshotsOut.close();
+                registerSnapshotsWritten = rowsAligned && static_cast<bool>(snapshotsOut);
+                if (!rowsAligned) {
+                    devlog::warn<grp::base>("SH-2 read register snapshots did not align with the read trace in {}",
+                                            dumpPath);
+                }
+            }
+        }
+
         std::ofstream manifest{dumpPath / "sh2-memory-read-trace-bundle.txt"};
-        manifest << "format=ymir-sh2-memory-read-trace-bundle-v1\n"
+        manifest << (includeReadFrame ? "format=ymir-sh2-memory-read-trace-bundle-v3\n"
+                                      : "format=ymir-sh2-memory-read-trace-bundle-v2\n")
                  << "trace_file=sh2-memory-read-trace.csv\n"
                  << "trace_file_complete=" << (written ? 1 : 0) << '\n'
                  << "address_begin=0x" << std::hex << ctx.tracers.masterSH2.memoryReadAddressBegin << '\n'
                  << "address_end_exclusive=0x" << ctx.tracers.masterSH2.memoryReadAddressEnd << std::dec << '\n'
                  << "trace_rows=" << rows << '\n'
+                 << "cpu_rows=" << cpuRows << '\n'
+                 << "dmac_rows=" << dmacRows << '\n'
+                 << "dmac_channel_0_rows=" << dmacChannelRows[0] << '\n'
+                 << "dmac_channel_1_rows=" << dmacChannelRows[1] << '\n'
                  << "master_dropped=" << ctx.tracers.masterSH2.memoryReadsDropped << '\n'
-                 << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n'
-                 << "bundle_complete=" << (written ? 1 : 0) << '\n';
+                 << "slave_dropped=" << ctx.tracers.slaveSH2.memoryReadsDropped << '\n';
+        if (includeReadFrame) {
+            manifest << "instruction_pc_filter_enabled=1\n"
+                     << "instruction_pc=0x" << std::hex << ctx.tracers.masterSH2.memoryReadPC << std::dec << '\n'
+                     << "frame_index_column=vdp1_frame\n"
+                     << "address_filter_enabled=" << (ctx.tracers.masterSH2.memoryReadAddressRangeEnabled ? 1 : 0)
+                     << '\n';
+        }
+        if (registerSnapshotsRequested) {
+            manifest << "register_snapshot_file=sh2-memory-read-register-snapshots.csv\n"
+                     << "register_snapshot_file_complete=" << (registerSnapshotsWritten ? 1 : 0) << '\n'
+                     << "register_snapshot_rows=" << registerSnapshotRows << '\n';
+        }
+        manifest << "bundle_complete=" << (written && (!registerSnapshotsRequested || registerSnapshotsWritten)
+                                               ? 1
+                                               : 0)
+                 << '\n';
     }
     {
         std::ofstream out{dumpPath / "vdp-register-snapshot.txt"};
@@ -702,14 +1090,36 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                           uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
                           uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
                           uint32 controlPadDownHoldFrames,
-                          bool captureScreenshot, bool quitWhenComplete,
+                          std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot, bool quitWhenComplete,
                           uint32 saveStateSlot, bool captureNoRender) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state rebuilds VDP and clears its optional tracer pointer.
         // Reattach it immediately before the CLI-owned capture frames.
+        auto &vdp = ctx.saturn.instance->VDP;
+        auto &renderStateTracer = ctx.tracers.VDP2RenderState;
+        if (!renderStateTracer.csvPath.empty()) {
+            if (!renderStateTracer.csv.is_open()) {
+                renderStateTracer.Abort("csv_open_failed");
+                renderStateTracer.Finalize();
+                ctx.saturn.instance->VDP.UseVDP2RenderStateTracer(nullptr);
+                ctx.DisplayMessage("Could not open VDP2 render-state CSV output");
+                return;
+            }
+            vdp.UseVDP2RenderStateTracer(&renderStateTracer);
+            if (vdp.GetRenderer().GetType() != ymir::vdp::VDPRendererType::Software) {
+                renderStateTracer.Abort("unsupported_renderer");
+                renderStateTracer.Finalize();
+                vdp.UseVDP2RenderStateTracer(nullptr);
+                ctx.DisplayMessage("VDP2 render-state tracing requires the software renderer");
+                return;
+            }
+        }
         if (ctx.saturn.instance->IsDebugTracingEnabled()) {
             ctx.tracers.VDP.enabled.store(true, std::memory_order_relaxed);
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
+            for (auto *tracer : {&ctx.tracers.masterSH2, &ctx.tracers.slaveSH2}) {
+                tracer->currentVDP1FrameIndex = &ctx.tracers.VDP.currentFrame;
+            }
             if (ctx.tracers.VDP2Memory.enabled.load(std::memory_order_relaxed)) {
                 ctx.saturn.instance->VDP.UseVDP2MemoryTracer(&ctx.tracers.VDP2Memory);
                 ctx.tracers.masterSH2.traceDMA = true;
@@ -717,19 +1127,27 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.tracers.masterSH2.ResetDMATraces();
                 ctx.tracers.slaveSH2.ResetDMATraces();
                 for (auto *tracer : {&ctx.tracers.masterSH2, &ctx.tracers.slaveSH2}) {
-                    tracer->traceMemoryWrites = true;
-                    tracer->memoryWriteAddressBegin = 0x05E00000;
-                    tracer->memoryWriteAddressEnd = 0x05F01000;
+                    // VDP2 tracing supplies a useful default SH-2 range, but
+                    // retain any explicit range configured by the CLI.
+                    if (!tracer->traceMemoryWrites) {
+                        tracer->traceMemoryWrites = true;
+                        tracer->memoryWriteAddressBegin = 0x05E00000;
+                        tracer->memoryWriteAddressEnd = 0x05F01000;
+                    }
                     tracer->ResetMemoryWriteTrace();
                 }
-                // This legacy VDP2 route configures its range after debug
-                // tracing attached the tracers, so re-sample only their
-                // optional categories without resetting execution analysis.
+                // This legacy VDP2 route configures its tracer after debug
+                // tracing attached them, so refresh optional categories
+                // without resetting execution analysis.
                 ctx.saturn.instance->masterSH2.RefreshTracerConfiguration();
                 ctx.saturn.instance->slaveSH2.RefreshTracerConfiguration();
                 ctx.tracers.SCU.traceDMA = true;
                 ctx.tracers.SCU.ClearDMATransfers();
             }
+        }
+        if (ctx.tracers.SCU.traceDMAData) {
+            ctx.tracers.SCU.traceDMA = true;
+            ctx.tracers.SCU.ClearDMATransfers();
         }
 
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();
@@ -754,7 +1172,6 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             audio.SetSilent(audioSilent);
             audio.SetSync(audioSync);
         }};
-        auto &vdp = ctx.saturn.instance->VDP;
         const auto rendererType = vdp.GetRenderer().GetType();
         if (captureNoRender) {
             auto result = vdp.UseNullRenderer();
@@ -772,66 +1189,44 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
         }};
         using Button = ymir::peripheral::Button;
         auto &controlPad = ctx.controlPadInputs[0];
-        const auto initialStartState = controlPad.buttons & Button::Start;
-        const auto initialAState = controlPad.buttons & Button::A;
-        const auto initialCState = controlPad.buttons & Button::C;
-        const auto initialDownState = controlPad.buttons & Button::Down;
+        auto scheduledInputs = controlPadInputs;
+        auto addScheduledInput = [&](uint32 frame, uint32 holdFrames, Button button) {
+            if (holdFrames != 0) {
+                scheduledInputs.push_back({frame, static_cast<std::uint16_t>(button), holdFrames});
+            }
+        };
+        addScheduledInput(controlPadStartFrame, controlPadStartHoldFrames, Button::Start);
+        addScheduledInput(controlPadStartRepeatFrame, controlPadStartRepeatHoldFrames, Button::Start);
+        addScheduledInput(controlPadAFrame, controlPadAHoldFrames, Button::A);
+        addScheduledInput(controlPadARepeatFrame, controlPadARepeatHoldFrames, Button::A);
+        addScheduledInput(controlPadCFrame, controlPadCHoldFrames, Button::C);
+        addScheduledInput(controlPadDownFrame, controlPadDownHoldFrames, Button::Down);
+        std::uint16_t managedButtons = 0;
+        for (const auto &input : scheduledInputs) managedButtons |= input.buttonMask;
+        const std::uint16_t initialManagedButtons = static_cast<std::uint16_t>(controlPad.buttons) & managedButtons;
         for (uint32 frame = 0; frame < frameCount; frame++) {
-            if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
-                const bool holdStart = controlPadStartHoldFrames != 0 && frame >= controlPadStartFrame
-                                       && frame - controlPadStartFrame < controlPadStartHoldFrames;
-                const bool holdStartRepeat = controlPadStartRepeatHoldFrames != 0
-                                             && frame >= controlPadStartRepeatFrame
-                                             && frame - controlPadStartRepeatFrame < controlPadStartRepeatHoldFrames;
-                if (holdStart || holdStartRepeat) {
-                    controlPad.buttons &= ~Button::Start;
-                } else {
-                    controlPad.buttons |= Button::Start;
+            std::uint16_t pressedButtons = 0;
+            for (const auto &input : scheduledInputs) {
+                if (frame >= input.frame && frame - input.frame < input.holdFrames) {
+                    pressedButtons |= input.buttonMask;
                 }
             }
-            if (controlPadAHoldFrames != 0 || controlPadARepeatHoldFrames != 0) {
-                const bool holdA = controlPadAHoldFrames != 0 && frame >= controlPadAFrame
-                                   && frame - controlPadAFrame < controlPadAHoldFrames;
-                const bool holdARepeat = controlPadARepeatHoldFrames != 0 && frame >= controlPadARepeatFrame
-                                         && frame - controlPadARepeatFrame < controlPadARepeatHoldFrames;
-                if (holdA || holdARepeat) {
-                    controlPad.buttons &= ~Button::A;
-                } else {
-                    controlPad.buttons |= Button::A;
-                }
-            }
-            if (controlPadCHoldFrames != 0) {
-                const bool holdC = frame >= controlPadCFrame && frame - controlPadCFrame < controlPadCHoldFrames;
-                if (holdC) {
-                    controlPad.buttons &= ~Button::C;
-                } else {
-                    controlPad.buttons |= Button::C;
-                }
-            }
-            if (controlPadDownHoldFrames != 0) {
-                const bool holdDown = frame >= controlPadDownFrame
-                                      && frame - controlPadDownFrame < controlPadDownHoldFrames;
-                if (holdDown) {
-                    controlPad.buttons &= ~Button::Down;
-                } else {
-                    controlPad.buttons |= Button::Down;
-                }
-            }
+            const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
+            controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | (managedButtons & ~pressedButtons));
             ctx.saturn.instance->RunFrame();
         }
-        if (controlPadStartHoldFrames != 0 || controlPadStartRepeatHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::Start) | initialStartState;
-        }
-        if (controlPadAHoldFrames != 0 || controlPadARepeatHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::A) | initialAState;
-        }
-        if (controlPadCHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::C) | initialCState;
-        }
-        if (controlPadDownHoldFrames != 0) {
-            controlPad.buttons = (controlPad.buttons & ~Button::Down) | initialDownState;
-        }
+        const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
+        controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
         DumpAllMemory(ctx);
+        if (!renderStateTracer.csvPath.empty()) {
+            const bool outputOkay = renderStateTracer.Finalize();
+            if (!outputOkay) {
+                ctx.DisplayMessage("VDP2 render-state trace output failed; inspect CSV and receipt");
+            } else if (renderStateTracer.captureStatus != "complete") {
+                ctx.DisplayMessage("VDP2 render-state trace coverage is incomplete; inspect its receipt");
+            }
+            vdp.UseVDP2RenderStateTracer(nullptr);
+        }
         if (saveStateSlot != 0) {
             const uint32 slotIndex = saveStateSlot - 1;
             auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -1268,7 +1663,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                    uint32 controlPadStartRepeatHoldFrames, uint32 controlPadAFrame, uint32 controlPadAHoldFrames,
                    uint32 controlPadCFrame, uint32 controlPadCHoldFrames, uint32 controlPadARepeatFrame,
                    uint32 controlPadARepeatHoldFrames, uint32 controlPadDownFrame,
-                   uint32 controlPadDownHoldFrames, bool captureScreenshot,
+                   uint32 controlPadDownHoldFrames,
+                   std::vector<ScheduledControlPadInput> controlPadInputs, bool captureScreenshot,
                    bool quitWhenComplete, uint32 saveStateSlot, bool captureNoRender) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
@@ -1412,7 +1808,7 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
                                                        controlPadAHoldFrames, controlPadCFrame,
                                                        controlPadCHoldFrames, controlPadARepeatFrame,
                                                        controlPadARepeatHoldFrames, controlPadDownFrame,
-                                                       controlPadDownHoldFrames, captureScreenshot, quitWhenComplete,
+                                                       controlPadDownHoldFrames, controlPadInputs, captureScreenshot, quitWhenComplete,
                                                        saveStateSlot, captureNoRender));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());

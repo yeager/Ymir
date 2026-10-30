@@ -222,6 +222,18 @@ int App::Run(const CommandLineOptions &options) {
 
     m_options = options;
 
+    if (!options.captureVDP2RenderStatePath.empty()) {
+        auto &tracer = m_context.tracers.VDP2RenderState;
+        if (!tracer.Configure(options.captureVDP2RenderStatePath, options.captureVDP2RenderStateFrameBegin,
+                              options.captureVDP2RenderStateFrameEnd, options.captureVDP2RenderStateRowBegin,
+                              options.captureVDP2RenderStateRowEnd, options.captureVDP2RenderedFramesPath)) {
+            tracer.Abort("render_state_or_frame_output_open_failed");
+            devlog::error<grp::base>("Could not open VDP2 render-state or frame output for '{}'",
+                                     options.captureVDP2RenderStatePath.string());
+            return -1;
+        }
+    }
+
     auto &settings = m_settings;
 
     {
@@ -1218,14 +1230,25 @@ void App::RunEmulator() {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
     }
     if (m_options.captureVDP2MemoryWrites) {
-        m_context.tracers.VDP2Memory.enabled.store(true, std::memory_order_relaxed);
-        m_context.tracers.VDP2Memory.Clear();
+        auto &tracer = m_context.tracers.VDP2Memory;
+        tracer.capacity.store(m_options.captureVDP2MemoryMaxRows, std::memory_order_relaxed);
+        tracer.enabled.store(true, std::memory_order_relaxed);
+        tracer.Clear();
+        if (m_options.captureVDP2FrameRange) {
+            tracer.vdp1FrameBegin.store(m_options.captureVDP2FrameBegin, std::memory_order_relaxed);
+            tracer.vdp1FrameEnd.store(m_options.captureVDP2FrameEnd, std::memory_order_relaxed);
+            tracer.traceVdp1FrameRange.store(true, std::memory_order_relaxed);
+        }
     }
     if (m_options.captureSH2MemoryReads) {
         for (auto *tracer : {&m_context.tracers.masterSH2, &m_context.tracers.slaveSH2}) {
             tracer->traceMemoryReads = true;
+            tracer->traceMemoryReadRegisterSnapshots = m_options.captureSH2MemoryReadRegisterSnapshots;
+            tracer->memoryReadAddressRangeEnabled = m_options.captureSH2MemoryReadAddressRange;
             tracer->memoryReadAddressBegin = m_options.captureSH2MemoryReadBegin;
             tracer->memoryReadAddressEnd = m_options.captureSH2MemoryReadEnd;
+            tracer->memoryReadPCFilterEnabled = m_options.captureSH2MemoryReadPCFilter;
+            tracer->memoryReadPC = m_options.captureSH2MemoryReadPC;
             tracer->ResetMemoryReadTrace();
         }
     }
@@ -1234,8 +1257,20 @@ void App::RunEmulator() {
             tracer->traceMemoryWrites = true;
             tracer->memoryWriteAddressBegin = m_options.captureSH2MemoryWriteBegin;
             tracer->memoryWriteAddressEnd = m_options.captureSH2MemoryWriteEnd;
+            tracer->memoryWriteMaxRows = m_options.captureSH2MemoryWriteMaxRows;
+            tracer->memoryWriteFrameRangeEnabled = m_options.captureSH2MemoryWriteFrameRange;
+            tracer->memoryWriteFrameBegin = m_options.captureSH2MemoryWriteFrameBegin;
+            tracer->memoryWriteFrameEnd = m_options.captureSH2MemoryWriteFrameEnd;
             tracer->ResetMemoryWriteTrace();
         }
+    }
+    if (m_options.captureSCUDMAData) {
+        m_context.tracers.SCU.traceDMA = true;
+        m_context.tracers.SCU.traceDMAData = true;
+        m_context.tracers.SCU.dmaDataAddressBegin = m_options.captureSCUDMADataBegin;
+        m_context.tracers.SCU.dmaDataAddressEnd = m_options.captureSCUDMADataEnd;
+        m_context.tracers.SCU.maxDMADataWrites = m_options.captureSCUDMADataMaxRows;
+        m_context.tracers.SCU.ClearDMATransfers();
     }
     if (m_options.dumpMemoryAtStartup) {
         if (m_options.captureLoadStateSlot != 0) {
@@ -1248,7 +1283,8 @@ void App::RunEmulator() {
                                        m_options.captureControlPadAHoldFrames, m_options.captureControlPadCFrame,
                                        m_options.captureControlPadCHoldFrames, m_options.captureControlPadARepeatFrame,
                                        m_options.captureControlPadARepeatHoldFrames, m_options.captureControlPadDownFrame,
-                                       m_options.captureControlPadDownHoldFrames, m_options.captureScreenshotAtEnd,
+                                       m_options.captureControlPadDownHoldFrames, m_options.captureControlPadInputs,
+                                       m_options.captureScreenshotAtEnd,
                                        m_options.captureNoPresent, m_options.captureSaveStateSlot,
                                        m_options.captureNoRender));
         } else if (m_options.captureFramesFromBoot != 0) {
@@ -1265,6 +1301,7 @@ void App::RunEmulator() {
                                                                   m_options.captureControlPadARepeatHoldFrames,
                                                                   m_options.captureControlPadDownFrame,
                                                                   m_options.captureControlPadDownHoldFrames,
+                                                                  m_options.captureControlPadInputs,
                                                                   m_options.captureScreenshotAtEnd,
                                                                   m_options.captureNoPresent,
                                                                   m_options.captureSaveStateSlot,

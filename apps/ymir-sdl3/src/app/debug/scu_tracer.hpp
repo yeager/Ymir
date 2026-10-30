@@ -6,6 +6,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace app {
 
@@ -24,6 +25,21 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
     bool traceInterrupts = false;
     bool traceDMA = false;
     bool traceDSPDMA = false;
+    bool traceDMAData = false;
+    uint32 dmaDataAddressBegin = 0;
+    uint32 dmaDataAddressEnd = 0;
+
+    struct DMADataWriteInfo {
+        uint32 transfer;
+        uint32 address;
+        uint32 value;
+        uint8 width;
+        uint8 channel;
+    };
+    static constexpr size_t kDefaultMaxDMADataWrites = 1'000'000;
+    size_t maxDMADataWrites = kDefaultMaxDMADataWrites;
+    std::vector<DMADataWriteInfo> dmaDataWrites;
+    size_t dmaDataWritesDropped = 0;
 
     struct InterruptInfo {
         uint32 counter;
@@ -44,6 +60,10 @@ struct SCUTracer final : ymir::debug::ISCUTracer {
         uint8 channel;
     };
 
+    static constexpr size_t kMaxDMATransferHistory = 1'000'000;
+    std::vector<DMAInfo> dmaTransferHistory;
+    size_t dmaTransferHistoryDropped = 0;
+
     struct DSPDMAInfo {
         uint32 counter;
         uint32 addrD0;
@@ -63,6 +83,7 @@ private:
     uint32 m_interruptCounter = 0;
     uint32 m_dmaCounter = 0;
     uint32 m_dspDmaCounter = 0;
+    uint32 m_activeDMATransfer[4]{};
     std::string m_debugMessageBuffer;
 
     // -------------------------------------------------------------------------
@@ -73,6 +94,10 @@ private:
 
     void DMA(uint8 channel, uint32 srcAddr, uint32 dstAddr, uint32 xferCount, uint32 srcAddrInc, uint32 dstAddrInc,
              bool indirect, uint32 indirectAddr) final;
+    bool WantsDMADataTrace() const final {
+        return traceDMAData;
+    }
+    void DMADataWrite(uint8 channel, uint32 address, uint32 value, uint8 width) final;
 
     void DSPDMA(bool toD0, uint32 addrD0, uint8 addrDSP, uint8 count, uint8 addrInc, bool hold) final;
 };

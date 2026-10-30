@@ -22,11 +22,13 @@ struct VDPTracer final : ymir::debug::IVDPTracer {
 
     static constexpr size_t kCapacity = 1'000'000;
     std::atomic_bool enabled{false};
+    std::atomic_uint64_t currentFrame{~uint64{0}};
     mutable std::mutex mutex;
     std::deque<Entry> entries;
     uint64 dropped = 0;
 
     bool IsEnabled() const final { return enabled.load(std::memory_order_relaxed); }
+    void BeginFrame(uint64 frame) final { currentFrame.store(frame, std::memory_order_relaxed); }
     void Command(uint64 frame, uint32 index, uint32 rootAddress, uint32 address, sint32 localX, sint32 localY,
                  const std::array<uint16, 16> &words) final {
         std::lock_guard lock(mutex);

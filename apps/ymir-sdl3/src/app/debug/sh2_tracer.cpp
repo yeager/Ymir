@@ -25,12 +25,16 @@ void SH2Tracer::ResetDMATraces() {
 }
 
 void SH2Tracer::ResetMemoryWriteTrace() {
-    memoryWrites.Clear();
+    memoryWrites.clear();
     memoryWritesDropped = 0;
 }
 
 void SH2Tracer::ResetMemoryReadTrace() {
     memoryReads.Clear();
+    memoryReadRegisterSnapshots.reset();
+    if (traceMemoryReadRegisterSnapshots) {
+        memoryReadRegisterSnapshots = std::make_unique<std::deque<MemoryReadRegisterSnapshotInfo>>();
+    }
     memoryReadsDropped = 0;
 }
 
@@ -54,25 +58,49 @@ void SH2Tracer::ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) {
     instructions.Write({pc, opcode, delaySlot});
 }
 
-void SH2Tracer::MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) {
+void SH2Tracer::MemoryWrite(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                            uint32 address, uint8 width, uint32 value) {
     if (!traceMemoryWrites || address < memoryWriteAddressBegin || address >= memoryWriteAddressEnd) {
         return;
     }
-    if (memoryWrites.Count() == memoryWrites.Capacity()) {
+    const uint64 vdp1Frame = currentVDP1FrameIndex == nullptr
+                                 ? ~uint64{0}
+                                 : currentVDP1FrameIndex->load(std::memory_order_relaxed);
+    if (memoryWriteFrameRangeEnabled && (vdp1Frame < memoryWriteFrameBegin || vdp1Frame >= memoryWriteFrameEnd)) {
+        return;
+    }
+    if (memoryWriteMaxRows == 0) {
+        return;
+    }
+    if (memoryWrites.size() >= memoryWriteMaxRows) {
+        memoryWrites.pop_front();
         memoryWritesDropped++;
     }
     uint32 callerReturnAddress = 0;
     uint32 callerTarget = 0;
-    const auto callStack = execAnalyst.GetCurrentCallStack();
-    if (!callStack.empty()) {
-        callerReturnAddress = callStack.back().address;
-        callerTarget = callStack.back().target;
+    std::array<uint32, 4> callerTargets{};
+    uint8 callerTargetCount = 0;
+    if (origin == ymir::debug::SH2MemoryAccessOrigin::CPU) {
+        const auto callStack = execAnalyst.GetCurrentCallStack();
+        if (!callStack.empty()) {
+            callerReturnAddress = callStack.back().address;
+            callerTarget = callStack.back().target;
+            for (auto it = callStack.rbegin();
+                 it != callStack.rend() && callerTargetCount < callerTargets.size(); ++it) {
+                callerTargets[callerTargetCount++] = it->target;
+            }
+        }
     }
-    memoryWrites.Write({pc, callerReturnAddress, callerTarget, address, value, width});
+    memoryWrites.push_back({vdp1Frame, origin, dmaChannel, instructionPC, callerReturnAddress, callerTarget,
+                            address, value, width, callerTargets, callerTargetCount});
 }
 
-void SH2Tracer::MemoryRead(uint32 pc, uint32 address, uint8 width) {
-    if (!traceMemoryReads || address < memoryReadAddressBegin || address >= memoryReadAddressEnd) {
+void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                           uint32 address, uint8 width) {
+    if (!traceMemoryReads || (memoryReadPCFilterEnabled
+                              && (origin != ymir::debug::SH2MemoryAccessOrigin::CPU || instructionPC != memoryReadPC))
+        || (memoryReadAddressRangeEnabled
+            && (address < memoryReadAddressBegin || address >= memoryReadAddressEnd))) {
         return;
     }
     if (memoryReads.Count() == memoryReads.Capacity()) {
@@ -80,12 +108,36 @@ void SH2Tracer::MemoryRead(uint32 pc, uint32 address, uint8 width) {
     }
     uint32 callerReturnAddress = 0;
     uint32 callerTarget = 0;
-    const auto callStack = execAnalyst.GetCurrentCallStack();
-    if (!callStack.empty()) {
-        callerReturnAddress = callStack.back().address;
-        callerTarget = callStack.back().target;
+    if (origin == ymir::debug::SH2MemoryAccessOrigin::CPU) {
+        const auto callStack = execAnalyst.GetCurrentCallStack();
+        if (!callStack.empty()) {
+            callerReturnAddress = callStack.back().address;
+            callerTarget = callStack.back().target;
+        }
     }
-    memoryReads.Write({pc, callerReturnAddress, callerTarget, address, width});
+    const uint64 vdp1Frame = !memoryReadPCFilterEnabled || currentVDP1FrameIndex == nullptr
+                                 ? ~uint64{0}
+                                 : currentVDP1FrameIndex->load(std::memory_order_relaxed);
+    memoryReads.Write({vdp1Frame, origin, dmaChannel, instructionPC, callerReturnAddress, callerTarget, address,
+                       width});
+}
+
+void SH2Tracer::MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                           uint32 address, uint8 width,
+                           const ymir::debug::SH2RegisterSnapshot *registers) {
+    MemoryRead(origin, dmaChannel, instructionPC, address, width);
+    if (!memoryReadRegisterSnapshots || !ShouldCaptureMemoryReadRegisterSnapshot(instructionPC, address)) {
+        return;
+    }
+    if (memoryReadRegisterSnapshots->size() == memoryReads.Capacity()) {
+        memoryReadRegisterSnapshots->pop_front();
+    }
+    MemoryReadRegisterSnapshotInfo snapshot{};
+    if (registers != nullptr) {
+        snapshot.available = true;
+        snapshot.registers = *registers;
+    }
+    memoryReadRegisterSnapshots->push_back(snapshot);
 }
 
 void SH2Tracer::DelaySlot(uint32 pc, uint32 target) {

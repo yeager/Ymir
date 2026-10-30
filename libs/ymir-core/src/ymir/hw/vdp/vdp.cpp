@@ -441,11 +441,14 @@ template <mem_primitive_16 T>
 FORCE_INLINE void VDP::VDP2WriteVRAM(uint32 address, T value) {
     m_state.mem2.WriteVRAM<T>(address, value, [&](uint32 mappedAddress, T mappedValue) {
         m_renderer->VDP2WriteVRAM(mappedAddress, mappedValue);
-        if (m_vdp2MemoryTracer != nullptr && m_vdp2MemoryTracer->IsEnabled()) {
+        if (m_vdp2MemoryTracer != nullptr) {
             const uint64 frame = m_vdp1FrameCounter == 0
                                      ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
                                      : m_vdp1FrameCounter - 1;
-            m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T), mappedValue);
+            if (m_vdp2MemoryTracer->ShouldTraceWrite(
+                    frame, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T))) {
+                m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T), mappedValue);
+            }
         }
     });
 }
@@ -463,11 +466,14 @@ template <mem_primitive_16 T, bool poke>
 FORCE_INLINE void VDP::VDP2WriteCRAM(uint32 address, T value) {
     m_state.mem2.WriteCRAM<T>(address, value, [&](uint32 address, T value) {
         m_renderer->VDP2WriteCRAM(address, value);
-        if (m_vdp2MemoryTracer != nullptr && m_vdp2MemoryTracer->IsEnabled()) {
+        if (m_vdp2MemoryTracer != nullptr) {
             const uint64 frame = m_vdp1FrameCounter == 0
                                      ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
                                      : m_vdp1FrameCounter - 1;
-            m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::CRAM, address, sizeof(T), value);
+            if (m_vdp2MemoryTracer->ShouldTraceWrite(
+                    frame, debug::VDP2MemoryType::CRAM, address, sizeof(T))) {
+                m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::CRAM, address, sizeof(T), value);
+            }
         }
         if constexpr (!poke) {
             devlog::trace<grp::vdp2_regs>("{}-bit VDP2 CRAM write to {:05X} = {:X}", sizeof(T) * 8, address, value);
@@ -811,6 +817,9 @@ void VDP::BeginHPhaseActiveDisplay() {
             m_cbTriggerOptimizedINTBACKRead();
         }
 
+        if (m_vdp2RenderStateTracer != nullptr) {
+            m_renderer->SetVDP2TraceFrameIndex(GetVDP2MemoryTraceFrameIndex());
+        }
         m_renderer->VDP2RenderLine(m_state.regs2.VCNT);
     }
 }

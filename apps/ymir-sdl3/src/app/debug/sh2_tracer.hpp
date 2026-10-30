@@ -4,6 +4,11 @@
 
 #include <app/debug/sh2_exec_analyst.hpp>
 
+#include <array>
+#include <atomic>
+#include <deque>
+#include <memory>
+
 #include <util/ring_buffer.hpp>
 
 namespace app {
@@ -23,10 +28,18 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     bool traceDMA = false;
     bool traceMemoryWrites = false;
     bool traceMemoryReads = false;
+    bool traceMemoryReadRegisterSnapshots = false;
     uint32 memoryWriteAddressBegin = 0;
     uint32 memoryWriteAddressEnd = 0;
+    const std::atomic_uint64_t *currentVDP1FrameIndex = nullptr;
+    bool memoryWriteFrameRangeEnabled = false;
+    uint64 memoryWriteFrameBegin = 0;
+    uint64 memoryWriteFrameEnd = 0;
+    bool memoryReadAddressRangeEnabled = true;
     uint32 memoryReadAddressBegin = 0;
     uint32 memoryReadAddressEnd = 0;
+    bool memoryReadPCFilterEnabled = false;
+    uint32 memoryReadPC = 0;
 
     struct InstructionInfo {
         uint32 pc;
@@ -82,20 +95,33 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     };
 
     struct MemoryWriteInfo {
-        uint32 pc;
+        uint64 vdp1Frame;
+        ymir::debug::SH2MemoryAccessOrigin origin;
+        uint8 dmaChannel;
+        uint32 instructionPC;
         uint32 callerReturnAddress;
         uint32 callerTarget;
         uint32 address;
         uint32 value;
         uint8 width;
+        std::array<uint32, 4> callerTargets{};
+        uint8 callerTargetCount = 0;
     };
 
     struct MemoryReadInfo {
-        uint32 pc;
+        uint64 vdp1Frame;
+        ymir::debug::SH2MemoryAccessOrigin origin;
+        uint8 dmaChannel;
+        uint32 instructionPC;
         uint32 callerReturnAddress;
         uint32 callerTarget;
         uint32 address;
         uint8 width;
+    };
+
+    struct MemoryReadRegisterSnapshotInfo {
+        bool available = false;
+        ymir::debug::SH2RegisterSnapshot registers{};
     };
 
     util::RingBuffer<InstructionInfo, 16384> instructions;
@@ -103,9 +129,11 @@ struct SH2Tracer final : ymir::debug::ISH2Tracer {
     util::RingBuffer<ExceptionInfo, 1024> exceptions;
     util::RingBuffer<DivisionInfo, 1024> divisions;
     std::array<util::RingBuffer<DMAInfo, 1024>, 2> dmaTransfers;
-    util::RingBuffer<MemoryWriteInfo, 250000> memoryWrites;
+    std::deque<MemoryWriteInfo> memoryWrites;
+    size_t memoryWriteMaxRows = 250'000;
     uint64 memoryWritesDropped = 0;
     util::RingBuffer<MemoryReadInfo, 250000> memoryReads;
+    std::unique_ptr<std::deque<MemoryReadRegisterSnapshotInfo>> memoryReadRegisterSnapshots;
     uint64 memoryReadsDropped = 0;
 
     struct DivisionStatistics {
@@ -152,9 +180,20 @@ private:
     void Reset(uint32 pc, uint32 sp, bool watchdogInitiated) final;
 
     void ExecuteInstruction(uint32 pc, uint16 opcode, bool delaySlot) final;
-    void MemoryWrite(uint32 pc, uint32 address, uint8 width, uint32 value) final;
-    void MemoryRead(uint32 pc, uint32 address, uint8 width) final;
+    void MemoryWrite(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                     uint32 address, uint8 width, uint32 value) final;
+    void MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                    uint32 address, uint8 width) final;
+    void MemoryRead(ymir::debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel, uint32 instructionPC,
+                    uint32 address, uint8 width, const ymir::debug::SH2RegisterSnapshot *registers) final;
     bool IsMemoryReadTracingEnabled() const final { return traceMemoryReads; }
+    bool IsMemoryReadRegisterSnapshotTracingEnabled() const final { return traceMemoryReadRegisterSnapshots; }
+    bool ShouldCaptureMemoryReadRegisterSnapshot(uint32 instructionPC, uint32 address) const final {
+        return traceMemoryReadRegisterSnapshots
+               && (!memoryReadPCFilterEnabled || instructionPC == memoryReadPC)
+               && (!memoryReadAddressRangeEnabled
+                   || (address >= memoryReadAddressBegin && address < memoryReadAddressEnd));
+    }
     bool IsMemoryWriteTracingEnabled() const final { return traceMemoryWrites; }
     void DelaySlot(uint32 pc, uint32 target) final;
     void Branch(uint32 pc, uint32 target) final;

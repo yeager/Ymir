@@ -9,16 +9,20 @@ The CSV records the zero-based VDP2 frame index and one-based VDP2 frame serial,
 field, VCNT row, layer, output X, resolved scroll coordinates, window and
 mosaic decisions, pattern-name source address and words, character number and
 address, character-data cache/access state, fetched dot value, and final layer
-priority. NBG1 is layer 1. A row with `window_blocked=1` has no character or dot
-fetch; `mosaic_reused=1` identifies a copied output pixel. `dot_value_valid=0`
-means the renderer's cached character bytes do not provide trustworthy dot
-data, for example immediately after loading a save state. Pattern-name
-provenance is transient and is marked invalid until Ymir performs a new pattern
-name fetch.
+priority. NBG1 is layer 1. Raw dot_value is currently populated for 16-color
+palette pixels (4 bpp); other color formats leave that field at its default and
+must not be interpreted as a fetched dot. The retained Nexus frame-891 NBG1
+register snapshot uses the 16-color palette mode, so this path covers that
+specific authentic comparison. A row with window_blocked=1 has no character
+or dot fetch; mosaic_reused=1 identifies a copied output pixel.
+dot_value_valid=0 means the renderer's cached character bytes do not provide
+trustworthy dot data, for example immediately after loading a save state.
+Pattern-name provenance is transient and is marked invalid until Ymir performs
+a new pattern name fetch.
 
 Tracing is bounded to at most 64 frame indices and 200,000 selected pixels.
 Rows and columns use half-open ranges. The CSV has a companion
-`.receipt.json`; incomplete writes and cap overflow are reported there.
+.receipt.json; incomplete writes and cap overflow are reported there.
 
 ## Nexus frame 891 example
 
@@ -40,7 +44,7 @@ ymir-sdl3 --debug \
 ```
 
 The command captures 143,360 pixel records when both passes cover all 320×224
-pixels. Confirm the CSV's `vdp2_frame_serial` for each pass before comparing it
+pixels. Confirm the CSV's vdp2_frame_serial for each pass before comparing it
 with the retained frame-891 register, VRAM, CRAM, and layer-output artifacts.
 A matching PND address does not by itself establish correct character-dot or
 window behavior; compare the recorded dot value, access state, window decision,

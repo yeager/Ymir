@@ -362,6 +362,14 @@ It requires a frame capture and `--dump-memory`. It can be combined with
 `--capture-screenshot`: the screenshot queue is drained before Ymir exits.
 Interactive runs are unaffected.
 
+`--capture-no-render` can be combined with `--capture-no-present` to run capture
+frames with the null VDP renderer. This avoids pixel composition when only
+memory, register, or write-trace evidence is needed. It can also be combined
+with `--capture-save-state N`; Ymir restores the software renderer before
+writing that state so renderer-specific state is available for a later rendered
+run. It cannot be combined with `--capture-screenshot` or the software-renderer
+VDP2 line trace.
+
 For arbitrary button sequences, repeat `--capture-pad-input FRAME:BUTTON:HOLD`:
 
 ```sh

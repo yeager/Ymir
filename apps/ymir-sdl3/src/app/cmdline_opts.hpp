@@ -50,6 +50,9 @@ struct CommandLineOptions {
     bool captureVDP2MemoryWrites = false;
     std::filesystem::path captureVDP2RenderStatePath;
     std::filesystem::path captureVDP2RenderedFramesPath;
+    std::filesystem::path captureVDPFrameSnapshotsPath;
+    bool captureVDPFrameSnapshotsRange = false;
+    unsigned captureVDPFrameSnapshotsBegin = 0, captureVDPFrameSnapshotsEnd = 0;
     bool captureVDP2RenderStateFrameRange = false;
     unsigned captureVDP2RenderStateFrameBegin = 0, captureVDP2RenderStateFrameEnd = 0;
     bool captureVDP2RenderStateRowRange = false;

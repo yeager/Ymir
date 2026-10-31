@@ -1114,6 +1114,15 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 return;
             }
         }
+        if (!renderStateTracer.vdpFrameSnapshotsPath.empty() && !renderStateTracer.vdpFrameSnapshotsIndex.is_open()) {
+            ctx.DisplayMessage("VDP frame snapshot index is not open");
+            return;
+        }
+        if (ctx.tracers.VDP2Memory.enabled.load(std::memory_order_relaxed)) {
+            // Loading a save state restores the emulated debug flag from that state.
+            // Re-enable it for a CLI-requested VDP2 memory trace before attaching tracers.
+            ctx.saturn.instance->EnableDebugTracing(true);
+        }
         if (ctx.saturn.instance->IsDebugTracingEnabled()) {
             ctx.tracers.VDP.enabled.store(true, std::memory_order_relaxed);
             ctx.saturn.instance->VDP.UseTracer(&ctx.tracers.VDP);
@@ -1215,6 +1224,13 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
             controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | (managedButtons & ~pressedButtons));
             ctx.saturn.instance->RunFrame();
+            const uint64 vdp2FrameSerial = renderStateTracer.observedVdp2FrameSerials.empty()
+                                               ? 0
+                                               : *renderStateTracer.observedVdp2FrameSerials.rbegin();
+            if (!renderStateTracer.CaptureVDPFrameSnapshot(vdp.GetVDP1FrameIndex(), vdp2FrameSerial, vdp)) {
+                ctx.DisplayMessage("VDP frame snapshot output failed; inspect index.csv");
+                return;
+            }
         }
         const std::uint16_t buttons = static_cast<std::uint16_t>(controlPad.buttons);
         controlPad.buttons = static_cast<Button>((buttons & ~managedButtons) | initialManagedButtons);
@@ -1227,6 +1243,12 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.DisplayMessage("VDP2 render-state trace coverage is incomplete; inspect its receipt");
             }
             vdp.UseVDP2RenderStateTracer(nullptr);
+        }
+        if (renderStateTracer.vdpFrameSnapshotsIndex.is_open()) {
+            renderStateTracer.vdpFrameSnapshotsIndex.close();
+            if (!renderStateTracer.vdpFrameSnapshotsIndex.good() || renderStateTracer.vdpFrameSnapshotsFailed) {
+                ctx.DisplayMessage("VDP frame snapshot capture was incomplete");
+            }
         }
         if (saveStateSlot != 0 && captureNoRender) {
             if (auto result = vdp.UseSoftwareRenderer(); !result) {

@@ -233,6 +233,13 @@ int App::Run(const CommandLineOptions &options) {
             return -1;
         }
     }
+    if (!m_context.tracers.VDP2RenderState.ConfigureVDPFrameSnapshots(
+            options.captureVDPFrameSnapshotsPath, options.captureVDPFrameSnapshotsBegin,
+            options.captureVDPFrameSnapshotsEnd)) {
+        devlog::error<grp::base>("Could not open VDP frame snapshot output for '{}'",
+                                 options.captureVDPFrameSnapshotsPath.string());
+        return -1;
+    }
 
     auto &settings = m_settings;
 

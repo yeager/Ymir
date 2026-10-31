@@ -18,6 +18,11 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
     std::filesystem::path csvPath;
     std::filesystem::path renderedFramesPath;
     std::filesystem::path renderedFramesIndexPath;
+    std::filesystem::path vdpFrameSnapshotsPath;
+    std::ofstream vdpFrameSnapshotsIndex;
+    unsigned vdpFrameSnapshotsBegin = 0, vdpFrameSnapshotsEnd = 0;
+    uint64 vdpFrameSnapshots = 0;
+    bool vdpFrameSnapshotsFailed = false;
     unsigned frameBegin = 0, frameEnd = 0, rowBegin = 0, rowEnd = 0;
     std::ofstream csv;
     std::ofstream renderedFramesIndex;
@@ -35,6 +40,57 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
     std::set<uint64> observedVdp2FrameSerials;
     std::set<uint32> observedMainRows;
     std::string captureStatus = "pending";
+
+    bool ConfigureVDPFrameSnapshots(const std::filesystem::path &path, unsigned begin, unsigned end) {
+        vdpFrameSnapshotsPath = path;
+        vdpFrameSnapshotsBegin = begin;
+        vdpFrameSnapshotsEnd = end;
+        if (path.empty()) return true;
+        std::error_code error;
+        if (std::filesystem::exists(path, error)) {
+            if (error || !std::filesystem::is_directory(path, error) || error ||
+                !std::filesystem::is_empty(path, error) || error) return false;
+        } else if (error || !std::filesystem::create_directories(path, error) || error) {
+            return false;
+        }
+        vdpFrameSnapshotsIndex.open(path / "index.csv", std::ios::trunc);
+        if (!vdpFrameSnapshotsIndex) return false;
+        vdpFrameSnapshotsIndex << "vdp1_frame,vdp2_frame_serial,file_prefix\n";
+        vdpFrameSnapshotsIndex.flush();
+        return static_cast<bool>(vdpFrameSnapshotsIndex);
+    }
+
+    template <typename VDPType> bool CaptureVDPFrameSnapshot(uint64 frame, uint64 vdp2FrameSerial,
+                                                              const VDPType &vdp) {
+        if (!vdpFrameSnapshotsIndex.is_open() || frame < vdpFrameSnapshotsBegin || frame >= vdpFrameSnapshotsEnd)
+            return true;
+        const std::string prefix = "vdp1-" + std::to_string(frame) + "-vdp2-" + std::to_string(vdp2FrameSerial);
+        auto write = [&](const char *suffix, auto dump) {
+            std::ofstream out(vdpFrameSnapshotsPath / (prefix + suffix), std::ios::binary | std::ios::trunc);
+            if (!out) return false;
+            dump(out);
+            out.close();
+            return static_cast<bool>(out);
+        };
+        const bool okay = write("-vdp1-vram.bin", [&](auto &out) { vdp.DumpVDP1VRAM(out); }) &&
+                          write("-vdp1-registers.bin", [&](auto &out) { vdp.DumpVDP1Registers(out); }) &&
+                          write("-vdp1-fbs.bin", [&](auto &out) { vdp.DumpVDP1Framebuffers(out); }) &&
+                          write("-vdp2-vram.bin", [&](auto &out) { vdp.DumpVDP2VRAM(out); }) &&
+                          write("-vdp2-cram.bin", [&](auto &out) { vdp.DumpVDP2CRAM(out); }) &&
+                          write("-vdp2-registers.bin", [&](auto &out) { vdp.DumpVDP2Registers(out); });
+        if (!okay) {
+            vdpFrameSnapshotsFailed = true;
+            return false;
+        }
+        vdpFrameSnapshotsIndex << frame << ',' << vdp2FrameSerial << ',' << prefix << '\n';
+        vdpFrameSnapshotsIndex.flush();
+        if (!vdpFrameSnapshotsIndex.good()) {
+            vdpFrameSnapshotsFailed = true;
+            return false;
+        }
+        ++vdpFrameSnapshots;
+        return true;
+    }
 
     bool Configure(const std::filesystem::path &path, unsigned fb, unsigned fe, unsigned rb, unsigned re,
                    const std::filesystem::path &framesPath = {}) {

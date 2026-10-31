@@ -165,6 +165,18 @@ the limit, frame-output count and write status. An empty frame-output range,
 limit overflow or any write error is marked incomplete. The option does not
 alter the existing VDP1 frame-row coverage status.
 
+To capture the VDP state consumed by a host-side compositor, use
+`--capture-vdp-frame-snapshots DIR` with
+`--capture-vdp-frame-snapshots-frame-range BEGIN:END`. This stores the VDP1
+framebuffer, VDP1 VRAM and registers, and VDP2 VRAM, CRAM and registers after
+each completed VDP1 frame in the half-open range. The index includes the VDP2
+render-pass serial so repeated passes within one VDP1 frame remain distinct.
+The range uses the emulator's
+VDP1 frame indices, must contain at most 500 frames, and the destination must
+be new or empty. `index.csv` lists the frames written. The option requires
+`--debug`, a rendered `--capture-frames` or `--capture-boot-frames` run, and
+`--dump-memory`; it cannot be combined with `--capture-no-render`.
+
 For the same Nexus witness, add the following options to the authentic boot
 command above to retain both VDP2 pass images for VDP1 frame 7716:
 

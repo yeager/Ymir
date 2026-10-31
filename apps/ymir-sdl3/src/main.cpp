@@ -101,6 +101,12 @@ int main(int argc, char **argv) {
     options.add_options()("trace-vdp2-rendered-frames",
                           "Write per-pass composed RGBX8888LE software-renderer frames for the selected frame range",
                           cxxopts::value(progOpts.captureVDP2RenderedFramesPath));
+    options.add_options()("capture-vdp-frame-snapshots",
+                          "Write VDP1/VDP2 VRAM, CRAM, registers, and framebuffers for a selected VDP1 frame range",
+                          cxxopts::value(progOpts.captureVDPFrameSnapshotsPath));
+    options.add_options()("capture-vdp-frame-snapshots-frame-range",
+                          "Half-open VDP1 frame range BEGIN:END for hardware-state snapshots",
+                          cxxopts::value<std::string>());
     options.add_options()("trace-vdp2-render-state-frame-range", "Half-open VDP1 frame range BEGIN:END for render-state samples",
                           cxxopts::value<std::string>());
     options.add_options()("trace-vdp2-render-state-row-range", "Half-open rendered row range BEGIN:END for render-state samples",
@@ -169,6 +175,18 @@ int main(int argc, char **argv) {
                                    progOpts.captureVDP2RenderStateRowRange,
                                    progOpts.captureVDP2RenderStateRowBegin,
                                    progOpts.captureVDP2RenderStateRowEnd)) return -1;
+        if (!parseRenderStateRange("capture-vdp-frame-snapshots-frame-range",
+                                   progOpts.captureVDPFrameSnapshotsRange,
+                                   progOpts.captureVDPFrameSnapshotsBegin,
+                                   progOpts.captureVDPFrameSnapshotsEnd)) return -1;
+        if (progOpts.captureVDPFrameSnapshotsRange != !progOpts.captureVDPFrameSnapshotsPath.empty() ||
+            (progOpts.captureVDPFrameSnapshotsRange &&
+             (!progOpts.enableDebugTracing || (progOpts.captureFramesAfterLoad == 0 && progOpts.captureFramesFromBoot == 0) ||
+              !progOpts.dumpMemoryAtStartup || progOpts.captureNoRender ||
+              progOpts.captureVDPFrameSnapshotsEnd - progOpts.captureVDPFrameSnapshotsBegin > 500))) {
+            fmt::println("--capture-vdp-frame-snapshots requires its frame range, --debug, a rendered frame capture, and --dump-memory (maximum 500 frames)");
+            return -1;
+        }
         const bool renderStateTrace = !progOpts.captureVDP2RenderStatePath.empty();
         const bool renderedFrameTrace = !progOpts.captureVDP2RenderedFramesPath.empty();
         if (renderedFrameTrace && (!renderStateTrace || !progOpts.captureVDP2RenderStateFrameRange)) {

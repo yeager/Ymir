@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -43,6 +44,9 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
     std::set<uint64> observedMainFrames;
     std::set<uint64> observedVdp2FrameSerials;
     std::set<uint32> observedMainRows;
+    std::set<uint64> observedLayerFrames;
+    std::set<uint64> observedLayerSerials;
+    std::map<std::pair<uint64, bool>, std::set<uint32>> layerCoverageByPass;
     std::string captureStatus = "pending";
 
     bool Configure(const std::filesystem::path &path, unsigned fb, unsigned fe, unsigned rb, unsigned re,
@@ -59,6 +63,7 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
         captureStatus = "pending";
         mainCoverage.clear(); mainVdp2FrameCoverage.clear(); observedMainFrames.clear();
         observedVdp2FrameSerials.clear(); observedMainRows.clear();
+        observedLayerFrames.clear(); observedLayerSerials.clear(); layerCoverageByPass.clear();
 
         if (!renderedFramesPath.empty()) {
             std::error_code error;
@@ -175,6 +180,9 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
             ++layerOutputRecords;
             layerOutputBytes += recordBytes;
         }
+        observedLayerFrames.insert(frame);
+        observedLayerSerials.insert(serial);
+        layerCoverageByPass[{serial, alternateField}].insert(y);
     }
 
     void CompletedFrame(uint64 frame, uint64 vdp2FrameSerial, uint32 width, uint32 height,
@@ -299,7 +307,26 @@ struct VDP2RenderStateTracer final : ymir::debug::IVDP2RenderStateTracer {
                          << "layer_ids=0:sprite,1:rbg0,2:nbg0_or_rbg1,3:nbg1_or_exbg,4:nbg2,5:nbg3,6:transparent_mesh\n"
                          << "records_written=" << layerOutputRecords << "\nbytes_written=" << layerOutputBytes << "\n"
                          << "byte_limit=" << kMaxLayerOutputBytes << "\nlimit_exceeded="
-                         << (layerOutputLimitExceeded ? 1 : 0) << "\nwrite_error=" << (layerOutputFailed ? 1 : 0) << "\n";
+                         << (layerOutputLimitExceeded ? 1 : 0) << "\nwrite_error=" << (layerOutputFailed ? 1 : 0) << "\n"
+                         << "frame_range_half_open=" << frameBegin << ':' << frameEnd << "\n"
+                         << "row_vcnt_range_half_open=" << rowBegin << ':' << rowEnd << "\n"
+                         << "observed_frame_count=" << observedLayerFrames.size() << "\n"
+                         << "observed_vdp2_serial_count=" << observedLayerSerials.size() << "\n"
+                         << "observed_vdp2_serial_ids=";
+            bool firstSerial = true;
+            for (uint64 serial : observedLayerSerials) {
+                layerReceipt << (firstSerial ? "" : ",") << serial;
+                firstSerial = false;
+            }
+            bool layerCoverageComplete = !observedLayerFrames.empty() &&
+                                         observedLayerFrames.size() == frameEnd - frameBegin;
+            for (const auto &[pass, rows] : layerCoverageByPass) {
+                (void)pass;
+                layerCoverageComplete = layerCoverageComplete && rows.size() == rowEnd - rowBegin;
+            }
+            layerReceipt << "\nobserved_pass_field_count=" << layerCoverageByPass.size() << "\n"
+                         << "capture_status="
+                         << (!layerOutputFailed && layerCoverageComplete ? "complete" : "incomplete") << "\n";
             layerReceipt.flush();
             if (!layerReceipt.good()) return false;
         }

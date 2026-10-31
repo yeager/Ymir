@@ -17,6 +17,13 @@ struct CommandLineOptions {
     uint64_t pndFetchEndFrame = 64;
     uint32_t pndFetchFirstRow = 0;
     uint32_t pndFetchEndRow = 512;
+    std::filesystem::path vdp2PixelFetchTracePath;
+    uint64_t vdp2PixelFetchFirstFrame = 0;
+    uint64_t vdp2PixelFetchEndFrame = 1;
+    uint32_t vdp2PixelFetchFirstRow = 0;
+    uint32_t vdp2PixelFetchEndRow = 224;
+    uint32_t vdp2PixelFetchFirstX = 0;
+    uint32_t vdp2PixelFetchEndX = 320;
 };
 
 } // namespace app

@@ -7,6 +7,7 @@
 
 #include <ymir/hw/vdp/renderer/vdp_renderer_base.hpp>
 #include <ymir/debug/vdp2_pnd_fetch_tracer.hpp>
+#include <ymir/debug/vdp2_pixel_fetch_tracer.hpp>
 
 #include <ymir/hw/vdp/vdp1_regs.hpp>
 #include <ymir/hw/vdp/vdp2_regs.hpp>
@@ -75,6 +76,10 @@ public:
 
     void UseVDP2PNDFetchTracer(debug::IVDP2PNDFetchTracer *tracer) {
         m_vdp2PNDFetchTracer = tracer;
+    }
+
+    void UseVDP2PixelFetchTracer(debug::IVDP2PixelFetchTracer *tracer) {
+        m_vdp2PixelFetchTracer = tracer;
     }
 
     // -------------------------------------------------------------------------
@@ -178,6 +183,7 @@ private:
     const config::VDP2DebugRender &m_vdp2DebugRenderOptions;
     const config::VDP2AccessPatternsConfig &m_vdp2AccessPatternsConfig;
     debug::IVDP2PNDFetchTracer *m_vdp2PNDFetchTracer = nullptr;
+    debug::IVDP2PixelFetchTracer *m_vdp2PixelFetchTracer = nullptr;
 
     uint32 m_HRes;
     uint32 m_VRes;
@@ -1259,7 +1265,8 @@ private:
     Pixel VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2Regs &regs2,
                                  std::span<const uint32> pageBaseAddresses, uint32 pageShiftH, uint32 pageShiftV,
                                  CoordU32 scrollCoord, VRAMFetcher &vramFetcher,
-                                 const debug::VDP2PNDFetchContext *traceContext);
+                                 const debug::VDP2PNDFetchContext *traceContext,
+                                 debug::VDP2PixelFetchSample *pixelTrace = nullptr);
 
     // Fetches a two-word character from VRAM.
     //
@@ -1267,7 +1274,8 @@ private:
     // pageBaseAddress specifies the base address of the page of character patterns.
     // charIndex is the index of the character to fetch.
     Character VDP2FetchTwoWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress, uint32 charIndex,
-                                        const debug::VDP2PNDFetchContext *traceContext);
+                                        const debug::VDP2PNDFetchContext *traceContext,
+                                        CharacterPatternNameSource *source);
 
     // Fetches a one-word character from VRAM.
     //
@@ -1280,7 +1288,8 @@ private:
     // extChar indicates if the flip bits are available (false) or used to extend the character number (true).
     template <bool fourCellChar, bool largePalette, bool extChar>
     Character VDP2FetchOneWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress, uint32 charIndex,
-                                        const debug::VDP2PNDFetchContext *traceContext);
+                                        const debug::VDP2PNDFetchContext *traceContext,
+                                        CharacterPatternNameSource *source);
 
     // Extract a one-word character from the given raw character data.
     //
@@ -1305,7 +1314,8 @@ private:
     // colorMode is the CRAM color mode.
     template <ColorFormat colorFormat, uint32 colorMode>
     Pixel VDP2FetchCharacterPixel(const BGParams &bgParams, const VDP2Regs &regs2, VRAMFetcher &vramFetcher,
-                                  CoordU32 dotCoord, uint32 cellIndex);
+                                  CoordU32 dotCoord, uint32 cellIndex,
+                                  debug::VDP2PixelFetchSample *pixelTrace = nullptr);
 
     // Fetches a bitmap pixel at the given coordinates.
     //
@@ -1338,7 +1348,8 @@ private:
     // colorMode is the CRAM color mode.
     template <bool bitmap, ColorFormat colorFormat, uint32 colorMode>
     Pixel VDP2FetchPixel(const BGParams &bgParams, const VDP2Regs &regs2, VRAMFetcher &vramFetcher, uint32 baseAddress,
-                         uint32 linePitch, CoordU32 dotCoord, uint32 palNum, bool specColorCalc, bool specPriority);
+                         uint32 linePitch, CoordU32 dotCoord, uint32 palNum, bool specColorCalc, bool specPriority,
+                         debug::VDP2PixelFetchSample *pixelTrace = nullptr);
 
     // Fetches a color from CRAM using the current color mode specified by vramControl.colorRAMMode.
     //

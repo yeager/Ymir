@@ -198,6 +198,7 @@ App::App()
 }
 
 App::~App() {
+    m_context.saturn.instance->VDP.UseVDP2PixelFetchTracer(nullptr);
     m_context.saturn.instance->VDP.UseVDP2PNDFetchTracer(nullptr);
     m_context.saturn.instance->SMPC.ClearPersistDataCallback();
 }
@@ -894,6 +895,27 @@ void App::RunEmulator() {
             return;
         }
         vdp.UseVDP2PNDFetchTracer(m_vdp2PNDFetchTrace.get());
+    }
+    if (!m_options.vdp2PixelFetchTracePath.empty()) {
+        if (vdp.GetRenderer().GetType() != ymir::vdp::VDPRendererType::Software) {
+            if (auto result = vdp.UseSoftwareRenderer(); !result) {
+                ShowStartupFailure("Pixel-fetch tracing requires the software VDP renderer: {}",
+                                   result.Error().message);
+                return;
+            }
+        }
+        m_vdp2PixelFetchTrace = std::make_unique<VDP2PixelFetchTrace>(
+            m_options.vdp2PixelFetchTracePath, m_options.vdp2PixelFetchFirstFrame,
+            m_options.vdp2PixelFetchEndFrame, m_options.vdp2PixelFetchFirstRow,
+            m_options.vdp2PixelFetchEndRow, m_options.vdp2PixelFetchFirstX,
+            m_options.vdp2PixelFetchEndX, 200000);
+        if (!m_vdp2PixelFetchTrace->IsOpen()) {
+            ShowStartupFailure("Could not open VDP2 pixel-fetch trace CSV: {}",
+                               m_options.vdp2PixelFetchTracePath.string());
+            m_vdp2PixelFetchTrace.reset();
+            return;
+        }
+        vdp.UseVDP2PixelFetchTracer(m_vdp2PixelFetchTrace.get());
     }
 
     ScopeGuard sgReleaseVDPRenderer{[&] { vdp.UseNullRenderer(); }};

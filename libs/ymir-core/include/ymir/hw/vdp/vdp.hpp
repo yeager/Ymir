@@ -25,6 +25,7 @@
 
 #include <ymir/hw/hw_defs.hpp>
 #include <ymir/debug/vdp2_pnd_fetch_tracer.hpp>
+#include <ymir/debug/vdp2_pixel_fetch_tracer.hpp>
 
 #include "renderer/vdp_renderer.hpp"
 
@@ -85,6 +86,14 @@ public:
         m_vdp2PNDFetchTracer = tracer;
         if (auto *swRenderer = m_renderer->As<VDPRendererType::Software>()) {
             swRenderer->UseVDP2PNDFetchTracer(tracer);
+        }
+    }
+
+    /// @brief Configures the bounded software-renderer VDP2 pixel-fetch trace.
+    void UseVDP2PixelFetchTracer(debug::IVDP2PixelFetchTracer *tracer) {
+        m_vdp2PixelFetchTracer = tracer;
+        if (auto *swRenderer = m_renderer->As<VDPRendererType::Software>()) {
+            swRenderer->UseVDP2PixelFetchTracer(tracer);
         }
     }
 
@@ -281,6 +290,7 @@ private:
 
     std::unique_ptr<IVDPRenderer> m_renderer;
     debug::IVDP2PNDFetchTracer *m_vdp2PNDFetchTracer = nullptr;
+    debug::IVDP2PixelFetchTracer *m_vdp2PixelFetchTracer = nullptr;
 
     /// @brief Attempts to replaces the renderer with an instance of the given renderer.
     ///
@@ -324,6 +334,7 @@ private:
         if constexpr (std::is_same_v<T, SoftwareVDPRenderer>) {
             renderer->SwCallbacks = m_swRendererCallbacks;
             renderer->UseVDP2PNDFetchTracer(m_vdp2PNDFetchTracer);
+            renderer->UseVDP2PixelFetchTracer(m_vdp2PixelFetchTracer);
 #if YMIR_PLATFORM_HAS_DIRECT3D
         } else if constexpr (std::is_same_v<T, Direct3D12VDPRenderer>) {
             renderer->HwCallbacks = m_d3d12RendererCallbacks;

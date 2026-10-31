@@ -14,6 +14,7 @@ struct VDP2PNDFetchContext {
     uint32 screenX;
     uint32 scrollX;
     uint32 scrollY;
+    bool trackPixelSource;
 };
 
 struct VDP2PNDFetchSample {

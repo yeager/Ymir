@@ -31,6 +31,8 @@ add_executable(ymir-sdl3
     src/app/debug/cd_drive_tracer.hpp
     src/app/debug/vdp2_pnd_fetch_trace.cpp
     src/app/debug/vdp2_pnd_fetch_trace.hpp
+    src/app/debug/vdp2_pixel_fetch_trace.cpp
+    src/app/debug/vdp2_pixel_fetch_trace.hpp
 
     src/app/debug/scsp_tracer.cpp
     src/app/debug/scsp_tracer.hpp

@@ -6,6 +6,7 @@
 #include "settings.hpp"
 #include "shared_context.hpp"
 #include "debug/vdp2_pnd_fetch_trace.hpp"
+#include "debug/vdp2_pixel_fetch_trace.hpp"
 
 #include "services/disc_service.hpp"
 #include "services/discord_rpc_service.hpp"
@@ -38,6 +39,7 @@ public:
 private:
     CommandLineOptions m_options;
     std::unique_ptr<VDP2PNDFetchTrace> m_vdp2PNDFetchTrace;
+    std::unique_ptr<VDP2PixelFetchTrace> m_vdp2PixelFetchTrace;
 
     YmirImGuiData m_imguiData;
     SharedContext m_context;

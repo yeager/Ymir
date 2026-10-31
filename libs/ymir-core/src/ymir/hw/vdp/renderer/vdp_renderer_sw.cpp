@@ -2658,6 +2658,20 @@ void SoftwareVDPRenderer::VDP2DrawLine(uint32 y, bool altField, uint64 vdp2Frame
         }
     }
 
+    if (m_vdp2RenderStateTracer != nullptr && m_vdp2RenderStateTracer->ShouldCaptureLayerOutput(frame, y)) {
+        std::array<debug::VDP2LayerOutputView, 7> layers{};
+        for (uint32 layer = 0; layer < m_layerOutputs[altField].size(); ++layer) {
+            const auto &pixels = m_layerOutputs[altField][layer].pixels;
+            layers[layer] = {static_cast<uint8>(layer), pixels.color.data(),
+                             pixels.priority.data(), pixels.specialColorCalc.data()};
+        }
+        const auto &meshPixels = m_meshLayerOutput[altField].pixels;
+        layers[6] = {6, meshPixels.color.data(), meshPixels.priority.data(),
+                     meshPixels.specialColorCalc.data()};
+        m_vdp2RenderStateTracer->LayerOutput(frame, vdp2FrameSerial, lineCallOrdinal, y, altField, m_HRes,
+                                             layers.data(), static_cast<uint32>(layers.size()));
+    }
+
     // Compose image
     VDP2ComposeLine<deinterlace, transparentMeshes>(y, regs2, altField);
 }

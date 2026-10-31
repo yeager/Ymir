@@ -101,6 +101,9 @@ int main(int argc, char **argv) {
     options.add_options()("trace-vdp2-rendered-frames",
                           "Write per-pass composed RGBX8888LE software-renderer frames for the selected frame range",
                           cxxopts::value(progOpts.captureVDP2RenderedFramesPath));
+    options.add_options()("trace-vdp2-layer-outputs",
+                          "Write bounded pre-composition VDP2 layer pixels and priorities to this path",
+                          cxxopts::value(progOpts.captureVDP2LayerOutputsPath));
     options.add_options()("trace-vdp2-render-state-frame-range", "Half-open VDP1 frame range BEGIN:END for render-state samples",
                           cxxopts::value<std::string>());
     options.add_options()("trace-vdp2-render-state-row-range", "Half-open rendered row range BEGIN:END for render-state samples",
@@ -171,8 +174,13 @@ int main(int argc, char **argv) {
                                    progOpts.captureVDP2RenderStateRowEnd)) return -1;
         const bool renderStateTrace = !progOpts.captureVDP2RenderStatePath.empty();
         const bool renderedFrameTrace = !progOpts.captureVDP2RenderedFramesPath.empty();
+        const bool layerOutputTrace = !progOpts.captureVDP2LayerOutputsPath.empty();
         if (renderedFrameTrace && (!renderStateTrace || !progOpts.captureVDP2RenderStateFrameRange)) {
             fmt::println("--trace-vdp2-rendered-frames requires --trace-vdp2-render-state and its frame range");
+            return -1;
+        }
+        if (layerOutputTrace && (!renderStateTrace || !progOpts.captureVDP2RenderStateFrameRange)) {
+            fmt::println("--trace-vdp2-layer-outputs requires --trace-vdp2-render-state and its frame range");
             return -1;
         }
         if ((progOpts.captureVDP2RenderStateFrameRange || progOpts.captureVDP2RenderStateRowRange) &&

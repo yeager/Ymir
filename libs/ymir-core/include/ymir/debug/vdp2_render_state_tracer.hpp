@@ -27,6 +27,13 @@ struct VDP2RenderStateSample {
     bool mosaicReuse;
 };
 
+struct VDP2LayerOutputView {
+    uint8 layer;
+    const void *color;
+    const uint8 *priority;
+    const bool *specialColorCalc;
+};
+
 struct IVDP2RenderStateTracer {
     virtual ~IVDP2RenderStateTracer() = default;
     virtual bool ShouldTrace(uint64 frame, uint32 y) const = 0;
@@ -34,6 +41,9 @@ struct IVDP2RenderStateTracer {
     virtual bool ShouldCaptureFrame(uint64 frame) const = 0;
     virtual void CompletedFrame(uint64 frame, uint64 vdp2FrameSerial, uint32 width, uint32 height,
                                 const uint32 *pixels) = 0;
+    virtual bool ShouldCaptureLayerOutput(uint64, uint32) const { return false; }
+    virtual void LayerOutput(uint64, uint64, uint32, uint32, bool, uint32,
+                             const VDP2LayerOutputView *, uint32) {}
 };
 
 } // namespace ymir::debug

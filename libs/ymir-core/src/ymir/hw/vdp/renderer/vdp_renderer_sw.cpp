@@ -5459,8 +5459,17 @@ SoftwareVDPRenderer::VDP2FetchPixel(const BGParams &bgParams, const VDP2Regs &re
 
     } else if constexpr (colorFormat == ColorFormat::Palette256) {
         const uint32 dotAddress = baseAddress + dotOffset;
+        if (pixelTrace != nullptr) {
+            pixelTrace->dotAddress = dotAddress & 0x7FFFFU;
+        }
         fetchCharData(dotAddress);
         const uint8 dotData = vramFetcher.charData[dotAddress & 7];
+        if (pixelTrace != nullptr) {
+            pixelTrace->charDataValid = vramFetcher.charDataValid;
+            pixelTrace->charPatternAccessAllowed = vramFetcher.charDataAccessAllowed;
+            pixelTrace->dotValue = dotData;
+            pixelTrace->dotValueValid = vramFetcher.charDataValid;
+        }
         if (bgParams.enableTransparency && dotData == 0) {
             pixel.priority = 0;
             return pixel;

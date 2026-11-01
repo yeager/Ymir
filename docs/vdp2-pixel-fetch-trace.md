@@ -61,6 +61,9 @@ deterministic frame-step route produced two complete 320×224 NBG1 passes:
 143,360 pixel records, zero dropped rows, and zero write errors. Every pixel
 has a valid PND source; 74 pixels per pass have nonzero layer priority.
 
+The built executable is installed on TRV2 as
+`/usr/local/bin/ymir-sdl3-vdp2-trace`.
+
 This immediate post-load check does not establish character-dot parity:
 `char_data_valid` and `dot_value_valid` are zero for all 71,680 pixels in both
 passes. A separate 56-frame probe also found no valid character data in the

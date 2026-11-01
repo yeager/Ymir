@@ -9,12 +9,11 @@ The CSV records the zero-based VDP2 frame index and one-based VDP2 frame serial,
 field, VCNT row, layer, output X, resolved scroll coordinates, window and
 mosaic decisions, pattern-name source address and words, character number and
 address, character-data cache/access state, fetched dot value, and final layer
-priority. NBG1 is layer 1. Raw dot_value is currently populated for 16-color
-palette pixels (4 bpp); other color formats leave that field at its default and
-must not be interpreted as a fetched dot. The retained Nexus frame-891 NBG1
-register snapshot uses the 16-color palette mode, so this path covers that
-specific authentic comparison. A row with window_blocked=1 has no character
-or dot fetch; mosaic_reused=1 identifies a copied output pixel.
+priority. NBG1 is layer 1. Raw `dot_value` is populated for 16-color and
+256-color palette pixels (4 bpp and 8 bpp). Other color formats leave that
+field at its default and must not be interpreted as a fetched dot. A row with
+`window_blocked=1` has no character or dot fetch; `mosaic_reused=1` identifies
+a copied output pixel.
 dot_value_valid=0 means the renderer's cached character bytes do not provide
 trustworthy dot data, for example immediately after loading a save state.
 Pattern-name provenance is transient and is marked invalid until Ymir performs

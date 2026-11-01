@@ -273,7 +273,7 @@ EmuEvent DumpMemory() {
 }
 
 EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
-                          debug::IVDP2PixelFetchTracer *pixelFetchTracer) {
+                          ymir::debug::IVDP2PixelFetchTracer *pixelFetchTracer) {
     return RunFunction([=](SharedContext &ctx) {
         // Loading a state reconstructs the VDP and clears optional tracer pointers.
         // Reattach immediately before the first deterministic capture frame.
@@ -722,7 +722,7 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 }
 
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
-                   uint32 controlPadStartHoldFrames, debug::IVDP2PixelFetchTracer *pixelFetchTracer) {
+                   uint32 controlPadStartHoldFrames, ymir::debug::IVDP2PixelFetchTracer *pixelFetchTracer) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();

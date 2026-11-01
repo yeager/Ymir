@@ -54,10 +54,10 @@ route. Loading a state reconstructs the VDP and clears renderer-owned tracer
 hooks. The CLI capture reattaches the pixel tracer immediately before its first
 scheduled frame, so the trace covers the requested replay rather than only the
 startup frames. For the retained MAPD frame-891 save state, slot 3 and a
-1,600-frame replay can be captured with:
+1,280-frame replay can be captured with:
 
 ```sh
-ymir-sdl3 --debug --load-state 3 --capture-frames 1600 \
+ymir-sdl3 --debug --load-state 3 --capture-frames 1280 \
   --capture-start-frame 0 --capture-start-hold 60 --dump-memory \
   --vdp2-pixel-fetch-trace /tmp/nexus-mapd-frame891.csv \
   --vdp2-pixel-fetch-first-frame 1278 \
@@ -65,16 +65,17 @@ ymir-sdl3 --debug --load-state 3 --capture-frames 1600 \
   /path/to/authentic-nexus-disc.cue
 ```
 
-This captures the two zero-based passes corresponding to VDP2 frame serials
-1279 and 1280. The save slot must belong to the selected profile and match the
-disc, IPL, and CD block ROM hashes. Keep the resulting trace receipt and memory
-dump with the run; frame numbers alone do not prove the replay reached the
-intended game state.
+A 1,280-frame replay dumps memory at target serial 1280. A longer 1,600-frame
+replay advances past that target, so its final memory dump cannot be used as
+the target pass snapshot. The save slot must belong to the selected profile and
+match the disc, IPL, and CD block ROM hashes. Keep the resulting trace receipt
+and memory dump with the run; frame numbers alone do not prove the replay
+reached the intended game state.
 
 ## Initial authentic save-state runtime check
 
-The trace was also exercised against an authentic Nexus gameplay save state
-from the external Firestaff evidence corpus. The state SHA-256 is
+An initial trace was exercised against an authentic Nexus gameplay save state
+from the external Firestaff evidence corpus. That state's SHA-256 is
 `156fa6982798ac7850ff21d12b7ce0b7dee278e0f501f55e18178fd96a2dce2e`; its
 Japanese retail disc and IPL hashes match the pinned Nexus inputs above. The
 loaded state has `BGON=0x0007`, `CHCTLA=0x1013`, and `CHCTLB=0x0002`. Ymir's
@@ -89,14 +90,15 @@ A paired authentic state capture confirms the register tuple and raw VDP2
 memory. The dominant PND `0x20001100` selects address `0x22000`, whose 32-byte
 span is zero-filled in the dump. Three sparse PND references select `0x22200`,
 `0x22580`, and `0x228c0`, with 2, 9, and 10 nonzero bytes in their respective
-32-byte spans. The provenance addresses therefore resolve into the captured
-VRAM, but the pixel trace still reports those data/dot fetches as invalid. The
-raw memory dump does not turn those invalid per-pixel samples into dot evidence.
+32-byte spans. In this initial capture, those provenance addresses resolved
+into VRAM, but per-pixel data/dot fetches remained invalid. The raw memory dump
+did not turn those invalid samples into dot evidence.
 
 This immediate post-load check does not establish character-dot parity:
-`char_data_valid` and `dot_value_valid` are zero for all 71,680 pixels in both
-passes. A separate 56-frame probe also found no valid character data in the
-sampled x-range. The retained trace and receipts are under
+`char_data_valid` and `dot_value_valid` were zero for all 71,680 pixels in both
+passes in this initial instrumentation run. A separate 56-frame probe also
+found no valid character data in the sampled x-range. A later authentic MAPD
+replay is documented below. The retained trace and receipts are under
 `/Volumes/Extern-disk/firestaff-evidence/nexus/ymir-vdp2-pixel-fetch-trace-20261101/active-layer/`.
 This initial trace predates the 256-color dot-fetch instrumentation. It verifies
 bounded tracing and pattern-name provenance on real game data, but its dot
@@ -121,3 +123,38 @@ directory `firestaff-evidence/nexus/ymir-vdp2-gameplay-pass0-20261101/`.
 This verifies one authentic save-state frame and the capture-only compositor
 for that state. It does not establish hardware parity, parity in other scenes
 or video modes, or readiness to use the compositor as the live renderer.
+
+## Authentic MAPD 4bpp pass transition
+
+A pixel trace of the Japanese retail MAPD state was joined to Ymir's paired
+VDP2 pass snapshots for VDP1 frame 891. Use a 1,280-frame deterministic replay
+so the memory dump is taken at VDP2 serial 1280, the target pass. A 1,600-frame
+dump is later in the game and must not be treated as that pass's memory state.
+
+The trace receipt is complete: 143,360 samples, zero dropped rows, and zero
+write errors. In the preceding VDP2 pass (zero-based frame 1278, serial 1279),
+all 71,680 NBG1 samples have dot value zero and priority zero. In the target
+pass (frame 1279, serial 1280), all PND, character-data, and dot fields are
+valid. Exactly 44,800 pixels have nonzero priority, covering rows 84–223; the
+upper 26,880 pixels have zero dot and zero priority.
+
+`scripts/verify_ymir_vdp2_pixel_fetch_pair.py` verifies the samples against
+the authentic VRAM snapshots from serials 1279 and 1280. It reconstructs the
+exact fetched 4bpp nibble using the character address, scroll offset, and PND
+flip bits. All 143,360 traced dot values match the nibble in the VRAM selected
+by the recorded PND provenance. For the target pass, 26,880 PND samples match
+the preceding snapshot and 44,800 match the target snapshot. The transition occurs between rows 83 and 84. This
+is consistent with the authentic VDP2 map transfer occurring during the
+rendered frame; the final VRAM snapshot alone does not represent the source
+state used for every scanline.
+
+The capture-only Firestaff tile decoder's full plane is a raw pattern decode,
+not the final layer output. Its RGB values match Ymir's NBG1 output for all
+44,800 nonzero-priority pixels. The 26,880 zero-priority pixels must remain
+transparent in composition even though a post-transfer raw tile decode has
+data at those coordinates. This evidence verifies one authentic pass and
+does not establish general Saturn hardware parity.
+
+The complete trace, receipt, paired VRAM snapshots, register/CRAM inputs,
+per-pass analyses, verification script, and `SHA256SUMS.txt` are retained under
+`/Volumes/Extern-disk/firestaff-evidence/nexus/ymir-vdp2-pixel-fetch-trace-20261101/mapd-frame891-frame1280/`.

@@ -49,7 +49,7 @@ A matching PND address does not by itself establish correct character-dot or
 window behavior; compare the recorded dot value, access state, window decision,
 and final priority as well.
 
-## Authentic save-state runtime check
+## Initial authentic save-state runtime check
 
 The trace was also exercised against an authentic Nexus gameplay save state
 from the external Firestaff evidence corpus. The state SHA-256 is
@@ -76,7 +76,26 @@ This immediate post-load check does not establish character-dot parity:
 passes. A separate 56-frame probe also found no valid character data in the
 sampled x-range. The retained trace and receipts are under
 `/Volumes/Extern-disk/firestaff-evidence/nexus/ymir-vdp2-pixel-fetch-trace-20261101/active-layer/`.
-These results verify bounded tracing and pattern-name provenance on real game
-data; they do not verify NBG1 pixel output or full VDP composition. Treat the
-character bytes and dots as unknown until a capture with valid fetch evidence
-is available.
+This initial trace predates the 256-color dot-fetch instrumentation. It verifies
+bounded tracing and pattern-name provenance on real game data, but its dot
+values remain unknown and must not be used as NBG1 pixel-output evidence.
+
+## Verified 256-color gameplay composition
+
+After adding Palette256 fetch fields, a deterministic replay of the same
+authentic Japanese retail gameplay state produced a complete 320×224 NBG1
+trace. All 71,680 rows have valid PND, character-data, and dot fields. The dot
+histogram is 71,606 zero-valued dots and 74 dots with value 3. An independent
+join against the paired raw VDP2 VRAM dump found zero dot-byte mismatches; all
+74 nonzero dots have priority 5 and all zero dots have priority 0.
+
+For this same VDP2 pass, Firestaff's capture-only priority compositor produced
+64,804 VDP1 pixels, 3,297 NBG0 pixels, 74 NBG1 pixels, and 3,505 NBG2 pixels.
+Its RGB output matched Ymir's final composed 320×224 RGBX framebuffer at all
+71,680 pixels. The run and its exact source hashes, trace, receipts, VDP memory
+snapshots, and comparison output are retained in the external evidence
+directory `firestaff-evidence/nexus/ymir-vdp2-gameplay-pass0-20261101/`.
+
+This verifies one authentic save-state frame and the capture-only compositor
+for that state. It does not establish hardware parity, parity in other scenes
+or video modes, or readiness to use the compositor as the live renderer.

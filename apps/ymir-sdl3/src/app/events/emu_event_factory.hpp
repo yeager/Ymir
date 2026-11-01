@@ -2,6 +2,7 @@
 
 #include <ymir/sys/backup_ram.hpp>
 #include <ymir/sys/clocks.hpp>
+#include <ymir/debug/vdp2_pixel_fetch_tracer.hpp>
 
 #include "app/ui/state/debug/memory_viewer_state.hpp"
 #include <ymir/hw/smpc/peripheral/peripheral_defs.hpp>
@@ -108,7 +109,8 @@ EmuEvent SwitchVDPRenderer(bool verbose = true);
 
 EmuEvent SetDebugTrace(bool enable);
 EmuEvent DumpMemory();
-EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0);
+EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0,
+                          ymir::debug::IVDP2PixelFetchTracer *pixelFetchTracer = nullptr);
 EmuEvent DumpMemRegion(const ui::mem_view::MemoryViewerState &memView);
 
 EmuEvent InsertPeripheral(uint32 port, ymir::peripheral::PeripheralType type);
@@ -142,7 +144,8 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity);
 // emulator thread before that dump, preventing reset-state captures and
 // unscheduled frames from being mistaken for a requested capture.
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad = false, uint32 framesAfterLoad = 0,
-                   uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0);
+                   uint32 controlPadStartFrame = 0, uint32 controlPadStartHoldFrames = 0,
+                   ymir::debug::IVDP2PixelFetchTracer *pixelFetchTracer = nullptr);
 EmuEvent SaveState(uint32 slotIndex);
 EmuEvent UndoSaveState();
 EmuEvent UndoLoadState();

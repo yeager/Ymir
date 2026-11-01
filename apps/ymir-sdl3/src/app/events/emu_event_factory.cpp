@@ -272,8 +272,12 @@ EmuEvent DumpMemory() {
     return RunFunction(DumpAllMemory);
 }
 
-EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames) {
+EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32 controlPadStartHoldFrames,
+                          debug::IVDP2PixelFetchTracer *pixelFetchTracer) {
     return RunFunction([=](SharedContext &ctx) {
+        // Loading a state reconstructs the VDP and clears optional tracer pointers.
+        // Reattach immediately before the first deterministic capture frame.
+        ctx.saturn.instance->VDP.UseVDP2PixelFetchTracer(pixelFetchTracer);
         auto &settings = ctx.serviceLocator.GetRequired<Settings>();
         const bool threadedVDP1 = settings.video.swRenderer.threadedVDP1.Get();
         const bool threadedVDP2 = settings.video.swRenderer.threadedVDP2.Get();
@@ -718,7 +722,7 @@ EmuEvent SetSCSPStepGranularity(uint32 granularity) {
 }
 
 EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad, uint32 controlPadStartFrame,
-                   uint32 controlPadStartHoldFrames) {
+                   uint32 controlPadStartHoldFrames, debug::IVDP2PixelFetchTracer *pixelFetchTracer) {
     return RunFunction([=](SharedContext &ctx) {
         // Grab the service and check for bounds
         auto &saves = ctx.serviceLocator.GetRequired<services::SaveStateService>();
@@ -855,7 +859,8 @@ EmuEvent LoadState(uint32 slotIndex, bool dumpAfterLoad, uint32 framesAfterLoad,
             ctx.EnqueueEvent(events::gui::StateLoaded(slotIndex));
             if (dumpAfterLoad) {
                 if (framesAfterLoad != 0) {
-                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad, controlPadStartFrame, controlPadStartHoldFrames));
+                    ctx.EnqueueEvent(RunFramesAndDump(framesAfterLoad, controlPadStartFrame,
+                                                      controlPadStartHoldFrames, pixelFetchTracer));
                 } else {
                     ctx.EnqueueEvent(DumpMemory());
                 }

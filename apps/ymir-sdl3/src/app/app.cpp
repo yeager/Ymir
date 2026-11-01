@@ -1264,7 +1264,7 @@ void App::RunEmulator() {
             m_context.EnqueueEvent(
                 events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad,
                                        m_options.captureControlPadStartFrame,
-                                       m_options.captureControlPadStartHoldFrames));
+                                       m_options.captureControlPadStartHoldFrames, m_vdp2PixelFetchTrace.get()));
         } else {
             m_context.EnqueueEvent(events::emu::DumpMemory());
         }

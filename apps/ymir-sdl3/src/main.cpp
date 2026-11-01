@@ -104,12 +104,6 @@ int main(int argc, char **argv) {
                          "--dump-memory; hold must be nonzero and start must be within the capture");
             return -1;
         }
-        if (progOpts.captureVDP2MemoryWrites
-            && (!progOpts.enableDebugTracing || progOpts.captureLoadStateSlot == 0
-                || progOpts.captureFramesAfterLoad == 0 || !progOpts.dumpMemoryAtStartup)) {
-            fmt::println("--trace-vdp2-writes requires --debug, --load-state, --capture-frames, and --dump-memory");
-            return -1;
-        }
         if (showHelp) {
             fmt::println("{}", options.help());
             return 0;

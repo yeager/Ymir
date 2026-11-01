@@ -49,6 +49,28 @@ A matching PND address does not by itself establish correct character-dot or
 window behavior; compare the recorded dot value, access state, window decision,
 and final priority as well.
 
+When tracing after loading a save state, use the deterministic frame-capture
+route. Loading a state reconstructs the VDP and clears renderer-owned tracer
+hooks. The CLI capture reattaches the pixel tracer immediately before its first
+scheduled frame, so the trace covers the requested replay rather than only the
+startup frames. For the retained MAPD frame-891 save state, slot 3 and a
+1,600-frame replay can be captured with:
+
+```sh
+ymir-sdl3 --debug --load-state 3 --capture-frames 1600 \
+  --capture-start-frame 0 --capture-start-hold 60 --dump-memory \
+  --vdp2-pixel-fetch-trace /tmp/nexus-mapd-frame891.csv \
+  --vdp2-pixel-fetch-first-frame 1278 \
+  --vdp2-pixel-fetch-end-frame 1280 \
+  /path/to/authentic-nexus-disc.cue
+```
+
+This captures the two zero-based passes corresponding to VDP2 frame serials
+1279 and 1280. The save slot must belong to the selected profile and match the
+disc, IPL, and CD block ROM hashes. Keep the resulting trace receipt and memory
+dump with the run; frame numbers alone do not prove the replay reached the
+intended game state.
+
 ## Initial authentic save-state runtime check
 
 The trace was also exercised against an authentic Nexus gameplay save state

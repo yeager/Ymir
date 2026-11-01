@@ -49,3 +49,24 @@ with the retained frame-891 register, VRAM, CRAM, and layer-output artifacts.
 A matching PND address does not by itself establish correct character-dot or
 window behavior; compare the recorded dot value, access state, window decision,
 and final priority as well.
+
+## Authentic save-state runtime check
+
+The trace was also exercised against an authentic Nexus gameplay save state
+from the external Firestaff evidence corpus. The state SHA-256 is
+`156fa6982798ac7850ff21d12b7ce0b7dee278e0f501f55e18178fd96a2dce2e`; its
+Japanese retail disc and IPL hashes match the pinned Nexus inputs above. The
+loaded state has `BGON=0x0007`, `CHCTLA=0x1013`, and `CHCTLB=0x0002`. Ymir's
+deterministic frame-step route produced two complete 320×224 NBG1 passes:
+143,360 pixel records, zero dropped rows, and zero write errors. Every pixel
+has a valid PND source; 74 pixels per pass have nonzero layer priority.
+
+This immediate post-load check does not establish character-dot parity:
+`char_data_valid` and `dot_value_valid` are zero for all 71,680 pixels in both
+passes. A separate 56-frame probe also found no valid character data in the
+sampled x-range. The retained trace and receipts are under
+`/Volumes/Extern-disk/firestaff-evidence/nexus/ymir-vdp2-pixel-fetch-trace-20261101/active-layer/`.
+These results verify bounded tracing and pattern-name provenance on real game
+data; they do not verify NBG1 pixel output or full VDP composition. Treat the
+character bytes and dots as unknown until a capture with valid fetch evidence
+is available.

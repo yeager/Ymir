@@ -312,6 +312,10 @@ void SoftwareVDPRenderer::LoadState(const savestate::VDPSaveState::VDPRendererSa
             m_vramFetchers[i][j].lastCellX = state.vramFetchers[i][j].lastCellX;
             m_vramFetchers[i][j].charData = state.vramFetchers[i][j].charData;
             m_vramFetchers[i][j].charDataAddress = state.vramFetchers[i][j].charDataAddress;
+            m_vramFetchers[i][j].currCharSource = {};
+            m_vramFetchers[i][j].nextCharSource = {};
+            m_vramFetchers[i][j].charDataValid = false;
+            m_vramFetchers[i][j].charDataAccessAllowed = false;
             m_vramFetchers[i][j].lastVCellScroll = state.vramFetchers[i][j].lastVCellScroll;
         }
     }
@@ -2055,6 +2059,7 @@ FORCE_INLINE std::array<uint8, kVDP2VRAMSize> &SoftwareVDPRenderer::VDP2GetVRAM(
 }
 
 void SoftwareVDPRenderer::VDP2InitFrame() {
+    m_vdp2CurrentFrameIndex.fetch_add(1, std::memory_order_relaxed);
     const VDP2Regs &regs2 = VDP2GetRegs();
     if (!regs2.bgEnabled[5]) {
         VDP2InitNormalBG<0>(regs2);
@@ -2611,15 +2616,15 @@ void SoftwareVDPRenderer::VDP2DrawLine(uint32 y, bool altField) {
         VDP2DrawRotationBG<0>(regs2, colorMode, altField); // RBG0
         VDP2DrawRotationBG<1>(regs2, colorMode, altField); // RBG1
         if (interlaced) {
-            VDP2DrawNormalBG<0, deinterlace>(regs2, colorMode, altField); // NBG0
-            VDP2DrawNormalBG<1, deinterlace>(regs2, colorMode, altField); // NBG1
-            VDP2DrawNormalBG<2, deinterlace>(regs2, colorMode, altField); // NBG2
-            VDP2DrawNormalBG<3, deinterlace>(regs2, colorMode, altField); // NBG3
+            VDP2DrawNormalBG<0, deinterlace>(y, regs2, colorMode, altField); // NBG0
+            VDP2DrawNormalBG<1, deinterlace>(y, regs2, colorMode, altField); // NBG1
+            VDP2DrawNormalBG<2, deinterlace>(y, regs2, colorMode, altField); // NBG2
+            VDP2DrawNormalBG<3, deinterlace>(y, regs2, colorMode, altField); // NBG3
         } else {
-            VDP2DrawNormalBG<0, false>(regs2, colorMode, altField); // NBG0
-            VDP2DrawNormalBG<1, false>(regs2, colorMode, altField); // NBG1
-            VDP2DrawNormalBG<2, false>(regs2, colorMode, altField); // NBG2
-            VDP2DrawNormalBG<3, false>(regs2, colorMode, altField); // NBG3
+            VDP2DrawNormalBG<0, false>(y, regs2, colorMode, altField); // NBG0
+            VDP2DrawNormalBG<1, false>(y, regs2, colorMode, altField); // NBG1
+            VDP2DrawNormalBG<2, false>(y, regs2, colorMode, altField); // NBG2
+            VDP2DrawNormalBG<3, false>(y, regs2, colorMode, altField); // NBG3
         }
     }
 
@@ -2809,10 +2814,10 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawSpritePixel(uint32 x, const VDP2R
 }
 
 template <uint32 bgIndex, bool deinterlace>
-FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, uint32 colorMode, bool altField) {
+FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(uint32 y, const VDP2Regs &regs2, uint32 colorMode, bool altField) {
     static_assert(bgIndex < 4, "Invalid NBG index");
 
-    using FnDraw = void (SoftwareVDPRenderer::*)(const VDP2Regs &, const BGParams &, LayerOutput &,
+    using FnDraw = void (SoftwareVDPRenderer::*)(uint32, const VDP2Regs &, const BGParams &, LayerOutput &,
                                                  const NBGLayerState &, VRAMFetcher &, std::span<const bool>, bool);
 
     // Lookup table of scroll BG drawing functions
@@ -2829,7 +2834,7 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
             const auto chmEnum = static_cast<CharacterMode>(chm);
             const auto cfEnum = static_cast<ColorFormat>(cf <= 4 ? cf : 4);
             const uint32 colorMode = clm <= 2 ? clm : 2;
-            arr[chm][fcc][cf][clm] = &SoftwareVDPRenderer::VDP2DrawNormalScrollBG<chmEnum, fcc, cfEnum, colorMode,
+            arr[chm][fcc][cf][clm] = &SoftwareVDPRenderer::VDP2DrawNormalScrollBG<bgIndex, chmEnum, fcc, cfEnum, colorMode,
                                                                                   bgIndex <= 1, deinterlace>;
         });
 
@@ -2879,7 +2884,7 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
 
     const uint32 cf = static_cast<uint32>(bgParams.colorFormat);
     if (bgParams.bitmap) {
-        (this->*fnDrawBitmap[cf][colorMode])(regs2, bgParams, layerOut, bgState, vramFetcher, windowState, altField);
+        (this->*fnDrawBitmap[cf][colorMode])(y, regs2, bgParams, layerOut, bgState, vramFetcher, windowState, altField);
     } else {
         const bool twc = bgParams.twoWordChar;
         const bool fcc = bgParams.cellSizeShift;
@@ -2887,7 +2892,7 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
         const uint32 chm = static_cast<uint32>(twc   ? CharacterMode::TwoWord
                                                : exc ? CharacterMode::OneWordExtended
                                                      : CharacterMode::OneWordStandard);
-        (this->*fnDrawScroll[chm][fcc][cf][colorMode])(regs2, bgParams, layerOut, bgState, vramFetcher, windowState,
+        (this->*fnDrawScroll[chm][fcc][cf][colorMode])(y, regs2, bgParams, layerOut, bgState, vramFetcher, windowState,
                                                        altField);
     }
 }
@@ -4441,12 +4446,14 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2ComposeLine(uint32 y, const VDP2Regs 
     }
 }
 
-template <SoftwareVDPRenderer::CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat, uint32 colorMode,
-          bool useVCellScroll, bool deinterlace>
-NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2, const BGParams &bgParams,
+template <uint32 bgIndex, SoftwareVDPRenderer::CharacterMode charMode, bool fourCellChar, ColorFormat colorFormat,
+          uint32 colorMode, bool useVCellScroll, bool deinterlace>
+NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(uint32 y, const VDP2Regs &regs2, const BGParams &bgParams,
                                                            LayerOutput &layerOut, const NBGLayerState &bgState,
                                                            VRAMFetcher &vramFetcher, std::span<const bool> windowState,
                                                            bool altField) {
+    const bool traceEnabled = m_vdp2PNDFetchTracer != nullptr || m_vdp2PixelFetchTracer != nullptr;
+    const uint64 frame = traceEnabled ? m_vdp2CurrentFrameIndex.load(std::memory_order_relaxed) : 0;
     const bool altLine = deinterlace && altField && regs2.TVMD.LSMDn == InterlaceMode::DoubleDensity;
     uint32 fracScrollX = bgState.fracScrollX + bgParams.scrollAmountH;
     const uint32 fracScrollY = bgState.fracScrollY + bgParams.scrollAmountV + (altLine ? bgParams.scrollIncV : 0);
@@ -4476,6 +4483,20 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2
     }
 
     for (uint32 x = 0; x < m_HRes; x++) {
+        debug::VDP2PixelFetchSample pixelSample{};
+        debug::VDP2PixelFetchSample *pixelTrace = nullptr;
+        if constexpr (bgIndex == 1 || bgIndex == 2) {
+            if (m_vdp2PixelFetchTracer != nullptr &&
+                m_vdp2PixelFetchTracer->ShouldTrace(frame, y, x, static_cast<uint8>(bgIndex))) {
+                pixelSample.frame = frame;
+                pixelSample.vdp2FrameSerial = frame + 1;
+                pixelSample.row = y;
+                pixelSample.screenX = x;
+                pixelSample.alternateField = altField;
+                pixelSample.layer = static_cast<uint8>(bgIndex);
+                pixelTrace = &pixelSample;
+            }
+        }
         // Apply horizontal mosaic or vertical cell-scrolling
         // Mosaic takes priority
         if (bgParams.mosaicEnable) {
@@ -4488,6 +4509,12 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2
             if (currMosaicCounterX > 0) {
                 // Simply copy over the data from the previous pixel
                 layerOut.pixels.CopyPixel(x - 1, x);
+                if (pixelTrace != nullptr) {
+                    pixelTrace->mosaicReused = true;
+                    pixelTrace->mosaicSourceX = x - 1;
+                    pixelTrace->priority = layerOut.pixels.priority[x];
+                    m_vdp2PixelFetchTracer->Fetch(*pixelTrace);
+                }
 
                 // Increment horizontal coordinate
                 fracScrollX += bgState.scrollIncH;
@@ -4501,20 +4528,45 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2
             }
         }
 
+        const uint32 scrollX = fracScrollX >> 8u;
+        const uint32 scrollY = (fracScrollY + vcellScrollY) >> 8u;
+        if (pixelTrace != nullptr) {
+            pixelTrace->scrollX = scrollX;
+            pixelTrace->scrollY = scrollY;
+            pixelTrace->windowBlocked = windowState[x];
+        }
+
         if (windowState[x]) {
             // Make pixel transparent if inside active window area
             layerOut.pixels.priority[x] = 0;
         } else {
-            // Compute integer scroll screen coordinates
-            const uint32 scrollX = fracScrollX >> 8u;
-            const uint32 scrollY = (fracScrollY + vcellScrollY) >> 8u;
             const CoordU32 scrollCoord{scrollX, scrollY};
 
             // Plot pixel
+            debug::VDP2PNDFetchContext context;
+            const debug::VDP2PNDFetchContext *traceContext = nullptr;
+            if ((m_vdp2PNDFetchTracer != nullptr || m_vdp2PixelFetchTracer != nullptr) &&
+                (bgIndex == 1 || bgIndex == 2)) {
+                context = {
+                    .frame = frame,
+                    .row = y,
+                    .alternateField = altField,
+                    .layer = static_cast<uint8>(bgIndex),
+                    .screenX = x,
+                    .scrollX = scrollX,
+                    .scrollY = scrollY,
+                    .trackPixelSource = m_vdp2PixelFetchTracer != nullptr,
+                };
+                traceContext = &context;
+            }
             const Pixel pixel = VDP2FetchScrollBGPixel<false, charMode, fourCellChar, colorFormat, colorMode>(
                 bgParams, regs2, bgParams.pageBaseAddresses, bgParams.pageShiftH, bgParams.pageShiftV, scrollCoord,
-                vramFetcher);
+                vramFetcher, traceContext, pixelTrace);
             layerOut.pixels.SetPixel(x, pixel);
+        }
+        if (pixelTrace != nullptr) {
+            pixelTrace->priority = layerOut.pixels.priority[x];
+            m_vdp2PixelFetchTracer->Fetch(*pixelTrace);
         }
 
         // Increment horizontal coordinate
@@ -4541,12 +4593,12 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalScrollBG(const VDP2Regs &regs2
         // Fetch pixel
         VDP2FetchScrollBGPixel<false, charMode, fourCellChar, colorFormat, colorMode>(
             bgParams, regs2, bgParams.pageBaseAddresses, bgParams.pageShiftH, bgParams.pageShiftV, scrollCoord,
-            vramFetcher);
+            vramFetcher, nullptr);
     }
 }
 
 template <ColorFormat colorFormat, uint32 colorMode, bool useVCellScroll, bool deinterlace>
-NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBitmapBG(const VDP2Regs &regs2, const BGParams &bgParams,
+NO_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBitmapBG(uint32, const VDP2Regs &regs2, const BGParams &bgParams,
                                                            LayerOutput &layerOut, const NBGLayerState &bgState,
                                                            VRAMFetcher &vramFetcher, std::span<const bool> windowState,
                                                            bool altField) {
@@ -4698,7 +4750,7 @@ NO_INLINE void SoftwareVDPRenderer::VDP2DrawRotationScrollBG(const VDP2Regs &reg
             // Plot pixel
             const Pixel pixel = VDP2FetchScrollBGPixel<true, charMode, fourCellChar, colorFormat, colorMode>(
                 bgParams, regs2, state2.rbgPageBaseAddresses[rotParamSelector][bgIndex], rotParams.pageShiftH,
-                rotParams.pageShiftV, scrollCoord, m_vramFetchers[altField][rotParamSelector + 4]);
+                rotParams.pageShiftV, scrollCoord, m_vramFetchers[altField][rotParamSelector + 4], nullptr);
             if (!doubleResH || !windowState[xx]) {
                 layerOut.pixels.SetPixel(xx, pixel);
             }
@@ -4954,7 +5006,9 @@ template <bool rot, SoftwareVDPRenderer::CharacterMode charMode, bool fourCellCh
 FORCE_INLINE_EX SoftwareVDPRenderer::Pixel
 SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2Regs &regs2,
                                             std::span<const uint32> pageBaseAddresses, uint32 pageShiftH,
-                                            uint32 pageShiftV, CoordU32 scrollCoord, VRAMFetcher &vramFetcher) {
+                                            uint32 pageShiftV, CoordU32 scrollCoord, VRAMFetcher &vramFetcher,
+                                            const debug::VDP2PNDFetchContext *traceContext,
+                                            debug::VDP2PixelFetchSample *pixelTrace) {
     //      Map (NBGs)              Map (RBGs)
     // +---------+---------+   +----+----+----+----+
     // |         |         |   | A  | B  | C  | D  |
@@ -5083,6 +5137,7 @@ SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2
     static constexpr bool twoWordChar = charMode == CharacterMode::TwoWord;
     static constexpr bool extChar = charMode == CharacterMode::OneWordExtended;
     static constexpr uint32 fourCellCharValue = fourCellChar ? 1 : 0;
+    const bool trackSource = traceContext != nullptr && traceContext->trackPixelSource;
 
     auto [scrollX, scrollY] = scrollCoord;
 
@@ -5123,14 +5178,22 @@ SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2
         vramFetcher.lastCharIndex = charIndex;
         const uint32 pageAddress = pageBaseAddress + pageOffset;
         static constexpr bool largePalette = colorFormat != ColorFormat::Palette16;
+        CharacterPatternNameSource nextSource{};
         const Character ch =
             twoWordChar
-                ? VDP2FetchTwoWordCharacter(bgParams, pageAddress, charIndex)
-                : VDP2FetchOneWordCharacter<fourCellChar, largePalette, extChar>(bgParams, pageAddress, charIndex);
+                ? VDP2FetchTwoWordCharacter(bgParams, pageAddress, charIndex, traceContext,
+                                             trackSource ? &nextSource : nullptr)
+                : VDP2FetchOneWordCharacter<fourCellChar, largePalette, extChar>(bgParams, pageAddress, charIndex,
+                                                                                 traceContext,
+                                                                                 trackSource ? &nextSource : nullptr);
 
         // Send character to pipeline
         vramFetcher.currChar = bgParams.charPatDelay[bank] ? vramFetcher.nextChar : ch;
+        if (trackSource) {
+            vramFetcher.currCharSource = bgParams.charPatDelay[bank] ? vramFetcher.nextCharSource : nextSource;
+        }
         vramFetcher.nextChar = ch;
+        if (trackSource) vramFetcher.nextCharSource = nextSource;
     } else if constexpr (fourCellChar) {
         // Each cell of a 2x2 character is fetched individually.
         // With the delay, the fetch is done between the first and the second half of the character.
@@ -5138,38 +5201,76 @@ SoftwareVDPRenderer::VDP2FetchScrollBGPixel(const BGParams &bgParams, const VDP2
             vramFetcher.lastCellX = cellX;
             if (cellX == 1) {
                 vramFetcher.currChar = vramFetcher.nextChar;
+                if (trackSource) vramFetcher.currCharSource = vramFetcher.nextCharSource;
             }
         }
     }
 
+    if (pixelTrace != nullptr) {
+        const CharacterPatternNameSource &source = vramFetcher.currCharSource;
+        pixelTrace->pndSourceValid = source.valid;
+        pixelTrace->pndAccessAllowed = source.accessAllowed;
+        pixelTrace->pndAddress = source.address;
+        pixelTrace->pndWidthBytes = source.widthBytes;
+        pixelTrace->rawPND = source.rawData;
+        pixelTrace->charNum = vramFetcher.currChar.charNum;
+    }
+
     // Fetch pixel using character data
-    return VDP2FetchCharacterPixel<colorFormat, colorMode>(bgParams, regs2, vramFetcher, dotCoord, cellIndex);
+    return VDP2FetchCharacterPixel<colorFormat, colorMode>(bgParams, regs2, vramFetcher, dotCoord, cellIndex,
+                                                           pixelTrace);
 }
 
 FORCE_INLINE Character SoftwareVDPRenderer::VDP2FetchTwoWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress,
-                                                                      uint32 charIndex) {
+                                                                      uint32 charIndex,
+                                                                      const debug::VDP2PNDFetchContext *traceContext,
+                                                                      CharacterPatternNameSource *source) {
     const uint32 charAddress = pageBaseAddress + charIndex * sizeof(uint32);
     const uint32 charBank = (charAddress >> 17u) & 3u;
 
+    if (source != nullptr) {
+        source->valid = true;
+        source->accessAllowed = bgParams.patNameAccess[charBank];
+        source->address = charAddress;
+        source->widthBytes = sizeof(uint32);
+    }
     if (!bgParams.patNameAccess[charBank]) {
         return {};
     }
 
     const uint32 charData = VDP2ReadRendererVRAM<uint32>(charAddress);
+    if (source != nullptr) source->rawData = charData;
+    if (traceContext != nullptr && m_vdp2PNDFetchTracer != nullptr &&
+        m_vdp2PNDFetchTracer->ShouldTrace(traceContext->frame, traceContext->row, traceContext->layer)) {
+        m_vdp2PNDFetchTracer->Fetch({*traceContext, charAddress, static_cast<uint8>(sizeof(uint32)), charData});
+    }
     return Character{.u32 = charData};
 }
 
 template <bool fourCellChar, bool largePalette, bool extChar>
 FORCE_INLINE Character SoftwareVDPRenderer::VDP2FetchOneWordCharacter(const BGParams &bgParams, uint32 pageBaseAddress,
-                                                                      uint32 charIndex) {
+                                                                      uint32 charIndex,
+                                                                      const debug::VDP2PNDFetchContext *traceContext,
+                                                                      CharacterPatternNameSource *source) {
     const uint32 charAddress = pageBaseAddress + charIndex * sizeof(uint16);
     const uint32 charBank = (charAddress >> 17u) & 3u;
 
+    if (source != nullptr) {
+        source->valid = true;
+        source->accessAllowed = bgParams.patNameAccess[charBank];
+        source->address = charAddress;
+        source->widthBytes = sizeof(uint16);
+    }
     if (!bgParams.patNameAccess[charBank]) {
         return {};
     }
 
     const uint16 charData = VDP2ReadRendererVRAM<uint16>(charAddress);
+    if (source != nullptr) source->rawData = charData;
+    if (traceContext != nullptr && m_vdp2PNDFetchTracer != nullptr &&
+        m_vdp2PNDFetchTracer->ShouldTrace(traceContext->frame, traceContext->row, traceContext->layer)) {
+        m_vdp2PNDFetchTracer->Fetch({*traceContext, charAddress, static_cast<uint8>(sizeof(uint16)), charData});
+    }
     return VDP2ExtractOneWordCharacter<fourCellChar, largePalette, extChar>(bgParams, charData);
 }
 
@@ -5224,7 +5325,8 @@ FORCE_INLINE Character SoftwareVDPRenderer::VDP2ExtractOneWordCharacter(const BG
 template <ColorFormat colorFormat, uint32 colorMode>
 FORCE_INLINE SoftwareVDPRenderer::Pixel
 SoftwareVDPRenderer::VDP2FetchCharacterPixel(const BGParams &bgParams, const VDP2Regs &regs2, VRAMFetcher &vramFetcher,
-                                             CoordU32 dotCoord, uint32 cellIndex) {
+                                             CoordU32 dotCoord, uint32 cellIndex,
+                                             debug::VDP2PixelFetchSample *pixelTrace) {
     static_assert(static_cast<uint32>(colorFormat) <= 4, "Invalid xxCHCN value");
 
     assert(dotCoord.x() < 8);
@@ -5257,9 +5359,14 @@ SoftwareVDPRenderer::VDP2FetchCharacterPixel(const BGParams &bgParams, const VDP
 
     // Cell addressing uses a fixed offset of 32 bytes
     const uint32 cellAddress = (ch.charNum + cellIndex) << 5u;
+    if (pixelTrace != nullptr) {
+        pixelTrace->charAddress = cellAddress;
+        pixelTrace->charNum = ch.charNum;
+    }
 
     return VDP2FetchPixel<false, colorFormat, colorMode>(bgParams, regs2, vramFetcher, cellAddress, 8, dotCoord,
-                                                         ch.palNum << 4u, ch.specColorCalc, ch.specPriority);
+                                                         ch.palNum << 4u, ch.specColorCalc, ch.specPriority,
+                                                         pixelTrace);
 }
 
 template <ColorFormat colorFormat, uint32 colorMode>
@@ -5283,15 +5390,20 @@ template <bool bitmap, ColorFormat colorFormat, uint32 colorMode>
 FORCE_INLINE SoftwareVDPRenderer::Pixel
 SoftwareVDPRenderer::VDP2FetchPixel(const BGParams &bgParams, const VDP2Regs &regs2, VRAMFetcher &vramFetcher,
                                     uint32 baseAddress, uint32 linePitch, CoordU32 dotCoord, uint32 palNum,
-                                    bool specColorCalc, bool specPriority) {
+                                    bool specColorCalc, bool specPriority,
+                                    debug::VDP2PixelFetchSample *pixelTrace) {
     const auto [dotX, dotY] = dotCoord;
     const uint32 dotOffset = dotX + dotY * linePitch;
 
     auto fetchCharData = [&](uint32 address) {
-        if (vramFetcher.UpdateCharacterDataAddress(address)) {
+        const bool needsFetch = vramFetcher.UpdateCharacterDataAddress(address);
+        if (pixelTrace != nullptr) pixelTrace->charDataCacheHit = !needsFetch;
+        if (needsFetch) {
             const uint32 bank = (address >> 17u) & 3u;
+            vramFetcher.charDataAccessAllowed = bgParams.charPatAccess[bank];
             if (!bgParams.charPatAccess[bank]) {
                 util::WriteNE<uint64>(vramFetcher.charData.data(), 0);
+                vramFetcher.charDataValid = true;
                 return;
             }
 
@@ -5303,6 +5415,7 @@ SoftwareVDPRenderer::VDP2FetchPixel(const BGParams &bgParams, const VDP2Regs &re
             auto &vram = VDP2GetRendererVRAM();
             const uint64 data = util::ReadNE<uint64>(&vram[address & 0x7FFF8]);
             util::WriteNE<uint64>(vramFetcher.charData.data(), data);
+            vramFetcher.charDataValid = true;
         }
     };
 
@@ -5324,8 +5437,17 @@ SoftwareVDPRenderer::VDP2FetchPixel(const BGParams &bgParams, const VDP2Regs &re
     uint8 colorData;
     if constexpr (colorFormat == ColorFormat::Palette16) {
         const uint32 dotAddress = baseAddress + (dotOffset >> 1u);
+        if (pixelTrace != nullptr) {
+            pixelTrace->dotAddress = dotAddress & 0x7FFFFU;
+        }
         fetchCharData(dotAddress);
         const uint8 dotData = (vramFetcher.charData[dotAddress & 7] >> ((~dotX & 1) * 4)) & 0xF;
+        if (pixelTrace != nullptr) {
+            pixelTrace->charDataValid = vramFetcher.charDataValid;
+            pixelTrace->charPatternAccessAllowed = vramFetcher.charDataAccessAllowed;
+            pixelTrace->dotValue = dotData;
+            pixelTrace->dotValueValid = vramFetcher.charDataValid;
+        }
         if (bgParams.enableTransparency && dotData == 0) {
             pixel.priority = 0;
             return pixel;
@@ -5337,8 +5459,17 @@ SoftwareVDPRenderer::VDP2FetchPixel(const BGParams &bgParams, const VDP2Regs &re
 
     } else if constexpr (colorFormat == ColorFormat::Palette256) {
         const uint32 dotAddress = baseAddress + dotOffset;
+        if (pixelTrace != nullptr) {
+            pixelTrace->dotAddress = dotAddress & 0x7FFFFU;
+        }
         fetchCharData(dotAddress);
         const uint8 dotData = vramFetcher.charData[dotAddress & 7];
+        if (pixelTrace != nullptr) {
+            pixelTrace->charDataValid = vramFetcher.charDataValid;
+            pixelTrace->charPatternAccessAllowed = vramFetcher.charDataAccessAllowed;
+            pixelTrace->dotValue = dotData;
+            pixelTrace->dotValueValid = vramFetcher.charDataValid;
+        }
         if (bgParams.enableTransparency && dotData == 0) {
             pixel.priority = 0;
             return pixel;

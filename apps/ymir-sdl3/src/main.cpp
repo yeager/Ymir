@@ -13,6 +13,7 @@
 #include <memory>
 
 int main(int argc, char **argv) {
+    constexpr unsigned kMaxCaptureFrames = 60000;
 #if defined(_WIN32)
     // NOTE: Setting the main thread name on Linux and macOS replaces the process name displayed on tools like `top`.
     util::SetCurrentThreadName("Main thread");
@@ -36,6 +37,40 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.startFastForward)->default_value("false"));
     options.add_options()("D,debug", "Start with debug tracing enabled",
                           cxxopts::value(progOpts.enableDebugTracing)->default_value("false"));
+    options.add_options()("pnd-fetch-trace", "Write bounded VDP2 NBG1/NBG2 PND fetch CSV",
+                          cxxopts::value(progOpts.pndFetchTracePath));
+    options.add_options()("pnd-fetch-first-frame", "First frame to trace (inclusive)",
+                          cxxopts::value(progOpts.pndFetchFirstFrame)->default_value("0"));
+    options.add_options()("pnd-fetch-end-frame", "Frame end to trace (exclusive, maximum 64-frame range)",
+                          cxxopts::value(progOpts.pndFetchEndFrame)->default_value("64"));
+    options.add_options()("pnd-fetch-first-row", "First VCNT row to trace (inclusive)",
+                          cxxopts::value(progOpts.pndFetchFirstRow)->default_value("0"));
+    options.add_options()("pnd-fetch-end-row", "VCNT row end to trace (exclusive)",
+                          cxxopts::value(progOpts.pndFetchEndRow)->default_value("512"));
+    options.add_options()("vdp2-pixel-fetch-trace", "Write a bounded VDP2 normal-scroll pixel provenance CSV",
+                          cxxopts::value(progOpts.vdp2PixelFetchTracePath));
+    options.add_options()("vdp2-pixel-fetch-first-frame", "First VDP2 frame index to trace (inclusive)",
+                          cxxopts::value(progOpts.vdp2PixelFetchFirstFrame)->default_value("0"));
+    options.add_options()("vdp2-pixel-fetch-end-frame", "VDP2 frame index end to trace (exclusive)",
+                          cxxopts::value(progOpts.vdp2PixelFetchEndFrame)->default_value("1"));
+    options.add_options()("vdp2-pixel-fetch-first-row", "First VCNT row to trace (inclusive)",
+                          cxxopts::value(progOpts.vdp2PixelFetchFirstRow)->default_value("0"));
+    options.add_options()("vdp2-pixel-fetch-end-row", "VCNT row end to trace (exclusive)",
+                          cxxopts::value(progOpts.vdp2PixelFetchEndRow)->default_value("224"));
+    options.add_options()("vdp2-pixel-fetch-first-x", "First output pixel column to trace (inclusive)",
+                          cxxopts::value(progOpts.vdp2PixelFetchFirstX)->default_value("0"));
+    options.add_options()("vdp2-pixel-fetch-end-x", "Output pixel column end to trace (exclusive)",
+                          cxxopts::value(progOpts.vdp2PixelFetchEndX)->default_value("320"));
+    options.add_options()("load-state", "Load save-state slot after media initialization",
+                          cxxopts::value(progOpts.captureLoadStateSlot)->default_value("0"));
+    options.add_options()("capture-frames", "Run this many frames after loading a state, then dump memory",
+                          cxxopts::value(progOpts.captureFramesAfterLoad)->default_value("0"));
+    options.add_options()("capture-start-frame", "Zero-based capture frame at which to assert Control Pad 1 Start",
+                          cxxopts::value(progOpts.captureControlPadStartFrame));
+    options.add_options()("capture-start-hold", "Number of capture frames to hold Control Pad 1 Start",
+                          cxxopts::value(progOpts.captureControlPadStartHoldFrames));
+    options.add_options()("dump-memory", "Dump memory after optional state load",
+                          cxxopts::value(progOpts.dumpMemoryAtStartup)->default_value("false"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});
@@ -46,11 +81,55 @@ int main(int argc, char **argv) {
     try {
 #endif
         auto result = options.parse(argc, argv);
+        progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
+                                           || result.count("capture-start-hold") != 0;
+        if (progOpts.captureLoadStateSlot > 10) {
+            fmt::println("--load-state must be between 1 and 10");
+            return -1;
+        }
+        if (progOpts.captureFramesAfterLoad != 0
+            && (progOpts.captureLoadStateSlot == 0 || !progOpts.dumpMemoryAtStartup)) {
+            fmt::println("--capture-frames requires --load-state and --dump-memory");
+            return -1;
+        }
+        if (progOpts.captureFramesAfterLoad > kMaxCaptureFrames) {
+            fmt::println("--capture-frames must not exceed {}", kMaxCaptureFrames);
+            return -1;
+        }
+        if (progOpts.captureControlPadStart
+            && (progOpts.captureLoadStateSlot == 0 || progOpts.captureFramesAfterLoad == 0
+                || !progOpts.dumpMemoryAtStartup || progOpts.captureControlPadStartHoldFrames == 0
+                || progOpts.captureControlPadStartFrame >= progOpts.captureFramesAfterLoad)) {
+            fmt::println("--capture-start-frame and --capture-start-hold require --load-state, --capture-frames, and "
+                         "--dump-memory; hold must be nonzero and start must be within the capture");
+            return -1;
+        }
         if (showHelp) {
             fmt::println("{}", options.help());
             return 0;
         }
 
+        if (!progOpts.pndFetchTracePath.empty() &&
+            (progOpts.pndFetchEndFrame <= progOpts.pndFetchFirstFrame ||
+             progOpts.pndFetchEndFrame - progOpts.pndFetchFirstFrame > 64 ||
+             progOpts.pndFetchEndRow <= progOpts.pndFetchFirstRow || progOpts.pndFetchEndRow > 2048)) {
+            fmt::println(stderr, "Invalid PND fetch range (max 64 frames; VCNT rows must be within 0..2048)");
+            return 2;
+        }
+        if (!progOpts.vdp2PixelFetchTracePath.empty()) {
+            const uint64_t frameCount = progOpts.vdp2PixelFetchEndFrame - progOpts.vdp2PixelFetchFirstFrame;
+            const uint64_t rowCount = progOpts.vdp2PixelFetchEndRow - progOpts.vdp2PixelFetchFirstRow;
+            const uint64_t xCount = progOpts.vdp2PixelFetchEndX - progOpts.vdp2PixelFetchFirstX;
+            if (progOpts.vdp2PixelFetchEndFrame <= progOpts.vdp2PixelFetchFirstFrame || frameCount > 64 ||
+                progOpts.vdp2PixelFetchEndRow <= progOpts.vdp2PixelFetchFirstRow ||
+                progOpts.vdp2PixelFetchEndRow > 2048 || progOpts.vdp2PixelFetchEndX <= progOpts.vdp2PixelFetchFirstX ||
+                progOpts.vdp2PixelFetchEndX > 1024 || frameCount * rowCount * xCount > 200000) {
+                fmt::println(stderr,
+                             "Invalid VDP2 pixel-fetch range (max 64 frames and 200000 pixels; rows must be within "
+                             "0..2048 and columns within 0..1024)");
+                return 2;
+            }
+        }
         util::RegisterExceptionHandler(enableAllExceptions);
 
         auto app = std::make_unique<app::App>();

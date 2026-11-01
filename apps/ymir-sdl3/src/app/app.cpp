@@ -198,6 +198,8 @@ App::App()
 }
 
 App::~App() {
+    m_context.saturn.instance->VDP.UseVDP2PixelFetchTracer(nullptr);
+    m_context.saturn.instance->VDP.UseVDP2PNDFetchTracer(nullptr);
     m_context.saturn.instance->SMPC.ClearPersistDataCallback();
 }
 
@@ -877,6 +879,44 @@ void App::RunEmulator() {
     });
 
     auto &vdp = m_context.saturn.instance->VDP;
+    if (!m_options.pndFetchTracePath.empty()) {
+        if (vdp.GetRenderer().GetType() != ymir::vdp::VDPRendererType::Software) {
+            if (auto result = vdp.UseSoftwareRenderer(); !result) {
+                ShowStartupFailure("PND fetch tracing requires the software VDP renderer: {}", result.Error().message);
+                return;
+            }
+        }
+        m_vdp2PNDFetchTrace = std::make_unique<VDP2PNDFetchTrace>(
+            m_options.pndFetchTracePath, m_options.pndFetchFirstFrame, m_options.pndFetchEndFrame,
+            m_options.pndFetchFirstRow, m_options.pndFetchEndRow, 1000000);
+        if (!m_vdp2PNDFetchTrace->IsOpen()) {
+            ShowStartupFailure("Could not open PND fetch trace CSV: {}", m_options.pndFetchTracePath.string());
+            m_vdp2PNDFetchTrace.reset();
+            return;
+        }
+        vdp.UseVDP2PNDFetchTracer(m_vdp2PNDFetchTrace.get());
+    }
+    if (!m_options.vdp2PixelFetchTracePath.empty()) {
+        if (vdp.GetRenderer().GetType() != ymir::vdp::VDPRendererType::Software) {
+            if (auto result = vdp.UseSoftwareRenderer(); !result) {
+                ShowStartupFailure("Pixel-fetch tracing requires the software VDP renderer: {}",
+                                   result.Error().message);
+                return;
+            }
+        }
+        m_vdp2PixelFetchTrace = std::make_unique<VDP2PixelFetchTrace>(
+            m_options.vdp2PixelFetchTracePath, m_options.vdp2PixelFetchFirstFrame,
+            m_options.vdp2PixelFetchEndFrame, m_options.vdp2PixelFetchFirstRow,
+            m_options.vdp2PixelFetchEndRow, m_options.vdp2PixelFetchFirstX,
+            m_options.vdp2PixelFetchEndX, 200000);
+        if (!m_vdp2PixelFetchTrace->IsOpen()) {
+            ShowStartupFailure("Could not open VDP2 pixel-fetch trace CSV: {}",
+                               m_options.vdp2PixelFetchTracePath.string());
+            m_vdp2PixelFetchTrace.reset();
+            return;
+        }
+        vdp.UseVDP2PixelFetchTracer(m_vdp2PixelFetchTrace.get());
+    }
 
     ScopeGuard sgReleaseVDPRenderer{[&] { vdp.UseNullRenderer(); }};
 
@@ -1211,11 +1251,25 @@ void App::RunEmulator() {
 
     auto &inputContext = m_context.inputContext;
 
-    m_context.paused = m_options.startPaused || settings.general.startPaused;
+    // A frame-counted capture owns all emulation steps itself. Keep the regular
+    // loop paused so no unscheduled frame can slip between state load and dump.
+    m_context.paused = m_options.startPaused || settings.general.startPaused || m_options.captureFramesAfterLoad != 0;
     bool pausedByLostFocus = false;
 
     if (m_options.enableDebugTracing) {
         m_context.EnqueueEvent(events::emu::SetDebugTrace(true));
+    }
+    if (m_options.dumpMemoryAtStartup) {
+        if (m_options.captureLoadStateSlot != 0) {
+            m_context.EnqueueEvent(
+                events::emu::LoadState(m_options.captureLoadStateSlot - 1, true, m_options.captureFramesAfterLoad,
+                                       m_options.captureControlPadStartFrame,
+                                       m_options.captureControlPadStartHoldFrames, m_vdp2PixelFetchTrace.get()));
+        } else {
+            m_context.EnqueueEvent(events::emu::DumpMemory());
+        }
+    } else if (m_options.captureLoadStateSlot != 0) {
+        m_context.EnqueueEvent(events::emu::LoadState(m_options.captureLoadStateSlot - 1));
     }
 
     // ---------------------------------

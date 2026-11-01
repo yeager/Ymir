@@ -102,6 +102,17 @@ union Character {
     };
 };
 
+// Debug provenance for the pattern-name data currently flowing through the
+// renderer's character pipeline. This is transient and is not part of a save
+// state; LoadState invalidates it until the next actual pattern-name fetch.
+struct CharacterPatternNameSource {
+    bool valid = false;
+    bool accessAllowed = false;
+    uint32 address = 0;
+    uint8 widthBytes = 0;
+    uint32 rawData = 0;
+};
+
 /// @brief Pipelined VDP2 VRAM fetcher. Used by tile and bitmap data.
 struct VRAMFetcher {
     VRAMFetcher() {
@@ -111,10 +122,14 @@ struct VRAMFetcher {
     void Reset() {
         currChar = {};
         nextChar = {};
+        currCharSource = {};
+        nextCharSource = {};
         lastCharIndex = 0xFFFFFFFF;
 
         charData.fill(0);
         charDataAddress = 0xFFFFFFFF;
+        charDataValid = false;
+        charDataAccessAllowed = false;
 
         lastVCellScroll = 0xFFFFFFFF;
     }
@@ -131,12 +146,16 @@ struct VRAMFetcher {
     // Character patterns (for scroll BGs)
     Character currChar;
     Character nextChar;
+    CharacterPatternNameSource currCharSource;
+    CharacterPatternNameSource nextCharSource;
     uint32 lastCharIndex;
     uint8 lastCellX;
 
     // Character data (scroll and bitmap BGs)
     alignas(uint64) std::array<uint8, 8> charData;
     uint32 charDataAddress;
+    bool charDataValid = false;
+    bool charDataAccessAllowed = false;
 
     // Vertical cell scroll data
     uint32 lastVCellScroll;

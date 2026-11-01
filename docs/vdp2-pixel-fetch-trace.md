@@ -64,6 +64,14 @@ has a valid PND source; 74 pixels per pass have nonzero layer priority.
 The built executable is installed on TRV2 as
 `/usr/local/bin/ymir-sdl3-vdp2-trace`.
 
+A paired authentic state capture confirms the register tuple and raw VDP2
+memory. The dominant PND `0x20001100` selects address `0x22000`, whose 32-byte
+span is zero-filled in the dump. Three sparse PND references select `0x22200`,
+`0x22580`, and `0x228c0`, with 2, 9, and 10 nonzero bytes in their respective
+32-byte spans. The provenance addresses therefore resolve into the captured
+VRAM, but the pixel trace still reports those data/dot fetches as invalid. The
+raw memory dump does not turn those invalid per-pixel samples into dot evidence.
+
 This immediate post-load check does not establish character-dot parity:
 `char_data_valid` and `dot_value_valid` are zero for all 71,680 pixels in both
 passes. A separate 56-frame probe also found no valid character data in the

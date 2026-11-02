@@ -47,8 +47,10 @@ void VDP::Reset(bool hard) {
 
     m_state.Reset(hard);
     m_vdp1FrameCounter = 0;
+    m_vdp2TraceSequence = 0;
     if (m_vdp2MemoryTracer != nullptr) {
         m_vdp2MemoryTracer->Reset();
+        m_vdp2MemoryTracer->BeginCapture(m_state.mem2.VRAM, m_state.mem2.CRAM);
     }
     m_renderer->Reset(hard);
 
@@ -442,12 +444,14 @@ FORCE_INLINE void VDP::VDP2WriteVRAM(uint32 address, T value) {
     m_state.mem2.WriteVRAM<T>(address, value, [&](uint32 mappedAddress, T mappedValue) {
         m_renderer->VDP2WriteVRAM(mappedAddress, mappedValue);
         if (m_vdp2MemoryTracer != nullptr) {
+            const uint64 sequence = ++m_vdp2TraceSequence;
             const uint64 frame = m_vdp1FrameCounter == 0
                                      ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
                                      : m_vdp1FrameCounter - 1;
             if (m_vdp2MemoryTracer->ShouldTraceWrite(
                     frame, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T))) {
-                m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T), mappedValue);
+                m_vdp2MemoryTracer->Write(frame, sequence, debug::VDP2MemoryType::VRAM, mappedAddress, sizeof(T),
+                                          mappedValue);
             }
         }
     });
@@ -467,12 +471,13 @@ FORCE_INLINE void VDP::VDP2WriteCRAM(uint32 address, T value) {
     m_state.mem2.WriteCRAM<T>(address, value, [&](uint32 address, T value) {
         m_renderer->VDP2WriteCRAM(address, value);
         if (m_vdp2MemoryTracer != nullptr) {
+            const uint64 sequence = ++m_vdp2TraceSequence;
             const uint64 frame = m_vdp1FrameCounter == 0
                                      ? debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex
                                      : m_vdp1FrameCounter - 1;
             if (m_vdp2MemoryTracer->ShouldTraceWrite(
                     frame, debug::VDP2MemoryType::CRAM, address, sizeof(T))) {
-                m_vdp2MemoryTracer->Write(frame, debug::VDP2MemoryType::CRAM, address, sizeof(T), value);
+                m_vdp2MemoryTracer->Write(frame, sequence, debug::VDP2MemoryType::CRAM, address, sizeof(T), value);
             }
         }
         if constexpr (!poke) {
@@ -819,6 +824,10 @@ void VDP::BeginHPhaseActiveDisplay() {
 
         if (m_vdp2RenderStateTracer != nullptr) {
             m_renderer->SetVDP2TraceFrameIndex(GetVDP2MemoryTraceFrameIndex());
+        }
+        if (m_vdp2MemoryTracer != nullptr) {
+            const uint64 sequence = ++m_vdp2TraceSequence;
+            m_vdp2MemoryTracer->Scanline(GetVDP2MemoryTraceFrameIndex(), sequence, m_state.regs2.VCNT);
         }
         m_renderer->VDP2RenderLine(m_state.regs2.VCNT);
     }

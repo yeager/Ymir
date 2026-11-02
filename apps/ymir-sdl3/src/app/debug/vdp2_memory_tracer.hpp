@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <mutex>
+#include <span>
 #include <vector>
 
 namespace app {
@@ -12,6 +13,9 @@ namespace app {
 struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
     struct Entry {
         uint64 vdp1Frame;
+        uint64 sequence;
+        bool isScanline;
+        uint32 row;
         ymir::debug::VDP2MemoryType type;
         uint32 address;
         uint8 width;
@@ -27,11 +31,16 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
     std::atomic_uint32_t addressEnd{0x80000};
     std::atomic_size_t capacity{kDefaultCapacity};
     std::atomic_bool traceVdp1FrameRange{false};
+    std::atomic_uint64_t filterRevision{0};
     std::atomic_uint64_t vdp1FrameBegin{0};
     std::atomic_uint64_t vdp1FrameEnd{0};
     mutable std::atomic_uint64_t outOfFrameRange = 0;
     mutable std::mutex mutex;
     std::vector<Entry> entries;
+    std::vector<uint8> initialVRAM;
+    std::vector<uint8> initialCRAM;
+    bool initialSnapshotValid = false;
+    uint64 captureFilterRevision = 0;
     size_t nextEntry = 0;
     size_t entryCount = 0;
     uint64 dropped = 0;
@@ -75,6 +84,36 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         outDropped = dropped;
     }
 
+    bool CopyCaptureSnapshot(std::vector<Entry> &out, uint64 &outDropped, std::vector<uint8> &vram,
+                             std::vector<uint8> &cram, bool &filtersUnchanged) const {
+        std::lock_guard lock(mutex);
+        out.clear();
+        out.reserve(entryCount);
+        if (entryCount != 0 && !entries.empty()) {
+            const size_t oldest = (nextEntry + entries.size() - entryCount) % entries.size();
+            for (size_t i = 0; i < entryCount; ++i) {
+                out.push_back(entries[(oldest + i) % entries.size()]);
+            }
+        }
+        outDropped = dropped;
+        vram = initialVRAM;
+        cram = initialCRAM;
+        filtersUnchanged = captureFilterRevision == filterRevision.load(std::memory_order_relaxed);
+        return initialSnapshotValid;
+    }
+
+    void BeginCapture(std::span<const uint8> vram, std::span<const uint8> cram) final {
+        std::lock_guard lock(mutex);
+        initialVRAM.assign(vram.begin(), vram.end());
+        initialCRAM.assign(cram.begin(), cram.end());
+        initialSnapshotValid = !initialVRAM.empty() && !initialCRAM.empty();
+        captureFilterRevision = filterRevision.load(std::memory_order_relaxed);
+        nextEntry = 0;
+        entryCount = 0;
+        dropped = 0;
+        outOfFrameRange.store(0, std::memory_order_relaxed);
+    }
+
     void GetStats(size_t &outCount, uint64 &outDropped) const {
         std::lock_guard lock(mutex);
         outCount = entryCount;
@@ -115,7 +154,8 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         Clear();
     }
 
-    void Write(uint64 vdp1Frame, ymir::debug::VDP2MemoryType type, uint32 address, uint8 width, uint32 value) final {
+    void Write(uint64 vdp1Frame, uint64 sequence, ymir::debug::VDP2MemoryType type, uint32 address, uint8 width,
+               uint32 value) final {
         if ((type == ymir::debug::VDP2MemoryType::VRAM && !traceVRAM.load(std::memory_order_relaxed)) ||
             (type == ymir::debug::VDP2MemoryType::CRAM && !traceCRAM.load(std::memory_order_relaxed))) {
             return;
@@ -141,7 +181,34 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         if (maxRows == 0) {
             return;
         }
-        entries[nextEntry] = {vdp1Frame, type, address, width, value};
+        entries[nextEntry] = {vdp1Frame, sequence, false, 0, type, address, width, value};
+        nextEntry = (nextEntry + 1) % maxRows;
+        if (entryCount < maxRows) {
+            ++entryCount;
+        } else {
+            ++dropped;
+        }
+    }
+
+    void Scanline(uint64 vdp1Frame, uint64 sequence, uint32 row) final {
+        if (!enabled.load(std::memory_order_relaxed)) {
+            return;
+        }
+        if (traceVdp1FrameRange.load(std::memory_order_relaxed)) {
+            const uint64 frameBegin = vdp1FrameBegin.load(std::memory_order_relaxed);
+            const uint64 frameEnd = vdp1FrameEnd.load(std::memory_order_relaxed);
+            if (vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex || vdp1Frame < frameBegin ||
+                vdp1Frame >= frameEnd) {
+                return;
+            }
+        }
+        std::lock_guard lock(mutex);
+        const size_t maxRows = capacity.load(std::memory_order_relaxed);
+        EnsureCapacityLocked(maxRows);
+        if (maxRows == 0) {
+            return;
+        }
+        entries[nextEntry] = {vdp1Frame, sequence, true, row, ymir::debug::VDP2MemoryType::VRAM, 0, 0, 0};
         nextEntry = (nextEntry + 1) % maxRows;
         if (entryCount < maxRows) {
             ++entryCount;
@@ -152,6 +219,9 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
 
     void Clear() {
         std::lock_guard lock(mutex);
+        initialVRAM.clear();
+        initialCRAM.clear();
+        initialSnapshotValid = false;
         nextEntry = 0;
         entryCount = 0;
         dropped = 0;

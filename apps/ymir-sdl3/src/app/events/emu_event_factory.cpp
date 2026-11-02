@@ -243,6 +243,9 @@ EmuEvent ExportVDP2MemoryTrace() {
         const bool traceWritten = writeFile(dumpPath / "vdp2-memory-write-trace.csv", [&](auto &out) {
             out << "vdp1_frame,memory,address,width,value\n";
             for (const auto &entry : traceSnapshot) {
+                if (entry.isScanline) {
+                    continue;
+                }
                 if (entry.vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
                     out << "unknown";
                 } else {
@@ -533,6 +536,9 @@ void DumpAllMemory(SharedContext &ctx) {
         } else {
             traceOut << "vdp1_frame,memory,address,width,value\n";
             for (const auto &entry : vdp2MemoryTraceSnapshot) {
+                if (entry.isScanline) {
+                    continue;
+                }
                 if (entry.vdp1Frame == ymir::debug::IVDP2MemoryTracer::kUnknownVdp1FrameIndex) {
                     traceOut << "unknown";
                 } else {

@@ -190,6 +190,8 @@ EmuEvent ExportVDP2MemoryTrace() {
         bool filtersUnchanged = false;
         const bool initialSnapshotComplete =
             tracer.CopyCaptureSnapshot(traceSnapshot, dropped, initialVRAM, initialCRAM, filtersUnchanged);
+        const size_t writeTraceRows = std::count_if(traceSnapshot.begin(), traceSnapshot.end(),
+                                                    [](const auto &entry) { return !entry.isScanline; });
         const bool frameRangeEnabled = tracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
         const uint64 frameRangeBegin = tracer.vdp1FrameBegin.load(std::memory_order_relaxed);
         const uint64 frameRangeEnd = tracer.vdp1FrameEnd.load(std::memory_order_relaxed);
@@ -293,7 +295,8 @@ EmuEvent ExportVDP2MemoryTrace() {
                  << "vdp2_vram_file_complete=" << (vramWritten ? 1 : 0) << '\n'
                  << "vdp2_cram_file_complete=" << (cramWritten ? 1 : 0) << '\n'
                  << "trace_file_complete=" << (traceWritten ? 1 : 0) << '\n'
-                 << "trace_rows=" << traceSnapshot.size() << '\n'
+                 << "trace_rows=" << writeTraceRows << '\n'
+                 << "render_event_rows=" << traceSnapshot.size() << '\n'
                  << "trace_capacity_rows=" << tracer.capacity.load(std::memory_order_relaxed) << '\n'
                  << "trace_dropped_total=" << dropped << '\n'
                  << "trace_vdp1_frame_range_enabled=" << (frameRangeEnabled ? 1 : 0) << '\n'
@@ -410,10 +413,13 @@ void DumpAllMemory(SharedContext &ctx) {
     const uint64 vdp2RowsOutsideFrameRange = vdp2MemoryTracer.outOfFrameRange.load(std::memory_order_relaxed);
     const uint64 vdp2MemoryTraceFrame = vdp.GetVDP2MemoryTraceFrameIndex();
     bool rowStateEligible = false;
+    size_t vdp2WriteTraceRows = 0;
     if (vdp2MemoryTraceEnabled) {
         initialVDP2SnapshotComplete = vdp2MemoryTracer.CopyCaptureSnapshot(
             vdp2MemoryTraceSnapshot, vdp2MemoryTraceDropped, initialVDP2VRAM, initialVDP2CRAM,
             vdp2TraceFiltersUnchanged);
+        vdp2WriteTraceRows = std::count_if(vdp2MemoryTraceSnapshot.begin(), vdp2MemoryTraceSnapshot.end(),
+                                           [](const auto &entry) { return !entry.isScanline; });
         rowStateEligible = initialVDP2SnapshotComplete && vdp2TraceFiltersUnchanged && vdp2MemoryTraceDropped == 0 &&
                            !vdp2FrameRangeEnabled &&
                            vdp.GetRenderer().GetType() == ymir::vdp::VDPRendererType::Software &&
@@ -581,7 +587,8 @@ void DumpAllMemory(SharedContext &ctx) {
                  << "vdp2_vram_file_complete=" << (vdp2VRAMWritten ? 1 : 0) << '\n'
                  << "vdp2_cram_file_complete=" << (vdp2CRAMWritten ? 1 : 0) << '\n'
                  << "vdp2_register_file_complete=" << (vdp2RegistersWritten ? 1 : 0) << '\n'
-                 << "trace_rows=" << vdp2MemoryTraceSnapshot.size() << '\n'
+                 << "trace_rows=" << vdp2WriteTraceRows << '\n'
+                 << "render_event_rows=" << vdp2MemoryTraceSnapshot.size() << '\n'
                  << "trace_capacity_rows=" << vdp2MemoryTracer.capacity.load(std::memory_order_relaxed) << '\n'
                  << "trace_dropped_total=" << vdp2MemoryTraceDropped << '\n'
                  << "trace_vdp1_frame_range_enabled=" << (vdp2FrameRangeEnabled ? 1 : 0) << '\n'

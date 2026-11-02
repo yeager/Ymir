@@ -37,6 +37,8 @@ changes or individual pixel fetch timing. Pair it with the bounded pixel-fetch
 trace when investigating source addresses and layer output.
 
 The ring capacity and dropped-row count cover both writes and scanline markers.
-An incomplete bundle or nonzero dropped count cannot establish a complete
-row-by-row state history. Frame indices use the same VDP1 frame convention as
-the existing memory-write trace.
+For compatibility, `trace_rows` in the receipt remains the number of rows in
+the legacy memory-write CSV; `render_event_rows` counts both writes and
+scanline markers. An incomplete bundle or nonzero dropped count cannot
+establish a complete row-by-row state history. Frame indices use the same VDP1
+frame convention as the existing memory-write trace.

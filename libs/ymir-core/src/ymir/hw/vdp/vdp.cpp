@@ -539,6 +539,9 @@ bool VDP::ValidateState(const savestate::VDPSaveState &state) const {
 
 void VDP::LoadState(const savestate::VDPSaveState &state) {
     m_state.LoadState(state);
+    if (m_vdp2MemoryTracer != nullptr) {
+        m_vdp2MemoryTracer->BeginCapture(m_state.mem2.VRAM, m_state.mem2.CRAM);
+    }
     m_renderer->LoadState(state.renderer);
 
     m_renderer->PostLoadStateSync();

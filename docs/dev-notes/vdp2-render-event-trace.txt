@@ -16,11 +16,13 @@ a write with a later sequence happened after that row render began. The
 sequence can have gaps because filtered writes still advance it.
 
 `vdp2-vram-start.bin` and `vdp2-cram-start.bin` are snapshots taken when the
-tracer is attached. Starting from those files, replay the included writes in
-sequence order to recover the memory contents at each scanline marker. The
-export-time `vdp2-vram.bin` and `vdp2-cram.bin` remain useful as end-state
-checks. A complete row-state history requires both start snapshots, a complete
-event CSV, and `trace_dropped_total=0` in the bundle manifest. The manifest's
+tracer is attached and refreshed after a save state loads. The write/event ring
+is cleared at the same time, so replay starts from the loaded state's actual
+VDP2 memory. Starting from those files, replay the included writes in sequence
+order to recover the memory contents at each scanline marker. The export-time
+`vdp2-vram.bin` and `vdp2-cram.bin` remain useful as end-state checks. A
+complete row-state history requires both start snapshots, a complete event
+CSV, and `trace_dropped_total=0` in the bundle manifest. The manifest's
 `row_state_reconstruction_complete` flag is stricter: it is true only when the
 full VRAM/CRAM address range is enabled and no frame-range filter omits earlier
 writes. Narrowly filtered captures can still order the writes they contain,

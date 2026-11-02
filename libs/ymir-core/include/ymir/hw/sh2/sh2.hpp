@@ -137,6 +137,8 @@ public:
     /// or reset tracer-owned analysis state.
     void RefreshTracerConfiguration() {
         m_traceMemoryReads = m_tracer != nullptr && m_tracer->IsMemoryReadTracingEnabled();
+        m_traceMemoryReadRegisterSnapshots =
+            m_tracer != nullptr && m_tracer->IsMemoryReadRegisterSnapshotTracingEnabled();
         m_traceMemoryWrites = m_tracer != nullptr && m_tracer->IsMemoryWriteTracingEnabled();
     }
 
@@ -768,10 +770,12 @@ private:
     //    111   I/O area (on-chip registers)    Cache bypassed
 
     template <mem_primitive T, bool instrFetch, bool peek, bool emulateCache>
-    T MemRead(uint32 address);
+    T MemRead(uint32 address, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+              uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
 
     template <mem_primitive T, bool poke, bool debug, bool emulateCache>
-    void MemWrite(uint32 address, T value);
+    void MemWrite(uint32 address, T value, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                  uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
 
     template <bool emulateCache>
     uint16 FetchInstruction(uint32 address);
@@ -779,18 +783,24 @@ private:
     void RefillPipeline();
 
     template <bool emulateCache>
-    uint8 MemReadByte(uint32 address);
+    uint8 MemReadByte(uint32 address, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                      uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
     template <bool emulateCache, bool instrFetch = false>
-    uint16 MemReadWord(uint32 address);
+    uint16 MemReadWord(uint32 address, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                       uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
     template <bool emulateCache, bool instrFetch = false>
-    uint32 MemReadLong(uint32 address);
+    uint32 MemReadLong(uint32 address, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                       uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
 
     template <bool debug, bool emulateCache>
-    void MemWriteByte(uint32 address, uint8 value);
+    void MemWriteByte(uint32 address, uint8 value, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                      uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
     template <bool debug, bool emulateCache>
-    void MemWriteWord(uint32 address, uint16 value);
+    void MemWriteWord(uint32 address, uint16 value, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                      uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
     template <bool debug, bool emulateCache>
-    void MemWriteLong(uint32 address, uint32 value);
+    void MemWriteLong(uint32 address, uint32 value, debug::SH2MemoryAccessOrigin origin = debug::SH2MemoryAccessOrigin::CPU,
+                      uint8 dmaChannel = debug::kSH2UnknownDMAChannel);
 
     template <bool emulateCache>
     uint16 PeekInstruction(uint32 address);
@@ -1002,6 +1012,7 @@ private:
     Probe m_probe{*this};
     debug::ISH2Tracer *m_tracer = nullptr;
     bool m_traceMemoryReads = false;
+    bool m_traceMemoryReadRegisterSnapshots = false;
     bool m_traceMemoryWrites = false;
 
     std::array<bool, 2> m_dmacTraced; // whether each DMA channel has had a transfer traced

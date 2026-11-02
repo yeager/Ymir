@@ -539,6 +539,8 @@ void SoftwareVDPRenderer::VDP2LatchTVMD() {
 }
 
 void SoftwareVDPRenderer::VDP2BeginFrame() {
+    m_vdp2CurrentFrameSerial.fetch_add(1, std::memory_order_relaxed);
+    m_vdp2LineCallOrdinal.store(0, std::memory_order_relaxed);
     if (m_threadedVDP2Rendering) {
         m_vdp2RenderingContext.EnqueueEvent(VDP2RenderEvent::VDP2BeginFrame());
     } else {
@@ -547,16 +549,19 @@ void SoftwareVDPRenderer::VDP2BeginFrame() {
 }
 
 void SoftwareVDPRenderer::VDP2RenderLine(uint32 y) {
+    const uint64 vdp2FrameSerial = m_vdp2CurrentFrameSerial.load(std::memory_order_relaxed);
+    const uint32 lineCallOrdinal = m_vdp2LineCallOrdinal.fetch_add(1, std::memory_order_relaxed);
     if (m_threadedVDP2Rendering) {
-        m_vdp2RenderingContext.EnqueueEvent(VDP2RenderEvent::VDP2DrawLine(y));
+        m_vdp2RenderingContext.EnqueueEvent(VDP2RenderEvent::VDP2DrawLine(
+            y, m_vdp2CurrentFrameIndex.load(std::memory_order_relaxed), vdp2FrameSerial, lineCallOrdinal));
         m_state.state2.CalcAccessPatterns(m_state.regs2, m_vdp2AccessPatternsConfig);
         m_state.state2.CalcVCellScrollDelay(m_state.regs2);
     } else {
         const bool interlaced = m_state.regs2.TVMD.IsInterlaced();
         VDP2PrepareLine(y);
-        (this->*m_fnVDP2DrawLine)(y, false);
+        (this->*m_fnVDP2DrawLine)(y, false, vdp2FrameSerial, lineCallOrdinal);
         if (m_enhancements.deinterlace && interlaced) {
-            (this->*m_fnVDP2DrawLine)(y, true);
+            (this->*m_fnVDP2DrawLine)(y, true, vdp2FrameSerial, lineCallOrdinal);
         }
         VDP2FinishLine(y);
     }
@@ -567,6 +572,14 @@ void SoftwareVDPRenderer::VDP2EndFrame() {
         m_vdp2RenderingContext.EnqueueEvent(VDP2RenderEvent::VDP2EndFrame());
         m_vdp2RenderingContext.renderFinishedSignal.Wait();
         m_vdp2RenderingContext.renderFinishedSignal.Reset();
+    }
+    if (m_vdp2RenderStateTracer != nullptr) {
+        const uint64 frame = m_vdp2CurrentFrameIndex.load(std::memory_order_relaxed);
+        if (m_vdp2RenderStateTracer->ShouldCaptureFrame(frame)) {
+            m_vdp2RenderStateTracer->CompletedFrame(
+                frame, m_vdp2CurrentFrameSerial.load(std::memory_order_relaxed), m_HRes, m_VRes,
+                m_framebuffer.data());
+        }
     }
     Callbacks.VDP2DrawFinished();
     SwCallbacks.FrameComplete(m_framebuffer.data(), m_HRes, m_VRes);
@@ -721,18 +734,23 @@ void SoftwareVDPRenderer::VDP2RenderThread() {
                 const bool deinterlaceRender = m_enhancements.deinterlace;
                 const bool threadedDeinterlacer = m_threadedDeinterlacer;
                 const bool interlaced = rctx.vdp2.regs.TVMD.IsInterlaced();
+                m_vdp2CurrentFrameIndex.store(event.drawLine.frame, std::memory_order_relaxed);
                 VDP2PrepareLine(event.drawLine.vcnt);
                 if (deinterlaceRender && interlaced && threadedDeinterlacer) {
                     rctx.deinterlaceY = event.drawLine.vcnt;
+                    rctx.deinterlaceVdp2FrameSerial = event.drawLine.vdp2FrameSerial;
+                    rctx.deinterlaceLineCallOrdinal = event.drawLine.lineCallOrdinal;
                     rctx.deinterlaceRenderBeginSignal.Set();
                 }
-                (this->*m_fnVDP2DrawLine)(event.drawLine.vcnt, false);
+                (this->*m_fnVDP2DrawLine)(event.drawLine.vcnt, false,
+                                          event.drawLine.vdp2FrameSerial, event.drawLine.lineCallOrdinal);
                 if (deinterlaceRender && interlaced) {
                     if (threadedDeinterlacer) {
                         rctx.deinterlaceRenderEndSignal.Wait();
                         rctx.deinterlaceRenderEndSignal.Reset();
                     } else {
-                        (this->*m_fnVDP2DrawLine)(event.drawLine.vcnt, true);
+                        (this->*m_fnVDP2DrawLine)(event.drawLine.vcnt, true,
+                                                  event.drawLine.vdp2FrameSerial, event.drawLine.lineCallOrdinal);
                     }
                 }
                 VDP2FinishLine(event.drawLine.vcnt);
@@ -842,7 +860,8 @@ void SoftwareVDPRenderer::VDP2DeinterlaceRenderThread() {
             return;
         }
 
-        (this->*m_fnVDP2DrawLine)(rctx.deinterlaceY, true);
+        (this->*m_fnVDP2DrawLine)(rctx.deinterlaceY, true, rctx.deinterlaceVdp2FrameSerial,
+                                  rctx.deinterlaceLineCallOrdinal);
         rctx.deinterlaceRenderEndSignal.Set();
     }
 }
@@ -2550,11 +2569,27 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2FinishLine(uint32 y) {
 }
 
 template <bool deinterlace, bool transparentMeshes>
-void SoftwareVDPRenderer::VDP2DrawLine(uint32 y, bool altField) {
+void SoftwareVDPRenderer::VDP2DrawLine(uint32 y, bool altField, uint64 vdp2FrameSerial,
+                                       uint32 lineCallOrdinal) {
     devlog::trace<grp::swvdp2_verbose>("Drawing line {} {} field", y, (altField ? "alt" : "main"));
 
     const VDP1RegTVMR &tvmr = VDP2GetVDP1TVMR();
     const VDP2Regs &regs2 = VDP2GetRegs();
+    const uint64 frame = m_vdp2CurrentFrameIndex.load(std::memory_order_relaxed);
+    if (m_vdp2RenderStateTracer != nullptr &&
+        m_vdp2RenderStateTracer->ShouldTrace(frame, y)) {
+        const BGParams &bg = regs2.bgParams[1];
+        const NBGLayerState &bgState = m_state.state2.nbgLayerStates[0];
+        const bool nbg0Enabled = regs2.bgEnabled[0];
+        const bool layerEnabled = m_state.state2.layerEnabled[2];
+        const bool rbg1Enabled = regs2.bgEnabled[5];
+        const bool mosaicReuse = bg.mosaicEnable && bgState.mosaicCounterY > 0;
+        m_vdp2RenderStateTracer->Sample({frame, y, altField, vdp2FrameSerial, lineCallOrdinal,
+            bg.scrollAmountH, bg.scrollAmountV, bg.scrollIncH, bg.scrollIncV,
+            bgState.fracScrollX, bgState.fracScrollY, bg.priorityNumber,
+            bg.colorCalcEnable, bg.colorCalcRatio, bg.bitmap, static_cast<uint8>(bg.colorFormat),
+            nbg0Enabled, layerEnabled, rbg1Enabled, mosaicReuse});
+    }
 
     using FnDrawLayer = void (SoftwareVDPRenderer::*)(uint32, const VDP2Regs &);
 
@@ -2867,7 +2902,6 @@ FORCE_INLINE void SoftwareVDPRenderer::VDP2DrawNormalBG(const VDP2Regs &regs2, u
 
     const BGParams &bgParams = regs2.bgParams[bgIndex + 1];
     const NBGLayerState &bgState = state2.nbgLayerStates[bgIndex];
-
     if (bgParams.mosaicEnable && bgState.mosaicCounterY > 0) {
         // Reuse contents of previous line
         return;

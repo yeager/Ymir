@@ -263,7 +263,18 @@ public:
 
     /// Attach a VDP2 memory write tracer. Passing nullptr detaches the tracer.
     void UseVDP2MemoryTracer(debug::IVDP2MemoryTracer *tracer) {
+        if (tracer == m_vdp2MemoryTracer) {
+            return;
+        }
         m_vdp2MemoryTracer = tracer;
+        if (m_vdp2MemoryTracer != nullptr) {
+            m_vdp2MemoryTracer->BeginCapture(m_state.mem2.VRAM, m_state.mem2.CRAM);
+        }
+    }
+
+    void UseVDP2RenderStateTracer(debug::IVDP2RenderStateTracer *tracer) {
+        m_vdp2RenderStateTracer = tracer;
+        m_renderer->UseVDP2RenderStateTracer(tracer);
     }
 
     /// Returns the VDP1 frame index used to timestamp VDP2 memory writes.
@@ -297,6 +308,8 @@ private:
     uint32 m_vdp1CommandIndex = 0;
     uint32 m_vdp1CommandRootAddress = 0;
     debug::IVDP2MemoryTracer *m_vdp2MemoryTracer = nullptr;
+    uint64 m_vdp2TraceSequence = 0;
+    debug::IVDP2RenderStateTracer *m_vdp2RenderStateTracer = nullptr;
 
     core::Configuration &m_config;
 

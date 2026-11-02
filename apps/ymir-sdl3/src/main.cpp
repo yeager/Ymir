@@ -2,6 +2,7 @@
 
 #include <util/os_exception_handler.hpp>
 #include <ymir/util/thread_name.hpp>
+#include <ymir/hw/smpc/peripheral/peripheral_state_common.hpp>
 
 #include <cxxopts.hpp>
 #include <fmt/format.h>
@@ -10,10 +11,23 @@
     #include <objc/message.h>
 #endif
 
+#include <charconv>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
 
 int main(int argc, char **argv) {
     constexpr unsigned kMaxCaptureFrames = 60000;
+    constexpr unsigned kMaxSCUDMADataRows = 10'000'000;
+    constexpr unsigned kMaxVDP2MemoryTraceRows = 10'000'000;
+    constexpr unsigned kMaxSH2MemoryTraceRows = 10'000'000;
 #if defined(_WIN32)
     // NOTE: Setting the main thread name on Linux and macOS replaces the process name displayed on tools like `top`.
     util::SetCurrentThreadName("Main thread");
@@ -63,6 +77,9 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureControlPadDownFrame));
     options.add_options()("capture-down-hold", "Number of capture frames to hold Control Pad 1 Down",
                           cxxopts::value(progOpts.captureControlPadDownHoldFrames));
+    options.add_options()("capture-pad-input",
+                          "Schedule Control Pad 1 input as FRAME:BUTTON:HOLD (repeatable; up/down/left/right/start/a/b/c)",
+                          cxxopts::value<std::vector<std::string>>());
     options.add_options()("capture-c-frame", "Zero-based capture frame at which to assert Control Pad 1 C",
                           cxxopts::value(progOpts.captureControlPadCFrame));
     options.add_options()("capture-c-hold", "Number of capture frames to hold Control Pad 1 C",
@@ -79,14 +96,44 @@ int main(int argc, char **argv) {
                           cxxopts::value(progOpts.captureNoRender)->default_value("false"));
     options.add_options()("trace-vdp2-writes", "Record bounded VDP2 VRAM/CRAM writes during a frame capture",
                           cxxopts::value(progOpts.captureVDP2MemoryWrites)->default_value("false"));
+    options.add_options()("trace-vdp2-render-state", "Write bounded NBG0 render-state CSV to this path",
+                          cxxopts::value(progOpts.captureVDP2RenderStatePath));
+    options.add_options()("trace-vdp2-rendered-frames",
+                          "Write per-pass composed RGBX8888LE software-renderer frames for the selected frame range",
+                          cxxopts::value(progOpts.captureVDP2RenderedFramesPath));
+    options.add_options()("trace-vdp2-render-state-frame-range", "Half-open VDP1 frame range BEGIN:END for render-state samples",
+                          cxxopts::value<std::string>());
+    options.add_options()("trace-vdp2-render-state-row-range", "Half-open rendered row range BEGIN:END for render-state samples",
+                          cxxopts::value<std::string>());
+    options.add_options()("trace-vdp2-writes-max-rows", "Maximum VDP2 VRAM/CRAM writes to retain",
+                          cxxopts::value(progOpts.captureVDP2MemoryMaxRows)->default_value("250000"));
+    options.add_options()("trace-vdp2-writes-frame-range",
+                          "Restrict VDP2 write tracing to VDP1 frames in the half-open BEGIN:END interval",
+                          cxxopts::value<std::string>());
     options.add_options()("trace-sh2-reads-begin", "First physical bus address for a bounded SH-2 data-read trace",
                           cxxopts::value(progOpts.captureSH2MemoryReadBegin));
     options.add_options()("trace-sh2-reads-end", "Exclusive physical bus address for a bounded SH-2 data-read trace",
                           cxxopts::value(progOpts.captureSH2MemoryReadEnd));
+    options.add_options()("trace-sh2-reads-pc", "Capture SH-2 data reads executed by this exact instruction PC",
+                          cxxopts::value(progOpts.captureSH2MemoryReadPC));
+    options.add_options()("trace-sh2-read-registers",
+                          "Write a companion CSV of CPU registers at each address-matched SH-2 data read",
+                          cxxopts::value(progOpts.captureSH2MemoryReadRegisterSnapshots)->default_value("false"));
     options.add_options()("trace-sh2-writes-begin", "First physical bus address for a bounded SH-2 data-write trace",
                           cxxopts::value(progOpts.captureSH2MemoryWriteBegin));
     options.add_options()("trace-sh2-writes-end", "Exclusive physical bus address for a bounded SH-2 data-write trace",
                           cxxopts::value(progOpts.captureSH2MemoryWriteEnd));
+    options.add_options()("trace-sh2-writes-max-rows", "Maximum SH-2 data-write rows to retain",
+                          cxxopts::value(progOpts.captureSH2MemoryWriteMaxRows)->default_value("250000"));
+    options.add_options()("trace-sh2-writes-frame-range",
+                          "Restrict SH-2 data-write tracing to VDP1 frames in the half-open BEGIN:END interval",
+                          cxxopts::value<std::string>());
+    options.add_options()("trace-scu-dma-payload-begin", "First bus address for a bounded SCU DMA payload trace",
+                          cxxopts::value(progOpts.captureSCUDMADataBegin));
+    options.add_options()("trace-scu-dma-payload-end", "Exclusive bus address for a bounded SCU DMA payload trace",
+                          cxxopts::value(progOpts.captureSCUDMADataEnd));
+    options.add_options()("trace-scu-dma-payload-max-rows", "Maximum matching SCU DMA payload writes to retain",
+                          cxxopts::value(progOpts.captureSCUDMADataMaxRows)->default_value("1000000"));
     options.add_options()("E,exceptions", "Capture all unhandled exceptions",
                           cxxopts::value(enableAllExceptions)->default_value("false"));
     options.parse_positional({"disc"});
@@ -97,6 +144,91 @@ int main(int argc, char **argv) {
     try {
 #endif
         auto result = options.parse(argc, argv);
+        const auto parseRenderStateRange = [&](const char *option, bool &enabled, unsigned &begin, unsigned &end) {
+            if (result.count(option) == 0) return true;
+            const std::string spec = result[option].as<std::string>();
+            const size_t separator = spec.find(':');
+            const auto parseBound = [](std::string_view text, unsigned &value) {
+                const auto [parsed, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && parsed == text.data() + text.size();
+            };
+            if (separator == std::string::npos || spec.find(':', separator + 1) != std::string::npos ||
+                !parseBound(std::string_view(spec).substr(0, separator), begin) ||
+                !parseBound(std::string_view(spec).substr(separator + 1), end) || begin >= end) {
+                fmt::println("invalid --{} '{}'; expected nonempty BEGIN:END", option, spec);
+                return false;
+            }
+            enabled = true;
+            return true;
+        };
+        if (!parseRenderStateRange("trace-vdp2-render-state-frame-range",
+                                   progOpts.captureVDP2RenderStateFrameRange,
+                                   progOpts.captureVDP2RenderStateFrameBegin,
+                                   progOpts.captureVDP2RenderStateFrameEnd) ||
+            !parseRenderStateRange("trace-vdp2-render-state-row-range",
+                                   progOpts.captureVDP2RenderStateRowRange,
+                                   progOpts.captureVDP2RenderStateRowBegin,
+                                   progOpts.captureVDP2RenderStateRowEnd)) return -1;
+        const bool renderStateTrace = !progOpts.captureVDP2RenderStatePath.empty();
+        const bool renderedFrameTrace = !progOpts.captureVDP2RenderedFramesPath.empty();
+        if (renderedFrameTrace && (!renderStateTrace || !progOpts.captureVDP2RenderStateFrameRange)) {
+            fmt::println("--trace-vdp2-rendered-frames requires --trace-vdp2-render-state and its frame range");
+            return -1;
+        }
+        if ((progOpts.captureVDP2RenderStateFrameRange || progOpts.captureVDP2RenderStateRowRange) &&
+            !renderStateTrace) {
+            fmt::println("render-state frame/row ranges require --trace-vdp2-render-state");
+            return -1;
+        }
+        if (renderStateTrace &&
+            (!progOpts.captureVDP2RenderStateFrameRange || !progOpts.captureVDP2RenderStateRowRange ||
+             !progOpts.enableDebugTracing ||
+             (progOpts.captureFramesAfterLoad == 0 && progOpts.captureFramesFromBoot == 0) ||
+             !progOpts.dumpMemoryAtStartup ||
+             progOpts.captureNoRender || progOpts.captureVDP2RenderStateRowEnd > 1024)) {
+            fmt::println("--trace-vdp2-render-state requires both ranges, --debug, a rendered frame capture, and --dump-memory");
+            return -1;
+        }
+        if (renderStateTrace &&
+            (static_cast<std::uint64_t>(progOpts.captureVDP2RenderStateFrameEnd -
+                                   progOpts.captureVDP2RenderStateFrameBegin) *
+                 (progOpts.captureVDP2RenderStateRowEnd - progOpts.captureVDP2RenderStateRowBegin) >
+             500'000)) {
+            fmt::println("--trace-vdp2-render-state range may cover at most 500000 frame-row pairs");
+            return -1;
+        }
+        if (result.count("trace-vdp2-writes-frame-range") != 0) {
+            const std::string spec = result["trace-vdp2-writes-frame-range"].as<std::string>();
+            const size_t separator = spec.find(':');
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            if (separator == std::string::npos || spec.find(':', separator + 1) != std::string::npos ||
+                !parseFrame(std::string_view(spec).substr(0, separator), progOpts.captureVDP2FrameBegin) ||
+                !parseFrame(std::string_view(spec).substr(separator + 1), progOpts.captureVDP2FrameEnd) ||
+                progOpts.captureVDP2FrameBegin >= progOpts.captureVDP2FrameEnd) {
+                fmt::println("invalid --trace-vdp2-writes-frame-range '{}'; expected nonempty BEGIN:END", spec);
+                return -1;
+            }
+            progOpts.captureVDP2FrameRange = true;
+        }
+        if (result.count("trace-sh2-writes-frame-range") != 0) {
+            const std::string spec = result["trace-sh2-writes-frame-range"].as<std::string>();
+            const size_t separator = spec.find(':');
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            if (separator == std::string::npos || spec.find(':', separator + 1) != std::string::npos ||
+                !parseFrame(std::string_view(spec).substr(0, separator), progOpts.captureSH2MemoryWriteFrameBegin) ||
+                !parseFrame(std::string_view(spec).substr(separator + 1), progOpts.captureSH2MemoryWriteFrameEnd) ||
+                progOpts.captureSH2MemoryWriteFrameBegin >= progOpts.captureSH2MemoryWriteFrameEnd) {
+                fmt::println("invalid --trace-sh2-writes-frame-range '{}'; expected nonempty BEGIN:END", spec);
+                return -1;
+            }
+            progOpts.captureSH2MemoryWriteFrameRange = true;
+        }
         progOpts.captureControlPadStart = result.count("capture-start-frame") != 0
                                            || result.count("capture-start-hold") != 0;
         progOpts.captureControlPadStartRepeat = result.count("capture-start-repeat-frame") != 0
@@ -107,10 +239,78 @@ int main(int argc, char **argv) {
         progOpts.captureControlPadDown = result.count("capture-down-frame") != 0
                                          || result.count("capture-down-hold") != 0;
         progOpts.captureControlPadC = result.count("capture-c-frame") != 0 || result.count("capture-c-hold") != 0;
-        progOpts.captureSH2MemoryReads = result.count("trace-sh2-reads-begin") != 0
-                                         || result.count("trace-sh2-reads-end") != 0;
+        if (result.count("capture-pad-input") != 0) {
+            using Button = ymir::peripheral::Button;
+            const auto parseFrame = [](std::string_view text, unsigned &value) {
+                const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+                return error == std::errc{} && end == text.data() + text.size();
+            };
+            const auto buttonMask = [](std::string_view name) -> std::uint16_t {
+                if (name == "up") return static_cast<std::uint16_t>(Button::Up);
+                if (name == "down") return static_cast<std::uint16_t>(Button::Down);
+                if (name == "left") return static_cast<std::uint16_t>(Button::Left);
+                if (name == "right") return static_cast<std::uint16_t>(Button::Right);
+                if (name == "start") return static_cast<std::uint16_t>(Button::Start);
+                if (name == "a") return static_cast<std::uint16_t>(Button::A);
+                if (name == "b") return static_cast<std::uint16_t>(Button::B);
+                if (name == "c") return static_cast<std::uint16_t>(Button::C);
+                return 0;
+            };
+            for (const std::string &spec : result["capture-pad-input"].as<std::vector<std::string>>()) {
+                const size_t first = spec.find(':');
+                const size_t second = first == std::string::npos ? first : spec.find(':', first + 1);
+                app::ScheduledControlPadInput input{};
+                const std::uint16_t mask = second == std::string::npos
+                                               ? 0
+                                               : buttonMask(std::string_view(spec).substr(first + 1, second - first - 1));
+                if (first == std::string::npos || second == std::string::npos
+                    || !parseFrame(std::string_view(spec).substr(0, first), input.frame)
+                    || !parseFrame(std::string_view(spec).substr(second + 1), input.holdFrames) || mask == 0
+                    || input.holdFrames == 0) {
+                    fmt::println("invalid --capture-pad-input '{}'; expected FRAME:BUTTON:HOLD with a supported "
+                                 "button and nonzero hold",
+                                 spec);
+                    return -1;
+                }
+                input.buttonMask = mask;
+                progOpts.captureControlPadInputs.push_back(input);
+            }
+        }
+        const bool readAddressBeginSpecified = result.count("trace-sh2-reads-begin") != 0;
+        const bool readAddressEndSpecified = result.count("trace-sh2-reads-end") != 0;
+        progOpts.captureSH2MemoryReadAddressRange = readAddressBeginSpecified || readAddressEndSpecified;
+        progOpts.captureSH2MemoryReadPCFilter = result.count("trace-sh2-reads-pc") != 0;
+        progOpts.captureSH2MemoryReads = progOpts.captureSH2MemoryReadAddressRange
+                                         || progOpts.captureSH2MemoryReadPCFilter;
+        if (readAddressBeginSpecified != readAddressEndSpecified) {
+            fmt::println("--trace-sh2-reads-begin and --trace-sh2-reads-end must be specified together");
+            return -1;
+        }
+        if (progOpts.captureSH2MemoryReadRegisterSnapshots && !progOpts.captureSH2MemoryReads) {
+            fmt::println("--trace-sh2-read-registers requires an SH-2 read address range or PC filter");
+            return -1;
+        }
+        if (progOpts.captureSH2MemoryReadPCFilter && progOpts.captureSH2MemoryReadPC == 0) {
+            fmt::println("--trace-sh2-reads-pc requires a nonzero instruction PC");
+            return -1;
+        }
         progOpts.captureSH2MemoryWrites = result.count("trace-sh2-writes-begin") != 0
                                           || result.count("trace-sh2-writes-end") != 0;
+        if (progOpts.captureSH2MemoryWriteFrameRange && !progOpts.captureSH2MemoryWrites) {
+            fmt::println("--trace-sh2-writes-frame-range requires --trace-sh2-writes-begin/end");
+            return -1;
+        }
+        progOpts.captureSCUDMAData = result.count("trace-scu-dma-payload-begin") != 0
+                                     || result.count("trace-scu-dma-payload-end") != 0;
+        if (result.count("trace-scu-dma-payload-max-rows") != 0 && !progOpts.captureSCUDMAData) {
+            fmt::println("--trace-scu-dma-payload-max-rows requires a payload address range");
+            return -1;
+        }
+        if (progOpts.captureSCUDMAData
+            && (progOpts.captureSCUDMADataMaxRows == 0 || progOpts.captureSCUDMADataMaxRows > kMaxSCUDMADataRows)) {
+            fmt::println("--trace-scu-dma-payload-max-rows must be between 1 and {}", kMaxSCUDMADataRows);
+            return -1;
+        }
         if (progOpts.captureLoadStateSlot > 10) {
             fmt::println("--load-state must be between 1 and 10");
             return -1;
@@ -203,6 +403,30 @@ int main(int argc, char **argv) {
                          "hold must be nonzero and start must be within the capture");
             return -1;
         }
+        if (!progOpts.captureControlPadInputs.empty()) {
+            if (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup) {
+                fmt::println("--capture-pad-input requires --capture-frames or --capture-boot-frames and --dump-memory");
+                return -1;
+            }
+            for (const auto &input : progOpts.captureControlPadInputs) {
+                if (input.frame >= captureFrameCount || input.holdFrames > captureFrameCount - input.frame) {
+                    fmt::println("--capture-pad-input frame and hold must fit within the capture");
+                    return -1;
+                }
+            }
+        }
+        if ((progOpts.captureVDP2FrameRange || result.count("trace-vdp2-writes-max-rows") != 0) &&
+            !progOpts.captureVDP2MemoryWrites) {
+            fmt::println("--trace-vdp2-writes-frame-range and --trace-vdp2-writes-max-rows require "
+                         "--trace-vdp2-writes");
+            return -1;
+        }
+        if (progOpts.captureVDP2MemoryWrites &&
+            (progOpts.captureVDP2MemoryMaxRows == 0 ||
+             progOpts.captureVDP2MemoryMaxRows > kMaxVDP2MemoryTraceRows)) {
+            fmt::println("--trace-vdp2-writes-max-rows must be between 1 and {}", kMaxVDP2MemoryTraceRows);
+            return -1;
+        }
         if (progOpts.captureVDP2MemoryWrites
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup)) {
             fmt::println("--trace-vdp2-writes requires --debug, a frame capture, and --dump-memory");
@@ -210,14 +434,36 @@ int main(int argc, char **argv) {
         }
         if (progOpts.captureSH2MemoryReads
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
-                || progOpts.captureSH2MemoryReadBegin >= progOpts.captureSH2MemoryReadEnd)) {
-            fmt::println("--trace-sh2-reads-begin/end require --debug, a frame capture, --dump-memory, and a nonempty range");
+                || (progOpts.captureSH2MemoryReadAddressRange
+                    && progOpts.captureSH2MemoryReadBegin >= progOpts.captureSH2MemoryReadEnd)
+                || (!progOpts.captureSH2MemoryReadAddressRange && !progOpts.captureSH2MemoryReadPCFilter))) {
+            fmt::println("SH-2 read tracing requires --debug, a frame capture, --dump-memory, and either a nonempty "
+                         "address range or --trace-sh2-reads-pc");
+            return -1;
+        }
+        if (result.count("trace-sh2-writes-max-rows") != 0 && !progOpts.captureSH2MemoryWrites) {
+            fmt::println("--trace-sh2-writes-max-rows requires --trace-sh2-writes-begin/end");
             return -1;
         }
         if (progOpts.captureSH2MemoryWrites
             && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
                 || progOpts.captureSH2MemoryWriteBegin >= progOpts.captureSH2MemoryWriteEnd)) {
             fmt::println("--trace-sh2-writes-begin/end require --debug, a frame capture, --dump-memory, and a nonempty range");
+            return -1;
+        }
+        if (progOpts.captureSH2MemoryWrites
+            && (progOpts.captureSH2MemoryWriteMaxRows == 0
+                || progOpts.captureSH2MemoryWriteMaxRows > kMaxSH2MemoryTraceRows)) {
+            fmt::println("--trace-sh2-writes-max-rows must be between 1 and {}", kMaxSH2MemoryTraceRows);
+            return -1;
+        }
+        if (progOpts.captureSCUDMAData
+            && (!progOpts.enableDebugTracing || captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup
+                || result.count("trace-scu-dma-payload-begin") == 0
+                || result.count("trace-scu-dma-payload-end") == 0
+                || progOpts.captureSCUDMADataBegin >= progOpts.captureSCUDMADataEnd)) {
+            fmt::println("--trace-scu-dma-payload-begin/end require --debug, a frame capture, --dump-memory, and a "
+                         "nonempty range");
             return -1;
         }
         if (showHelp) {

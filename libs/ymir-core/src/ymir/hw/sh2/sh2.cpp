@@ -646,7 +646,7 @@ void SH2::PostLoadState(const savestate::SH2SaveState &state) {
 // Memory accessors
 
 template <mem_primitive T, bool instrFetch, bool peek, bool emulateCache>
-T SH2::MemRead(uint32 address) {
+T SH2::MemRead(uint32 address, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
     static constexpr uint32 kAddressMask = ~(static_cast<uint32>(sizeof(T)) - 1u);
 
     const uint32 partition = (address >> 29u) & 0b111;
@@ -662,7 +662,20 @@ T SH2::MemRead(uint32 address) {
 
     if constexpr (!instrFetch && !peek) {
         if (m_traceMemoryReads) {
-            m_tracer->MemoryRead(PC, address & 0x7FFFFFFu, sizeof(T));
+            const uint32 physicalAddress = address & 0x7FFFFFFu;
+            const uint32 instructionPC =
+                origin == debug::SH2MemoryAccessOrigin::CPU ? PC : debug::kSH2UnknownInstructionPC;
+            if (m_traceMemoryReadRegisterSnapshots
+                && m_tracer->ShouldCaptureMemoryReadRegisterSnapshot(instructionPC, physicalAddress)) {
+                if (origin == debug::SH2MemoryAccessOrigin::CPU) {
+                    const debug::SH2RegisterSnapshot registers{R, PC, PR, MAC.H, MAC.L, SR.u32, GBR, VBR};
+                    m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T), &registers);
+                } else {
+                    m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T), nullptr);
+                }
+            } else {
+                m_tracer->MemoryRead(origin, dmaChannel, instructionPC, physicalAddress, sizeof(T));
+            }
         }
     }
 
@@ -776,7 +789,7 @@ T SH2::MemRead(uint32 address) {
 }
 
 template <mem_primitive T, bool poke, bool debug, bool emulateCache>
-void SH2::MemWrite(uint32 address, T value) {
+void SH2::MemWrite(uint32 address, T value, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
     static constexpr uint32 kAddressMask = ~(static_cast<uint32>(sizeof(T)) - 1u);
 
     const uint32 partition = address >> 29u;
@@ -791,7 +804,9 @@ void SH2::MemWrite(uint32 address, T value) {
 
     if constexpr (debug && !poke) {
         if (m_traceMemoryWrites) {
-            m_tracer->MemoryWrite(PC, address & 0x7FFFFFFu, sizeof(T), static_cast<uint32>(value));
+            m_tracer->MemoryWrite(origin, dmaChannel,
+                                 origin == debug::SH2MemoryAccessOrigin::CPU ? PC : debug::kSH2UnknownInstructionPC,
+                                 address & 0x7FFFFFFu, sizeof(T), static_cast<uint32>(value));
         }
     }
 
@@ -900,33 +915,33 @@ FLATTEN FORCE_INLINE void SH2::RefillPipeline() {
 }
 
 template <bool emulateCache>
-FLATTEN FORCE_INLINE uint8 SH2::MemReadByte(uint32 address) {
-    return MemRead<uint8, false, false, emulateCache>(address);
+FLATTEN FORCE_INLINE uint8 SH2::MemReadByte(uint32 address, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
+    return MemRead<uint8, false, false, emulateCache>(address, origin, dmaChannel);
 }
 
 template <bool emulateCache, bool instrFetch>
-FLATTEN FORCE_INLINE uint16 SH2::MemReadWord(uint32 address) {
-    return MemRead<uint16, instrFetch, false, emulateCache>(address);
+FLATTEN FORCE_INLINE uint16 SH2::MemReadWord(uint32 address, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
+    return MemRead<uint16, instrFetch, false, emulateCache>(address, origin, dmaChannel);
 }
 
 template <bool emulateCache, bool instrFetch>
-FLATTEN FORCE_INLINE uint32 SH2::MemReadLong(uint32 address) {
-    return MemRead<uint32, instrFetch, false, emulateCache>(address);
+FLATTEN FORCE_INLINE uint32 SH2::MemReadLong(uint32 address, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
+    return MemRead<uint32, instrFetch, false, emulateCache>(address, origin, dmaChannel);
 }
 
 template <bool debug, bool emulateCache>
-FLATTEN FORCE_INLINE void SH2::MemWriteByte(uint32 address, uint8 value) {
-    MemWrite<uint8, false, debug, emulateCache>(address, value);
+FLATTEN FORCE_INLINE void SH2::MemWriteByte(uint32 address, uint8 value, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
+    MemWrite<uint8, false, debug, emulateCache>(address, value, origin, dmaChannel);
 }
 
 template <bool debug, bool emulateCache>
-FLATTEN FORCE_INLINE void SH2::MemWriteWord(uint32 address, uint16 value) {
-    MemWrite<uint16, false, debug, emulateCache>(address, value);
+FLATTEN FORCE_INLINE void SH2::MemWriteWord(uint32 address, uint16 value, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
+    MemWrite<uint16, false, debug, emulateCache>(address, value, origin, dmaChannel);
 }
 
 template <bool debug, bool emulateCache>
-FLATTEN FORCE_INLINE void SH2::MemWriteLong(uint32 address, uint32 value) {
-    MemWrite<uint32, false, debug, emulateCache>(address, value);
+FLATTEN FORCE_INLINE void SH2::MemWriteLong(uint32 address, uint32 value, debug::SH2MemoryAccessOrigin origin, uint8 dmaChannel) {
+    MemWrite<uint32, false, debug, emulateCache>(address, value, origin, dmaChannel);
 }
 
 template <bool emulateCache>
@@ -1870,40 +1885,49 @@ FORCE_INLINE bool SH2::StepDMAC(uint32 channel) {
     // Perform one unit of transfer
     switch (ch.xferSize) {
     case DMATransferSize::Byte: {
-        const uint8 value = MemReadByte<emulateCache>(ch.srcAddress);
+        const uint8 value = MemReadByte<emulateCache>(ch.srcAddress, debug::SH2MemoryAccessOrigin::DMAC,
+                                                        static_cast<uint8>(channel));
         devlog::trace<grp::dma_xfer>(m_logPrefix, "DMAC{} 8-bit transfer from {:08X} to {:08X} -> {:X}", channel,
                                      ch.srcAddress, ch.dstAddress, value);
-        MemWriteByte<debug, emulateCache>(ch.dstAddress, value);
+        MemWriteByte<debug, emulateCache>(ch.dstAddress, value, debug::SH2MemoryAccessOrigin::DMAC,
+                                         static_cast<uint8>(channel));
         TraceDMAXferData<debug>(m_tracer, channel, ch.srcAddress, ch.dstAddress, value, xferSize);
         break;
     }
     case DMATransferSize::Word: {
-        const uint16 value = MemReadWord<emulateCache>(ch.srcAddress);
+        const uint16 value = MemReadWord<emulateCache>(ch.srcAddress, debug::SH2MemoryAccessOrigin::DMAC,
+                                                         static_cast<uint8>(channel));
         devlog::trace<grp::dma_xfer>(m_logPrefix, "DMAC{} 16-bit transfer from {:08X} to {:08X} -> {:X}", channel,
                                      ch.srcAddress, ch.dstAddress, value);
-        MemWriteWord<debug, emulateCache>(ch.dstAddress, value);
+        MemWriteWord<debug, emulateCache>(ch.dstAddress, value, debug::SH2MemoryAccessOrigin::DMAC,
+                                         static_cast<uint8>(channel));
         TraceDMAXferData<debug>(m_tracer, channel, ch.srcAddress, ch.dstAddress, value, xferSize);
         break;
     }
     case DMATransferSize::Longword: {
-        const uint32 value = MemReadLong<emulateCache>(ch.srcAddress);
+        const uint32 value = MemReadLong<emulateCache>(ch.srcAddress, debug::SH2MemoryAccessOrigin::DMAC,
+                                                         static_cast<uint8>(channel));
         devlog::trace<grp::dma_xfer>(m_logPrefix, "DMAC{} 32-bit transfer from {:08X} to {:08X} -> {:X}", channel,
                                      ch.srcAddress, ch.dstAddress, value);
-        MemWriteLong<debug, emulateCache>(ch.dstAddress, value);
+        MemWriteLong<debug, emulateCache>(ch.dstAddress, value, debug::SH2MemoryAccessOrigin::DMAC,
+                                         static_cast<uint8>(channel));
         TraceDMAXferData<debug>(m_tracer, channel, ch.srcAddress, ch.dstAddress, value, xferSize);
         break;
     }
     case DMATransferSize::QuadLongword: {
         std::array<uint32, 4> line{};
         for (int i = 0; i < 4; i++) {
-            const uint32 value = MemReadLong<emulateCache>(ch.srcAddress + i * sizeof(uint32));
+            const uint32 value = MemReadLong<emulateCache>(ch.srcAddress + i * sizeof(uint32),
+                                                                debug::SH2MemoryAccessOrigin::DMAC,
+                                                                static_cast<uint8>(channel));
             line[i] = value;
             devlog::trace<grp::dma_xfer>(m_logPrefix, "DMAC{} 16-byte transfer {:d} from {:08X} to {:08X} -> {:X}",
                                          channel, i, ch.srcAddress, ch.dstAddress, value);
         }
         for (int i = 0; i < 4; i++) {
             const uint32 value = line[i];
-            MemWriteLong<debug, emulateCache>(ch.dstAddress + i * sizeof(uint32), value);
+            MemWriteLong<debug, emulateCache>(ch.dstAddress + i * sizeof(uint32), value,
+                                             debug::SH2MemoryAccessOrigin::DMAC, static_cast<uint8>(channel));
             TraceDMAXferData<debug>(m_tracer, channel, ch.srcAddress, ch.dstAddress, value, 4);
         }
         break;

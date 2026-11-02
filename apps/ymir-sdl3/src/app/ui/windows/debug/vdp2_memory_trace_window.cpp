@@ -21,11 +21,13 @@ void VDP2MemoryTraceWindow::DrawContents() {
     bool traceVRAM = tracer.traceVRAM.load(std::memory_order_relaxed);
     if (ImGui::Checkbox("VRAM", &traceVRAM)) {
         tracer.traceVRAM.store(traceVRAM, std::memory_order_relaxed);
+        tracer.filterRevision.fetch_add(1, std::memory_order_relaxed);
     }
     ImGui::SameLine();
     bool traceCRAM = tracer.traceCRAM.load(std::memory_order_relaxed);
     if (ImGui::Checkbox("CRAM", &traceCRAM)) {
         tracer.traceCRAM.store(traceCRAM, std::memory_order_relaxed);
+        tracer.filterRevision.fetch_add(1, std::memory_order_relaxed);
     }
 
     uint32 addressBegin = tracer.addressBegin.load(std::memory_order_relaxed);
@@ -33,20 +35,18 @@ void VDP2MemoryTraceWindow::DrawContents() {
     ImGui::SetNextItemWidth(150);
     if (ImGui::InputScalar("Address from", ImGuiDataType_U32, &addressBegin, nullptr, nullptr, "%05X", ImGuiInputTextFlags_CharsHexadecimal)) {
         tracer.addressBegin.store(addressBegin, std::memory_order_relaxed);
+        tracer.filterRevision.fetch_add(1, std::memory_order_relaxed);
     }
     ImGui::SetNextItemWidth(150);
     if (ImGui::InputScalar("Address to (exclusive)", ImGuiDataType_U32, &addressEnd, nullptr, nullptr, "%05X", ImGuiInputTextFlags_CharsHexadecimal)) {
         tracer.addressEnd.store(addressEnd, std::memory_order_relaxed);
+        tracer.filterRevision.fetch_add(1, std::memory_order_relaxed);
     }
 
     size_t count = 0;
     uint64 dropped = 0;
-    {
-        std::lock_guard lock(tracer.mutex);
-        count = tracer.entries.size();
-        dropped = tracer.dropped;
-    }
-    ImGui::Text("%zu writes captured (%llu oldest writes dropped)", count,
+    tracer.GetStats(count, dropped);
+    ImGui::Text("%zu write/render events captured (%llu oldest events dropped)", count,
                 static_cast<unsigned long long>(dropped));
 
     if (ImGui::Button("Clear")) {

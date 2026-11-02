@@ -36,6 +36,13 @@ FORCE_INLINE static void TraceDMA(debug::ISCUTracer *tracer, uint8 channel, uint
     }
 }
 
+FORCE_INLINE static void TraceDMADataWrite(debug::ISCUTracer *tracer, uint8 channel, uint32 address, uint32 value,
+                                           uint8 width) {
+    if (tracer && tracer->WantsDMADataTrace()) {
+        return tracer->DMADataWrite(channel, address, value, width);
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Implementation
 
@@ -696,6 +703,13 @@ void SCU::RunDMA(uint64 cycles) {
         auto &ch = m_dmaChannels[level];
         assert(ch.active);
 
+        const bool traceDMAData = m_tracer && m_tracer->WantsDMADataTrace();
+        auto traceDMAWrite = [&](uint32 address, uint32 value, uint8 width) {
+            if (traceDMAData) {
+                TraceDMADataWrite(m_tracer, level, address, value, width);
+            }
+        };
+
         auto &xfer = ch.xfer;
 
         auto checkStall = [&](uint32 address, uint32 size, bool write) {
@@ -802,6 +816,7 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint8 value = read8();
                 m_bus.Write<uint8>(addr, value);
+                traceDMAWrite(addr, value, sizeof(value));
 
                 currDstOffset += 1;
                 ch.currXferCount -= 1;
@@ -819,6 +834,7 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint16 value = read16();
                 m_bus.Write<uint16>(addr, value);
+                traceDMAWrite(addr, value, sizeof(value));
 
                 currDstOffset += 2;
                 ch.currXferCount -= 2;
@@ -836,6 +852,7 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint32 value = read32();
                 m_bus.Write<uint32>(addr, value);
+                traceDMAWrite(addr, value, sizeof(value));
 
                 currDstOffset += 4;
                 ch.currXferCount -= 4;
@@ -853,6 +870,7 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint16 value = read16();
                 m_bus.Write<uint16>(addr, value);
+                traceDMAWrite(addr, value, sizeof(value));
 
                 currDstOffset += 2;
                 ch.currXferCount -= 2;
@@ -870,6 +888,7 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint8 value = read8();
                 m_bus.Write<uint8>(addr, value);
+                traceDMAWrite(addr, value, sizeof(value));
 
                 currDstOffset += 1;
                 ch.currXferCount -= 1;
@@ -900,7 +919,8 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint8 value = read8();
                 if (!util::AddressInRange<0x5D00000, 0x5D7FFFF>(addr)) {
-                m_bus.Write<uint8>(addr, value);
+                    m_bus.Write<uint8>(addr, value);
+                    traceDMAWrite(addr, value, sizeof(value));
                 }
 
                 currDstOffset += 1;
@@ -934,7 +954,8 @@ void SCU::RunDMA(uint64 cycles) {
 
                 const uint16 value = read16();
                 if (!util::AddressInRange<0x5D00000, 0x5D7FFFF>(addr)) {
-                m_bus.Write<uint16>(addr, value);
+                    m_bus.Write<uint16>(addr, value);
+                    traceDMAWrite(addr, value, sizeof(value));
                 }
 
                 currDstOffset += 2;
@@ -966,13 +987,15 @@ void SCU::RunDMA(uint64 cycles) {
 
                 const uint32 value1 = read16();
                 if (!util::AddressInRange<0x5D00000, 0x5D7FFFF>(addr1)) {
-                m_bus.Write<uint16>(addr1, value1);
+                    m_bus.Write<uint16>(addr1, value1);
+                    traceDMAWrite(addr1, value1, sizeof(uint16));
                 }
                 devlog::trace<grp::dma>("SCU DMA{}: 16-bit write to {:08X} -> {:04X}", level, addr1, value1);
 
                 const uint32 value2 = read16();
                 if (!util::AddressInRange<0x5D00000, 0x5D7FFFF>(addr2)) {
-                m_bus.Write<uint16>(addr2, value2);
+                    m_bus.Write<uint16>(addr2, value2);
+                    traceDMAWrite(addr2, value2, sizeof(uint16));
                 }
                 devlog::trace<grp::dma>("SCU DMA{}: 16-bit write to {:08X} -> {:04X}", level, addr2, value2);
 
@@ -1001,7 +1024,8 @@ void SCU::RunDMA(uint64 cycles) {
                 }
                 const uint16 value = read16();
                 if (!util::AddressInRange<0x5D00000, 0x5D7FFFF>(addr)) {
-                m_bus.Write<uint16>(addr, value);
+                    m_bus.Write<uint16>(addr, value);
+                    traceDMAWrite(addr, value, sizeof(value));
                 }
 
                 currDstOffset += 2;
@@ -1030,7 +1054,8 @@ void SCU::RunDMA(uint64 cycles) {
 
                 const uint8 value = read8();
                 if (!util::AddressInRange<0x5D00000, 0x5D7FFFF>(addr)) {
-                m_bus.Write<uint8>(addr, value);
+                    m_bus.Write<uint8>(addr, value);
+                    traceDMAWrite(addr, value, sizeof(value));
                 }
 
                 currDstOffset += 1;

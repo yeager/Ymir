@@ -192,6 +192,7 @@ EmuEvent ExportVDP2MemoryTrace() {
             tracer.CopyCaptureSnapshot(traceSnapshot, dropped, initialVRAM, initialCRAM, filtersUnchanged);
         const size_t writeTraceRows = std::count_if(traceSnapshot.begin(), traceSnapshot.end(),
                                                     [](const auto &entry) { return !entry.isScanline; });
+        const size_t scanlineMarkers = traceSnapshot.size() - writeTraceRows;
         const bool frameRangeEnabled = tracer.traceVdp1FrameRange.load(std::memory_order_relaxed);
         const uint64 frameRangeBegin = tracer.vdp1FrameBegin.load(std::memory_order_relaxed);
         const uint64 frameRangeEnd = tracer.vdp1FrameEnd.load(std::memory_order_relaxed);
@@ -202,7 +203,8 @@ EmuEvent ExportVDP2MemoryTrace() {
                                       tracer.traceVRAM.load(std::memory_order_relaxed) &&
                                       tracer.traceCRAM.load(std::memory_order_relaxed) &&
                                       tracer.addressBegin.load(std::memory_order_relaxed) == 0 &&
-                                      tracer.addressEnd.load(std::memory_order_relaxed) >= 0x80000;
+                                      tracer.addressEnd.load(std::memory_order_relaxed) >= 0x80000 &&
+                                      scanlineMarkers != 0;
         const auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
         std::error_code error{};
         std::filesystem::create_directories(dumpPath, error);
@@ -271,7 +273,8 @@ EmuEvent ExportVDP2MemoryTrace() {
                 out << '\n';
             }
         });
-        const bool rowStateComplete = rowStateEligible && eventTraceWritten && initialVRAMWritten && initialCRAMWritten;
+        const bool rowStateComplete = rowStateEligible && vramWritten && cramWritten && traceWritten &&
+                                      eventTraceWritten && initialVRAMWritten && initialCRAMWritten;
         std::ofstream manifest(dumpPath / "vdp2-memory-write-bundle.txt");
         if (!manifest) {
             devlog::warn<grp::base>("Could not write VDP2 memory trace receipt in {}", dumpPath);
@@ -414,19 +417,22 @@ void DumpAllMemory(SharedContext &ctx) {
     const uint64 vdp2MemoryTraceFrame = vdp.GetVDP2MemoryTraceFrameIndex();
     bool rowStateEligible = false;
     size_t vdp2WriteTraceRows = 0;
+    size_t vdp2ScanlineMarkers = 0;
     if (vdp2MemoryTraceEnabled) {
         initialVDP2SnapshotComplete = vdp2MemoryTracer.CopyCaptureSnapshot(
             vdp2MemoryTraceSnapshot, vdp2MemoryTraceDropped, initialVDP2VRAM, initialVDP2CRAM,
             vdp2TraceFiltersUnchanged);
         vdp2WriteTraceRows = std::count_if(vdp2MemoryTraceSnapshot.begin(), vdp2MemoryTraceSnapshot.end(),
                                            [](const auto &entry) { return !entry.isScanline; });
+        vdp2ScanlineMarkers = vdp2MemoryTraceSnapshot.size() - vdp2WriteTraceRows;
         rowStateEligible = initialVDP2SnapshotComplete && vdp2TraceFiltersUnchanged && vdp2MemoryTraceDropped == 0 &&
                            !vdp2FrameRangeEnabled &&
                            vdp.GetRenderer().GetType() == ymir::vdp::VDPRendererType::Software &&
                            vdp2MemoryTracer.traceVRAM.load(std::memory_order_relaxed) &&
                            vdp2MemoryTracer.traceCRAM.load(std::memory_order_relaxed) &&
                            vdp2MemoryTracer.addressBegin.load(std::memory_order_relaxed) == 0 &&
-                           vdp2MemoryTracer.addressEnd.load(std::memory_order_relaxed) >= 0x80000;
+                           vdp2MemoryTracer.addressEnd.load(std::memory_order_relaxed) >= 0x80000 &&
+                           vdp2ScanlineMarkers != 0;
     }
 
     auto dumpPath = ctx.profile.GetPath(ProfilePath::Dumps);
@@ -568,7 +574,8 @@ void DumpAllMemory(SharedContext &ctx) {
                 eventTraceWritten = static_cast<bool>(eventOut);
             }
         }
-        const bool rowStateComplete = rowStateEligible && eventTraceWritten && initialVDP2VRAMWritten &&
+        const bool rowStateComplete = rowStateEligible && traceWritten && eventTraceWritten &&
+                                      vdp2VRAMWritten && vdp2CRAMWritten && initialVDP2VRAMWritten &&
                                       initialVDP2CRAMWritten;
         std::ofstream manifest{dumpPath / "vdp2-memory-write-bundle.txt"};
         manifest << "format=ymir-vdp2-memory-write-bundle-v1\n"

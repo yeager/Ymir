@@ -179,6 +179,7 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         const size_t maxRows = capacity.load(std::memory_order_relaxed);
         EnsureCapacityLocked(maxRows);
         if (maxRows == 0) {
+            ++dropped;
             return;
         }
         entries[nextEntry] = {vdp1Frame, sequence, false, 0, type, address, width, value};
@@ -206,6 +207,7 @@ struct VDP2MemoryTracer final : ymir::debug::IVDP2MemoryTracer {
         const size_t maxRows = capacity.load(std::memory_order_relaxed);
         EnsureCapacityLocked(maxRows);
         if (maxRows == 0) {
+            ++dropped;
             return;
         }
         entries[nextEntry] = {vdp1Frame, sequence, true, row, ymir::debug::VDP2MemoryType::VRAM, 0, 0, 0};

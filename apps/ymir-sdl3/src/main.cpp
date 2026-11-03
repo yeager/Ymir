@@ -352,9 +352,9 @@ int main(int argc, char **argv) {
         }
         if (progOpts.captureNoRender
             && (captureFrameCount == 0 || !progOpts.dumpMemoryAtStartup || !progOpts.captureNoPresent
-                || progOpts.captureScreenshotAtEnd || progOpts.captureSaveStateSlot != 0)) {
+                || progOpts.captureScreenshotAtEnd)) {
             fmt::println("--capture-no-render requires --capture-no-present, a frame capture, and --dump-memory; "
-                         "it cannot be combined with screenshots or save states");
+                         "it cannot be combined with screenshots");
             return -1;
         }
         if (progOpts.captureControlPadStart

@@ -1314,6 +1314,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             audio.SetSync(audioSync);
         }};
         const auto rendererType = vdp.GetRenderer().GetType();
+        bool restoreSoftwareRenderer = captureNoRender && rendererType == ymir::vdp::VDPRendererType::Software;
         if (captureNoRender) {
             auto result = vdp.UseNullRenderer();
             if (!result) {
@@ -1322,7 +1323,7 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
             }
         }
         util::ScopeGuard restoreRenderer{[&] {
-            if (captureNoRender && rendererType == ymir::vdp::VDPRendererType::Software) {
+            if (restoreSoftwareRenderer) {
                 if (auto result = vdp.UseSoftwareRenderer(); !result) {
                     devlog::error<grp::base>("Could not restore software VDP renderer: {}", result.Error().message);
                 }
@@ -1367,6 +1368,14 @@ EmuEvent RunFramesAndDump(uint32 frameCount, uint32 controlPadStartFrame, uint32
                 ctx.DisplayMessage("VDP2 render-state trace coverage is incomplete; inspect its receipt");
             }
             vdp.UseVDP2RenderStateTracer(nullptr);
+        }
+        if (saveStateSlot != 0 && captureNoRender) {
+            if (auto result = vdp.UseSoftwareRenderer(); !result) {
+                devlog::error<grp::base>("Could not restore software VDP renderer before saving capture state: {}",
+                                         result.Error().message);
+                return;
+            }
+            restoreSoftwareRenderer = false;
         }
         if (saveStateSlot != 0) {
             const uint32 slotIndex = saveStateSlot - 1;
